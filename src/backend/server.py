@@ -3,6 +3,7 @@ Baltimore Bird - Time Series Server for Automotive Data
 Supports multiple data sources: MF4 files with DBC decoding + synthetic data
 """
 
+import os
 import threading
 import time
 import uuid
@@ -17,14 +18,18 @@ from werkzeug.utils import secure_filename
 
 load_dotenv()
 
-from auth import admin_required, auth_bp, login_required, optional_auth, user_store
-from converter import ConcatenationManager, ConversionManager, ConversionStatus, get_supported_conversions, is_conversion_supported
+from auth import admin_required, auth_bp, login_required, optional_auth, feature_required
+from converter import (
+    ConcatenationManager, ConversionManager, ConversionStatus,
+    get_supported_conversions, is_conversion_supported
+)
 from metrics import metrics
 from metrics_api import metrics_bp
 from scripts_api import scripts_bp
 from user_storage import storage, storage_bp
 
-# Configuration
+
+# --- Configuration ---
 
 BASE_DIR = Path(__file__).parent
 TEMP_DIR = BASE_DIR / "TEMP"
@@ -34,12 +39,22 @@ REPORTS_DIR.mkdir(exist_ok=True)
 
 ALLOWED_EXTENSIONS = {".mf4", ".csv", ".mat", ".dat", ".blf", ".dbc"}
 
+# CORS: origines autorisées (à configurer selon ton environnement)
+ALLOWED_ORIGINS = os.environ.get("CORS_ORIGINS", "").split(",")
+if not ALLOWED_ORIGINS or ALLOWED_ORIGINS == [""]:
+    # Dev mode: localhost seulement
+    ALLOWED_ORIGINS = [
+        "http://localhost:5000",
+        "http://127.0.0.1:5000",
+        "http://localhost:3000",
+    ]
+
 DATA_SOURCES = {
     "mf4": {
         "name": "OBD2 Data (MF4)",
         "description": "Real automotive data from MF4 file",
         "mf4_file": "data/default/mf4/00000002.mf4",
-        "dbc_file": "data/default/dbc//11-bit-OBD2-v4.0.dbc",
+        "dbc_file": "data/default/dbc/11-bit-OBD2-v4.0.dbc",
     },
     "synthetic": {
         "name": "Synthetic Data",
@@ -47,7 +62,8 @@ DATA_SOURCES = {
     },
 }
 
-# Flask App
+
+# --- Flask App ---
 
 app = Flask(__name__)
 app.config["MAX_CONTENT_LENGTH"] = 1500 * 1024 * 1024  # 1500 MB max
@@ -56,9 +72,55 @@ app.register_blueprint(scripts_bp)
 app.register_blueprint(auth_bp)
 app.register_blueprint(metrics_bp)
 app.register_blueprint(storage_bp)
-CORS(app)
 
-# Managers
+# CORS configuré avec origines spécifiques
+CORS(app, origins=ALLOWED_ORIGINS, supports_credentials=True)
+
+
+# --- Security Headers Middleware ---
+
+@app.after_request
+def add_security_headers(response):
+    """Add security headers to all responses."""
+    # HSTS - force HTTPS
+    if not app.debug:
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+
+    # Prevent clickjacking
+    response.headers["X-Frame-Options"] = "DENY"
+
+    # Prevent MIME sniffing
+    response.headers["X-Content-Type-Options"] = "nosniff"
+
+    # XSS Protection (legacy mais utile)
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+
+    # Referrer Policy
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+
+    # Permissions Policy (désactive features sensibles)
+    response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
+
+    # Content Security Policy - STRICT
+    # Autorise les CDN nécessaires (uPlot, Prism.js)
+    csp_directives = [
+        "default-src 'self'",
+        "script-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com",
+        "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com",
+        "img-src 'self' data: blob:",
+        "font-src 'self'",
+        "connect-src 'self'",
+        "frame-ancestors 'none'",
+        "form-action 'self'",
+        "base-uri 'self'",
+        "object-src 'none'",
+    ]
+    response.headers["Content-Security-Policy"] = "; ".join(csp_directives)
+
+    return response
+
+
+# --- Managers ---
 
 conversion_manager = ConversionManager(TEMP_DIR)
 concatenation_manager = ConcatenationManager(TEMP_DIR)
@@ -67,7 +129,54 @@ concatenation_manager = ConcatenationManager(TEMP_DIR)
 eda_sessions = {}
 
 
-# Metrics Middleware
+# --- Path Validation Utilities ---
+
+def is_safe_path(base_dir: Path, requested_path: Path) -> bool:
+    """Check if requested_path is safely within base_dir (prevent path traversal)."""
+    try:
+        base_resolved = base_dir.resolve()
+        requested_resolved = requested_path.resolve()
+        return str(requested_resolved).startswith(str(base_resolved))
+    except (OSError, ValueError):
+        return False
+
+
+def validate_temp_file_path(file_path: str) -> Optional[Path]:
+    """Validate that a file path is within TEMP_DIR and exists."""
+    if not file_path:
+        return None
+    path = Path(file_path)
+    if not is_safe_path(TEMP_DIR, path):
+        return None
+    if not path.exists():
+        return None
+    return path
+
+
+def validate_user_file_path(user_id: str, file_path: str) -> Optional[Path]:
+    """Validate that a file path is within user's data directory."""
+    if not file_path or not user_id:
+        return None
+    user_dir = BASE_DIR / "data" / "users" / user_id
+    path = Path(file_path)
+    if not is_safe_path(user_dir, path) and not is_safe_path(TEMP_DIR, path):
+        return None
+    if not path.exists():
+        return None
+    return path
+
+
+def sanitize_task_id(task_id: str) -> Optional[str]:
+    """Validate task ID format (UUID or short UUID)."""
+    if not task_id or len(task_id) > 36:
+        return None
+    # Allow only alphanumeric and hyphens
+    if not all(c.isalnum() or c == '-' for c in task_id):
+        return None
+    return task_id
+
+
+# --- Metrics Middleware ---
 
 @app.before_request
 def before_request():
@@ -93,10 +202,44 @@ def after_request(response):
                 status_code=response.status_code,
             )
 
-    return response
+    return add_security_headers(response)
 
 
-# Cleanup Thread
+# --- Error Handlers ---
+
+@app.errorhandler(400)
+def bad_request(e):
+    return jsonify({"error": "Requête invalide"}), 400
+
+
+@app.errorhandler(401)
+def unauthorized(e):
+    return jsonify({"error": "Authentification requise"}), 401
+
+
+@app.errorhandler(403)
+def forbidden(e):
+    return jsonify({"error": "Accès interdit"}), 403
+
+
+@app.errorhandler(404)
+def not_found(e):
+    return jsonify({"error": "Ressource introuvable"}), 404
+
+
+@app.errorhandler(413)
+def request_entity_too_large(e):
+    return jsonify({"error": "Fichier trop volumineux (max 1500 MB)"}), 413
+
+
+@app.errorhandler(500)
+def internal_error(e):
+    # Log l'erreur côté serveur mais ne pas exposer les détails
+    app.logger.error(f"Internal error: {e}")
+    return jsonify({"error": "Erreur interne du serveur"}), 500
+
+
+# --- Cleanup Thread ---
 
 def cleanup_loop():
     """Clean old files every 10 minutes."""
@@ -108,14 +251,14 @@ def cleanup_loop():
             if deleted_conv > 0 or deleted_concat > 0:
                 print(f"  🧹 Cleanup: {deleted_conv} conversion(s), {deleted_concat} concatenation(s) deleted")
         except Exception as e:
-            print(f"  ⚠ Cleanup error: {e}")
+            app.logger.error(f"Cleanup error: {e}")
 
 
 cleanup_thread = threading.Thread(target=cleanup_loop, daemon=True)
 cleanup_thread.start()
 
 
-# LTTB Downsampling
+# --- LTTB Downsampling ---
 
 def _lttb_numpy(x, y, threshold):
     """Pure NumPy implementation of LTTB."""
@@ -210,7 +353,10 @@ try:
             max_area_point = range_start
 
             for j in range(range_start, range_end):
-                area = abs((point_ax - avg_x) * (y[j] - point_ay) - (point_ax - x[j]) * (avg_y - point_ay))
+                area = abs(
+                    (point_ax - avg_x) * (y[j] - point_ay)
+                    - (point_ax - x[j]) * (avg_y - point_ay)
+                )
                 if area > max_area:
                     max_area = area
                     max_area_point = j
@@ -236,13 +382,10 @@ except ImportError:
     lttb_downsample = _lttb_numpy
 
 
-# Multi-Group Channel Fetching
+# --- Multi-Group Channel Fetching ---
 
 def fetch_signal_multigroup(mdf, channel_name: str):
-    """
-    Fetch signal data, handling channels that exist in multiple groups.
-    When a channel exists in multiple CAN groups, we try each group and return the first with valid data.
-    """
+    """Fetch signal data, handling channels that exist in multiple groups."""
     try:
         groups = mdf.channels_db.get(channel_name, [])
         if not groups:
@@ -269,7 +412,7 @@ def fetch_signal_multigroup(mdf, channel_name: str):
         return None
 
 
-# Data Loaders
+# --- Data Loaders ---
 
 def load_synthetic_data():
     """Generate synthetic test data."""
@@ -430,7 +573,7 @@ def load_csv_file(csv_path):
 
             unit = ""
             if "[" in col and "]" in col:
-                unit = col[col.index("[") + 1 : col.index("]")]
+                unit = col[col.index("[") + 1: col.index("]")]
                 name = col[: col.index("[")].strip()
             else:
                 name = col
@@ -449,7 +592,7 @@ def load_csv_file(csv_path):
     return signals, metadata, t_min, t_max
 
 
-# Multi-Source DataStore
+# --- Multi-Source DataStore ---
 
 class MultiSourceDataStore:
     """Manages multiple data sources for the application."""
@@ -607,7 +750,11 @@ class MultiSourceDataStore:
                 "timestamps": ds_ts.tolist(),
                 "values": ds_vals.tolist(),
                 "is_complete": len(view_ts) <= max_points,
-                "stats": {"min": float(np.min(view_vals)), "max": float(np.max(view_vals)), "lttb_ms": round(lttb_time, 2)},
+                "stats": {
+                    "min": float(np.min(view_vals)),
+                    "max": float(np.max(view_vals)),
+                    "lttb_ms": round(lttb_time, 2)
+                },
             })
 
         return result if result["signals"] else None
@@ -616,14 +763,14 @@ class MultiSourceDataStore:
 datastore = MultiSourceDataStore()
 
 
-# Utility Functions
+# --- Utility Functions ---
 
 def allowed_file(filename):
     """Check if file extension is allowed."""
     return Path(filename).suffix.lower() in ALLOWED_EXTENSIONS
 
 
-# API Routes - Data Sources
+# --- API Routes - Data Sources ---
 
 @app.route("/api/sources")
 @optional_auth
@@ -647,7 +794,6 @@ def get_sources():
                     "description": f.description or "Fichier personnel",
                     "available": True,
                     "category": "user",
-                    "file_path": str(file_path),
                     "file_id": f.id,
                     "has_dbc": has_dbc,
                     "size_human": f.to_dict()["size_human"],
@@ -668,6 +814,11 @@ def set_source(source_id):
 
             user_id = user.id
             file_stem = source_id.replace("user_mf4_", "")
+
+            # Validate file_stem (should be UUID-like)
+            if not all(c.isalnum() or c in "-_" for c in file_stem):
+                return jsonify({"error": "ID de fichier invalide"}), 400
+
             user_mf4_dir = BASE_DIR / "data" / "users" / user_id / "mf4"
 
             mf4_path = None
@@ -679,6 +830,10 @@ def set_source(source_id):
             if not mf4_path or not mf4_path.exists():
                 return jsonify({"error": "Fichier introuvable"}), 404
 
+            # Validate path is within user directory
+            if not is_safe_path(user_mf4_dir, mf4_path):
+                return jsonify({"error": "Accès non autorisé"}), 403
+
             dbc_path = None
             user_dbc_dir = BASE_DIR / "data" / "users" / user_id / "dbc"
             if user_dbc_dir.exists():
@@ -688,6 +843,9 @@ def set_source(source_id):
 
             datastore.load_user_file(mf4_path, dbc_path, source_id)
         else:
+            # Validate source_id for demo sources
+            if source_id not in DATA_SOURCES and not source_id.startswith("session_"):
+                return jsonify({"error": "Source inconnue"}), 404
             datastore.reload(source_id)
 
         return jsonify({
@@ -696,10 +854,13 @@ def set_source(source_id):
             "n_signals": len(datastore.signals),
             "time_range": {"min": datastore.t_min, "max": datastore.t_max},
         })
+    except FileNotFoundError:
+        return jsonify({"error": "Fichier introuvable"}), 404
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
     except Exception as e:
-        import traceback
-        traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
+        app.logger.error(f"Error loading source {source_id}: {e}")
+        return jsonify({"error": "Erreur lors du chargement de la source"}), 500
 
 
 @app.route("/api/info")
@@ -708,7 +869,8 @@ def get_info():
     try:
         datastore.load()
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        app.logger.error(f"Error loading datastore: {e}")
+        return jsonify({"error": "Erreur de chargement des données"}), 500
 
     return jsonify({
         "source": datastore.current_source,
@@ -728,16 +890,35 @@ def get_view():
     try:
         datastore.load()
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        app.logger.error(f"Error loading datastore: {e}")
+        return jsonify({"error": "Erreur de chargement des données"}), 500
 
+    # Parse and validate signals parameter
     signals_param = request.args.get("signals", "0")
-    signal_indices = (
-        list(range(len(datastore.signals))) if signals_param == "all" else [int(x) for x in signals_param.split(",")]
-    )
+    try:
+        if signals_param == "all":
+            signal_indices = list(range(len(datastore.signals)))
+        else:
+            signal_indices = [int(x) for x in signals_param.split(",") if x.strip()]
+            # Limit number of signals to prevent DoS
+            if len(signal_indices) > 50:
+                signal_indices = signal_indices[:50]
+    except ValueError:
+        return jsonify({"error": "Paramètre signals invalide"}), 400
 
-    start = float(request.args.get("start", datastore.t_min))
-    end = float(request.args.get("end", datastore.t_max))
-    max_points = max(100, min(int(request.args.get("max_points", 2000)), 10000))
+    # Parse and validate time range
+    try:
+        start = float(request.args.get("start", datastore.t_min))
+        end = float(request.args.get("end", datastore.t_max))
+    except (ValueError, TypeError):
+        return jsonify({"error": "Paramètres start/end invalides"}), 400
+
+    # Validate and limit max_points
+    try:
+        max_points = int(request.args.get("max_points", 2000))
+        max_points = max(100, min(max_points, 10000))
+    except (ValueError, TypeError):
+        max_points = 2000
 
     result = datastore.get_view(signal_indices, start, end, max_points)
     return jsonify(result) if result else (jsonify({"error": "No data in range"}), 404)
@@ -754,7 +935,7 @@ def health():
     })
 
 
-# API Routes - Reports
+# --- API Routes - Reports ---
 
 @app.route("/api/reports")
 def list_reports():
@@ -773,7 +954,7 @@ def list_reports():
                 "created": stat.st_mtime,
             })
         except Exception as e:
-            print(f"Error reading report {f}: {e}")
+            app.logger.warning(f"Error reading report {f}: {e}")
             continue
 
     reports.sort(key=lambda x: x["created"], reverse=True)
@@ -784,7 +965,13 @@ def list_reports():
 def get_report(report_id):
     """Return HTML content of a report."""
     safe_id = secure_filename(report_id)
+    if not safe_id or safe_id != report_id:
+        return jsonify({"error": "ID de rapport invalide"}), 400
+
     report_path = REPORTS_DIR / f"{safe_id}.html"
+
+    if not is_safe_path(REPORTS_DIR, report_path):
+        return jsonify({"error": "Accès non autorisé"}), 403
 
     if not report_path.exists():
         return jsonify({"error": "Report not found"}), 404
@@ -796,7 +983,13 @@ def get_report(report_id):
 def download_report(report_id):
     """Download a report as file."""
     safe_id = secure_filename(report_id)
+    if not safe_id or safe_id != report_id:
+        return jsonify({"error": "ID de rapport invalide"}), 400
+
     report_path = REPORTS_DIR / f"{safe_id}.html"
+
+    if not is_safe_path(REPORTS_DIR, report_path):
+        return jsonify({"error": "Accès non autorisé"}), 403
 
     if not report_path.exists():
         return jsonify({"error": "Report not found"}), 404
@@ -805,10 +998,17 @@ def download_report(report_id):
 
 
 @app.route("/api/reports/<report_id>", methods=["DELETE"])
+@feature_required("delete_reports")
 def delete_report(report_id):
-    """Delete a report."""
+    """Delete a report (admin only)."""
     safe_id = secure_filename(report_id)
+    if not safe_id or safe_id != report_id:
+        return jsonify({"error": "ID de rapport invalide"}), 400
+
     report_path = REPORTS_DIR / f"{safe_id}.html"
+
+    if not is_safe_path(REPORTS_DIR, report_path):
+        return jsonify({"error": "Accès non autorisé"}), 403
 
     if not report_path.exists():
         return jsonify({"error": "Report not found"}), 404
@@ -817,10 +1017,12 @@ def delete_report(report_id):
         report_path.unlink()
         return jsonify({"success": True, "message": f"Report {safe_id} deleted"})
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        app.logger.error(f"Error deleting report {safe_id}: {e}")
+        return jsonify({"error": "Erreur lors de la suppression"}), 500
 
 
 @app.route("/api/reports/upload", methods=["POST"])
+@login_required
 def upload_report():
     """Upload an external HTML report."""
     if "file" not in request.files:
@@ -834,14 +1036,22 @@ def upload_report():
         return jsonify({"error": "Only HTML files accepted"}), 400
 
     filename = secure_filename(file.filename)
+    if not filename:
+        return jsonify({"error": "Nom de fichier invalide"}), 400
+
     report_path = REPORTS_DIR / filename
+
+    if not is_safe_path(REPORTS_DIR, report_path):
+        return jsonify({"error": "Nom de fichier non autorisé"}), 403
 
     if report_path.exists():
         base = report_path.stem
         counter = 1
-        while report_path.exists():
+        while report_path.exists() and counter < 100:
             report_path = REPORTS_DIR / f"{base}_{counter}.html"
             counter += 1
+        if counter >= 100:
+            return jsonify({"error": "Trop de fichiers avec ce nom"}), 400
 
     file.save(report_path)
 
@@ -853,7 +1063,7 @@ def upload_report():
     })
 
 
-# API Routes - Conversion
+# --- API Routes - Conversion ---
 
 @app.route("/api/convert/formats")
 def get_conversion_formats():
@@ -866,6 +1076,7 @@ def get_conversion_formats():
 
 
 @app.route("/api/convert/upload", methods=["POST"])
+@optional_auth
 def upload_for_conversion():
     """Upload a file for conversion."""
     if "file" not in request.files:
@@ -878,8 +1089,11 @@ def upload_for_conversion():
     if not allowed_file(file.filename):
         return jsonify({"error": f"Extension non supportée. Extensions autorisées: {ALLOWED_EXTENSIONS}"}), 400
 
-    unique_id = str(uuid.uuid4())[:8]
+    unique_id = str(uuid.uuid4())
     filename = secure_filename(file.filename)
+    if not filename:
+        return jsonify({"error": "Nom de fichier invalide"}), 400
+
     input_path = TEMP_DIR / f"{unique_id}_{filename}"
     file.save(input_path)
 
@@ -890,9 +1104,10 @@ def upload_for_conversion():
         dbc_file = request.files["dbc"]
         if dbc_file.filename and dbc_file.filename.lower().endswith(".dbc"):
             dbc_filename = secure_filename(dbc_file.filename)
-            dbc_path = TEMP_DIR / f"{unique_id}_{dbc_filename}"
-            dbc_file.save(dbc_path)
-            print(f"  ✓ Uploaded DBC: {dbc_path}")
+            if dbc_filename:
+                dbc_path = TEMP_DIR / f"{unique_id}_{dbc_filename}"
+                dbc_file.save(dbc_path)
+                print(f"  ✓ Uploaded DBC: {dbc_path}")
 
     return jsonify({
         "success": True,
@@ -905,6 +1120,7 @@ def upload_for_conversion():
 
 
 @app.route("/api/convert/start", methods=["POST"])
+@optional_auth
 def start_conversion():
     """Start a conversion task."""
     data = request.get_json()
@@ -913,16 +1129,21 @@ def start_conversion():
         return jsonify({"error": "Données JSON requises"}), 400
 
     file_path = data.get("file_path")
-    output_format = data.get("output_format")
+    output_format = data.get("output_format", "").lower()
     dbc_path = data.get("dbc_path")
     resample_raster = data.get("resample_raster")
 
     if not file_path or not output_format:
         return jsonify({"error": "file_path et output_format requis"}), 400
 
-    input_path = Path(file_path)
-    if not input_path.exists():
-        return jsonify({"error": "Fichier introuvable"}), 404
+    # Validate output_format
+    if not output_format.isalnum() or len(output_format) > 10:
+        return jsonify({"error": "Format de sortie invalide"}), 400
+
+    # Validate file paths - MUST be in TEMP_DIR
+    input_path = validate_temp_file_path(file_path)
+    if not input_path:
+        return jsonify({"error": "Fichier introuvable ou accès non autorisé"}), 404
 
     input_ext = input_path.suffix.lower().lstrip(".")
     if not is_conversion_supported(input_ext, output_format):
@@ -931,22 +1152,35 @@ def start_conversion():
             "supported": get_supported_conversions(),
         }), 400
 
-    dbc = Path(dbc_path) if dbc_path else None
+    dbc = None
+    if dbc_path:
+        dbc = validate_temp_file_path(dbc_path)
+        # DBC is optional, don't fail if not found
+
     task = conversion_manager.create_task(input_path, output_format, dbc, resample_raster)
     conversion_manager.run_conversion(task.id)
 
     if hasattr(g, "session_id"):
         metrics.record_action(g.session_id, "conversion_started")
 
-    print(f"  → Conversion started: {task.id} ({input_path.name} → .{output_format}, raster={resample_raster})")
+    print(f"  → Conversion started: {task.id} ({input_path.name} → .{output_format})")
 
-    return jsonify({"success": True, "task_id": task.id, "status": task.status.value, "message": "Conversion démarrée"})
+    return jsonify({
+        "success": True,
+        "task_id": task.id,
+        "status": task.status.value,
+        "message": "Conversion démarrée"
+    })
 
 
 @app.route("/api/convert/status/<task_id>")
 def get_conversion_status(task_id):
     """Get conversion task status."""
-    task = conversion_manager.get_task(task_id)
+    safe_task_id = sanitize_task_id(task_id)
+    if not safe_task_id:
+        return jsonify({"error": "ID de tâche invalide"}), 400
+
+    task = conversion_manager.get_task(safe_task_id)
 
     if not task:
         return jsonify({"error": "Tâche introuvable"}), 404
@@ -963,7 +1197,7 @@ def get_conversion_status(task_id):
         response["download_url"] = f"/api/convert/download/{task.id}"
 
     if task.status == ConversionStatus.FAILED:
-        response["error"] = task.error
+        response["error"] = "La conversion a échoué"  # Don't expose internal error details
 
     return jsonify(response)
 
@@ -971,7 +1205,11 @@ def get_conversion_status(task_id):
 @app.route("/api/convert/download/<task_id>")
 def download_converted_file(task_id):
     """Download converted file."""
-    task = conversion_manager.get_task(task_id)
+    safe_task_id = sanitize_task_id(task_id)
+    if not safe_task_id:
+        return jsonify({"error": "ID de tâche invalide"}), 400
+
+    task = conversion_manager.get_task(safe_task_id)
 
     if not task:
         return jsonify({"error": "Tâche introuvable"}), 404
@@ -982,20 +1220,27 @@ def download_converted_file(task_id):
     if not task.output_file or not task.output_file.exists():
         return jsonify({"error": "Fichier de sortie introuvable"}), 404
 
+    # Validate output file is in TEMP_DIR
+    if not is_safe_path(TEMP_DIR, task.output_file):
+        return jsonify({"error": "Accès non autorisé"}), 403
+
     return send_file(task.output_file, as_attachment=True, download_name=task.output_file.name)
 
 
 @app.route("/api/convert/cleanup", methods=["POST"])
+@admin_required
 def cleanup_conversions():
-    """Cleanup old conversion tasks."""
+    """Cleanup old conversion tasks (admin only)."""
     max_age = request.args.get("max_age_hours", 24, type=int)
+    max_age = max(1, min(max_age, 168))  # Between 1h and 1 week
     deleted = conversion_manager.cleanup_old_tasks(max_age)
     return jsonify({"success": True, "deleted_tasks": deleted})
 
 
-# API Routes - Concatenation
+# --- API Routes - Concatenation ---
 
 @app.route("/api/concat/upload-single", methods=["POST"])
+@optional_auth
 def upload_concat_single_file():
     """Upload a single MF4 file for concatenation."""
     if "file" not in request.files:
@@ -1004,14 +1249,25 @@ def upload_concat_single_file():
     file = request.files["file"]
     index = request.form.get("index", "0")
 
+    # Validate index
+    try:
+        index_int = int(index)
+        if index_int < 0 or index_int > 100:
+            return jsonify({"error": "Index invalide"}), 400
+    except ValueError:
+        return jsonify({"error": "Index invalide"}), 400
+
     if not file.filename:
         return jsonify({"error": "Nom de fichier vide"}), 400
 
     if not file.filename.lower().endswith(".mf4"):
         return jsonify({"error": "Seuls les fichiers MF4 sont acceptés"}), 400
 
-    file_id = str(uuid.uuid4())[:8]
+    file_id = str(uuid.uuid4())
     filename = secure_filename(file.filename)
+    if not filename:
+        return jsonify({"error": "Nom de fichier invalide"}), 400
+
     file_path = TEMP_DIR / f"concat_{file_id}_{index}_{filename}"
     file.save(file_path)
 
@@ -1027,6 +1283,7 @@ def upload_concat_single_file():
 
 
 @app.route("/api/concat/start", methods=["POST"])
+@optional_auth
 def start_concatenation():
     """Start a concatenation task."""
     data = request.get_json()
@@ -1036,15 +1293,21 @@ def start_concatenation():
 
     file_paths = data.get("file_paths", [])
 
+    if not isinstance(file_paths, list):
+        return jsonify({"error": "file_paths doit être une liste"}), 400
+
     if len(file_paths) < 2:
         return jsonify({"error": "Au moins 2 fichiers requis"}), 400
 
+    if len(file_paths) > 20:
+        return jsonify({"error": "Maximum 20 fichiers autorisés"}), 400
+
     input_paths = []
     for fp in file_paths:
-        p = Path(fp)
-        if not p.exists():
-            return jsonify({"error": f"Fichier introuvable: {p.name}"}), 404
-        input_paths.append(p)
+        validated = validate_temp_file_path(fp)
+        if not validated:
+            return jsonify({"error": f"Fichier introuvable ou accès non autorisé"}), 404
+        input_paths.append(validated)
 
     task = concatenation_manager.create_task(input_paths)
     concatenation_manager.run_concatenation(task.id)
@@ -1054,13 +1317,22 @@ def start_concatenation():
 
     print(f"  → Concatenation started: {task.id} ({len(input_paths)} files)")
 
-    return jsonify({"success": True, "task_id": task.id, "status": task.status.value, "message": "Concaténation démarrée"})
+    return jsonify({
+        "success": True,
+        "task_id": task.id,
+        "status": task.status.value,
+        "message": "Concaténation démarrée"
+    })
 
 
 @app.route("/api/concat/status/<task_id>")
 def get_concat_status(task_id):
     """Get concatenation task status."""
-    task = concatenation_manager.get_task(task_id)
+    safe_task_id = sanitize_task_id(task_id)
+    if not safe_task_id:
+        return jsonify({"error": "ID de tâche invalide"}), 400
+
+    task = concatenation_manager.get_task(safe_task_id)
 
     if not task:
         return jsonify({"error": "Tâche introuvable"}), 404
@@ -1078,7 +1350,7 @@ def get_concat_status(task_id):
         response["stats"] = task.stats
 
     if task.status == ConversionStatus.FAILED:
-        response["error"] = task.error
+        response["error"] = "La concaténation a échoué"
 
     return jsonify(response)
 
@@ -1086,7 +1358,11 @@ def get_concat_status(task_id):
 @app.route("/api/concat/download/<task_id>")
 def download_concat_file(task_id):
     """Download concatenated file."""
-    task = concatenation_manager.get_task(task_id)
+    safe_task_id = sanitize_task_id(task_id)
+    if not safe_task_id:
+        return jsonify({"error": "ID de tâche invalide"}), 400
+
+    task = concatenation_manager.get_task(safe_task_id)
 
     if not task:
         return jsonify({"error": "Tâche introuvable"}), 404
@@ -1097,10 +1373,13 @@ def download_concat_file(task_id):
     if not task.output_file or not task.output_file.exists():
         return jsonify({"error": "Fichier de sortie introuvable"}), 404
 
+    if not is_safe_path(TEMP_DIR, task.output_file):
+        return jsonify({"error": "Accès non autorisé"}), 403
+
     return send_file(task.output_file, as_attachment=True, download_name=task.output_file.name)
 
 
-# API Routes - Metrics
+# --- API Routes - Metrics ---
 
 @app.route("/api/metrics/current")
 def get_current_metrics():
@@ -1112,6 +1391,11 @@ def get_current_metrics():
 @app.route("/api/metrics/daily/<date_str>")
 def get_daily_metrics(date_str=None):
     """Get metrics for a specific day."""
+    # Validate date format if provided
+    if date_str:
+        import re
+        if not re.match(r"^\d{4}-\d{2}-\d{2}$", date_str):
+            return jsonify({"error": "Format de date invalide (YYYY-MM-DD)"}), 400
     return jsonify(metrics.get_daily_report(date_str))
 
 
@@ -1124,10 +1408,10 @@ def get_weekly_metrics():
 @app.route("/api/metrics/health")
 def health_check():
     """Simple health check endpoint."""
-    return jsonify({"status": "healthy", "timestamp": time.time(), "uptime": "N/A"})
+    return jsonify({"status": "healthy", "timestamp": time.time()})
 
 
-# API Routes - EDA Upload
+# --- API Routes - EDA Upload ---
 
 @app.route("/api/eda/upload", methods=["POST"])
 @login_required
@@ -1146,6 +1430,9 @@ def upload_eda_file():
     user = g.current_user
     user_id = user.id
     filename = secure_filename(file.filename)
+    if not filename:
+        return jsonify({"error": "Nom de fichier invalide"}), 400
+
     file_ext = Path(filename).suffix.lower()
 
     if file_ext == ".mf4":
@@ -1157,7 +1444,7 @@ def upload_eda_file():
 
     dest_dir.mkdir(parents=True, exist_ok=True)
 
-    file_id = str(uuid.uuid4())[:8]
+    file_id = str(uuid.uuid4())
     file_path = dest_dir / f"{file_id}_{filename}"
     file.save(file_path)
     print(f"EDA Upload: {file_path} ({file_path.stat().st_size / 1024 / 1024:.2f} MB)")
@@ -1167,13 +1454,13 @@ def upload_eda_file():
         dbc_file = request.files["dbc"]
         if dbc_file.filename and dbc_file.filename.lower().endswith(".dbc"):
             dbc_filename = secure_filename(dbc_file.filename)
-            dbc_dir = BASE_DIR / "data" / "users" / user_id / "dbc"
-            dbc_dir.mkdir(parents=True, exist_ok=True)
-
-            dbc_id = str(uuid.uuid4())[:8]
-            dbc_path = dbc_dir / f"{dbc_id}_{dbc_filename}"
-            dbc_file.save(dbc_path)
-            print(f"EDA DBC saved: {dbc_path}")
+            if dbc_filename:
+                dbc_dir = BASE_DIR / "data" / "users" / user_id / "dbc"
+                dbc_dir.mkdir(parents=True, exist_ok=True)
+                dbc_id = str(uuid.uuid4())
+                dbc_path = dbc_dir / f"{dbc_id}_{dbc_filename}"
+                dbc_file.save(dbc_path)
+                print(f"EDA DBC saved: {dbc_path}")
 
     if not dbc_path:
         user_dbc_dir = BASE_DIR / "data" / "users" / user_id / "dbc"
@@ -1208,60 +1495,23 @@ def upload_eda_file():
             "filename": file_path.name,
             "n_signals": len(signals),
             "duration": t_max - t_min,
-            "saved_to": str(file_path.relative_to(BASE_DIR)),
         })
 
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
     except Exception as e:
-        import traceback
-        traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
+        app.logger.error(f"EDA upload error: {e}")
+        return jsonify({"error": "Erreur lors du traitement du fichier"}), 500
 
 
-# API Routes - Debug
-
-@app.route("/api/debug/user-files")
-@optional_auth
-def debug_user_files():
-    """Debug: check user files."""
-    user = getattr(g, "current_user", None)
-
-    if not user:
-        return jsonify({
-            "error": "Non connecté",
-            "g_has_current_user": hasattr(g, "current_user"),
-            "auth_header": request.headers.get("Authorization", "None")[:50],
-        })
-
-    user_id = user.id
-    user_mf4_dir = BASE_DIR / "data" / "users" / user_id / "mf4"
-
-    result = {
-        "user_id": user_id,
-        "user_email": user.email,
-        "mf4_dir": str(user_mf4_dir),
-        "dir_exists": user_mf4_dir.exists(),
-        "files": [],
-    }
-
-    if user_mf4_dir.exists():
-        for f in user_mf4_dir.iterdir():
-            result["files"].append({
-                "name": f.name,
-                "is_file": f.is_file(),
-                "suffix": f.suffix,
-                "size": f.stat().st_size if f.is_file() else 0,
-            })
-
-    return jsonify(result)
-
-
-# Main
+# --- Main ---
 
 if __name__ == "__main__":
     print("=" * 60)
     print("  BALTIMORE BIRD - Automotive Time Series Viewer")
     print("=" * 60)
     print(f"\n  TEMP directory: {TEMP_DIR}")
+    print(f"  CORS origins: {ALLOWED_ORIGINS}")
     print("\n  Available data sources:")
     for src in datastore.get_available_sources():
         print(f"    {'✓' if src['available'] else '✗'} {src['id']:12s} - {src['name']}")

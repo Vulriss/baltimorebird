@@ -10,12 +10,14 @@ Categories:
 """
 
 import os
+import re
 import json
 import uuid
 from pathlib import Path
 from datetime import datetime
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Literal, Optional
+import threading
 
 from werkzeug.utils import secure_filename
 from flask import Blueprint, g, jsonify, request, send_file
@@ -24,9 +26,13 @@ from auth import Database, admin_required, db, login_required
 
 # INFO : Be careful with PEP 484 (Optional msut be used when the default value is None -> trigger warning on vscode)
 
-# Configuration
+# --- Configuration ---
 
 DEFAULT_QUOTA_BYTES = 5 * 1024 * 1024 * 1024  # 5 GB
+MAX_FILES_PER_USER = 1000  # Limite nombre de fichiers par utilisateur
+MAX_FILES_PER_CATEGORY = 200  # Limite par catégorie
+MAX_JSON_SIZE_BYTES = 5 * 1024 * 1024  # 5 MB pour les JSON
+MAX_JSON_DEPTH = 10  # Profondeur max des JSON
 
 FileCategory = Literal["mf4", "dbc", "layouts", "mappings", "analyses"]
 
@@ -72,7 +78,57 @@ for category in CATEGORIES:
 USERS_ROOT.mkdir(parents=True, exist_ok=True)
 
 
-# Models
+# --- Validation Utilities ---
+
+def is_valid_uuid(value: str) -> bool:
+    """Vérifie si une chaîne est un UUID valide."""
+    try:
+        uuid.UUID(value)
+        return True
+    except (ValueError, TypeError, AttributeError):
+        return False
+
+
+def is_safe_path(base_dir: Path, requested_path: Path) -> bool:
+    """Vérifie que le chemin est bien dans le répertoire autorisé."""
+    try:
+        base_resolved = base_dir.resolve()
+        requested_resolved = requested_path.resolve()
+        return str(requested_resolved).startswith(str(base_resolved))
+    except (OSError, ValueError):
+        return False
+
+
+def validate_category(category: str) -> bool:
+    """Vérifie que la catégorie est valide."""
+    return category in CATEGORIES
+
+
+def validate_json_depth(obj: Any, current_depth: int = 0) -> bool:
+    """Vérifie que le JSON ne dépasse pas la profondeur maximale."""
+    if current_depth > MAX_JSON_DEPTH:
+        return False
+    if isinstance(obj, dict):
+        return all(validate_json_depth(v, current_depth + 1) for v in obj.values())
+    if isinstance(obj, list):
+        return all(validate_json_depth(item, current_depth + 1) for item in obj)
+    return True
+
+
+def sanitize_filename(filename: str) -> Optional[str]:
+    """Nettoie et valide un nom de fichier. Retourne None si invalide."""
+    if not filename:
+        return None
+    safe = secure_filename(filename)
+    if not safe or safe == "":
+        return None
+    # Limite la longueur
+    if len(safe) > 200:
+        safe = safe[:200]
+    return safe
+
+
+# --- Models ---
 
 def format_size(size_bytes: int) -> str:
     """Format bytes to human readable string."""
@@ -89,7 +145,7 @@ class StoredFile:
     """Represents a stored file."""
 
     id: str
-    user_id: Optional[str]  # None = default/DEMO file
+    user_id: Optional[str]
     category: str
     filename: str
     original_name: str
@@ -143,7 +199,7 @@ class StoredFile:
         )
 
 
-# Utilities
+# --- File Utilities ---
 
 def allowed_file(filename: str, category: str) -> bool:
     """Check if file extension is allowed for the category."""
@@ -160,15 +216,22 @@ def get_file_extension(filename: str) -> str:
 
 def get_storage_path(user_id: Optional[str], category: str) -> Path:
     """Return storage path for user/category."""
+    if not validate_category(category):
+        raise ValueError(f"Catégorie invalide: {category}")
+
     if user_id is None:
         path = DEFAULT_ROOT / category
     else:
+        if not is_valid_uuid(user_id):
+            raise ValueError("User ID invalide")
+        # Utilise seulement les premiers caractères pour éviter les paths trop longs
         path = USERS_ROOT / user_id / category
+
     path.mkdir(parents=True, exist_ok=True)
     return path
 
 
-# Database Schema
+# --- Database Schema ---
 
 def init_storage_tables():
     """Initialize storage tables."""
@@ -205,15 +268,24 @@ def init_storage_tables():
     print(f"      Users:   {USERS_ROOT}")
 
 
-# Storage Manager
+# --- Storage Manager ---
 
 class StorageManager:
     """Multi-category storage manager."""
 
     def __init__(self, database: Database):
         self.db = database
+        self._upload_locks: Dict[str, threading.Lock] = {}
+        self._locks_lock = threading.Lock()
         init_storage_tables()
         self._scan_default_files()
+
+    def _get_user_lock(self, user_id: str) -> threading.Lock:
+        """Obtient un lock par utilisateur pour éviter les race conditions."""
+        with self._locks_lock:
+            if user_id not in self._upload_locks:
+                self._upload_locks[user_id] = threading.Lock()
+            return self._upload_locks[user_id]
 
     def _scan_default_files(self):
         """Scan and register default (DEMO) files."""
@@ -246,10 +318,13 @@ class StorageManager:
                     )
                     print(f"      Registered default file: {category}/{file_path.name}")
 
-    # Quota Management
+    # --- Quota Management ---
 
     def get_quota(self, user_id: str) -> int:
         """Get user quota in bytes."""
+        if not is_valid_uuid(user_id):
+            return DEFAULT_QUOTA_BYTES
+
         with self.db.get_cursor() as cursor:
             cursor.execute("SELECT quota_bytes FROM user_quotas WHERE user_id = ?", (user_id,))
             row = cursor.fetchone()
@@ -257,6 +332,11 @@ class StorageManager:
 
     def set_quota(self, user_id: str, quota_bytes: int):
         """Set user quota."""
+        if not is_valid_uuid(user_id):
+            raise ValueError("User ID invalide")
+        if quota_bytes < 0:
+            raise ValueError("Quota invalide")
+
         with self.db.get_cursor() as cursor:
             cursor.execute(
                 """
@@ -268,8 +348,13 @@ class StorageManager:
 
     def get_used_space(self, user_id: str, category: Optional[str] = None) -> int:
         """Calculate used space for a user."""
+        if not is_valid_uuid(user_id):
+            return 0
+
         with self.db.get_cursor() as cursor:
             if category:
+                if not validate_category(category):
+                    return 0
                 cursor.execute(
                     "SELECT COALESCE(SUM(size_bytes), 0) as total FROM stored_files WHERE user_id = ? AND category = ?",
                     (user_id, category),
@@ -283,6 +368,9 @@ class StorageManager:
 
     def get_storage_info(self, user_id: str) -> Dict[str, Any]:
         """Return storage info for a user."""
+        if not is_valid_uuid(user_id):
+            raise ValueError("User ID invalide")
+
         quota = self.get_quota(user_id)
         used = self.get_used_space(user_id)
 
@@ -305,63 +393,111 @@ class StorageManager:
             "available_human": format_size(max(0, quota - used)),
             "usage_percent": round((used / quota) * 100, 1) if quota > 0 else 0,
             "by_category": by_category,
+            "limits": {
+                "max_files_total": MAX_FILES_PER_USER,
+                "max_files_per_category": MAX_FILES_PER_CATEGORY,
+            },
         }
 
     def can_upload(self, user_id: str, file_size: int, category: str) -> tuple[bool, str]:
         """Check if user can upload a file."""
+        if not validate_category(category):
+            return False, "Catégorie invalide"
+
+        if not is_valid_uuid(user_id):
+            return False, "User ID invalide"
+
+        # Vérifie la taille max par catégorie
         max_size = CATEGORIES[category]["max_size_mb"] * 1024 * 1024
         if file_size > max_size:
             return False, f"Fichier trop volumineux. Max: {CATEGORIES[category]['max_size_mb']} MB"
 
+        # Vérifie le quota global
         quota = self.get_quota(user_id)
         used = self.get_used_space(user_id)
-
         if used + file_size > quota:
             available = quota - used
             return False, f"Quota dépassé. Disponible: {format_size(available)}"
 
+        # Vérifie le nombre de fichiers total
+        total_files = self.count_files(user_id)
+        if total_files >= MAX_FILES_PER_USER:
+            return False, f"Limite de fichiers atteinte ({MAX_FILES_PER_USER} max)"
+
+        # Vérifie le nombre de fichiers par catégorie
+        category_files = self.count_files(user_id, category)
+        if category_files >= MAX_FILES_PER_CATEGORY:
+            return False, f"Limite de fichiers pour cette catégorie atteinte ({MAX_FILES_PER_CATEGORY} max)"
+
         return True, ""
 
-    # File Operations
+    # --- File Operations ---
 
     def save_file(self, user_id: str, category: str, file, description: str = "", metadata: Optional[Dict] = None) -> StoredFile:
         """Save a user file."""
-        if category not in CATEGORIES:
+        if not validate_category(category):
             raise ValueError(f"Catégorie invalide: {category}")
 
-        original_name = secure_filename(file.filename)
+        if not is_valid_uuid(user_id):
+            raise ValueError("User ID invalide")
+
+        original_name = sanitize_filename(file.filename)
+        if not original_name:
+            raise ValueError("Nom de fichier invalide")
 
         if not allowed_file(original_name, category):
             allowed = ", ".join(CATEGORIES[category]["extensions"])
             raise ValueError(f"Extension non autorisée. Extensions valides: {allowed}")
 
+        # Calcule la taille
         file.seek(0, os.SEEK_END)
         file_size = file.tell()
         file.seek(0)
 
-        can_upload, error_msg = self.can_upload(user_id, file_size, category)
-        if not can_upload:
-            raise ValueError(error_msg)
+        # Lock par utilisateur pour éviter race condition sur quota
+        with self._get_user_lock(user_id):
+            can_upload, error_msg = self.can_upload(user_id, file_size, category)
+            if not can_upload:
+                raise ValueError(error_msg)
 
-        file_id = str(uuid.uuid4())
-        extension = get_file_extension(original_name)
-        stored_filename = f"{file_id}.{extension}"
+            file_id = str(uuid.uuid4())
+            extension = get_file_extension(original_name)
+            stored_filename = f"{file_id}.{extension}"
 
-        storage_path = get_storage_path(user_id, category)
-        file_path = storage_path / stored_filename
-        file.save(file_path)
+            storage_path = get_storage_path(user_id, category)
+            file_path = storage_path / stored_filename
 
-        now = datetime.utcnow().isoformat() + "Z"
-        metadata_json = json.dumps(metadata or {})
+            # Vérifie que le path est sûr
+            if not is_safe_path(storage_path, file_path):
+                raise ValueError("Chemin de fichier invalide")
 
-        with self.db.get_cursor() as cursor:
-            cursor.execute(
-                """
-                INSERT INTO stored_files (id, user_id, category, filename, original_name, size_bytes, uploaded_at, description, metadata)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                (file_id, user_id, category, stored_filename, original_name, file_size, now, description, metadata_json),
-            )
+            file.save(file_path)
+
+            now = datetime.utcnow().isoformat() + "Z"
+
+            # Valide et limite les metadata
+            safe_metadata = {}
+            if metadata:
+                try:
+                    meta_str = json.dumps(metadata)
+                    if len(meta_str) <= 10000 and validate_json_depth(metadata):
+                        safe_metadata = metadata
+                except (TypeError, ValueError):
+                    pass
+
+            metadata_json = json.dumps(safe_metadata)
+
+            # Sanitize description
+            safe_description = str(description)[:500] if description else ""
+
+            with self.db.get_cursor() as cursor:
+                cursor.execute(
+                    """
+                    INSERT INTO stored_files (id, user_id, category, filename, original_name, size_bytes, uploaded_at, description, metadata)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (file_id, user_id, category, stored_filename, original_name, file_size, now, safe_description, metadata_json),
+                )
 
         return StoredFile(
             id=file_id,
@@ -371,8 +507,8 @@ class StorageManager:
             original_name=original_name,
             size_bytes=file_size,
             uploaded_at=now,
-            description=description,
-            metadata=metadata or {},
+            description=safe_description,
+            metadata=safe_metadata,
         )
 
     def save_json(self, user_id: str, category: str, name: str, data: Dict, description: str = "") -> StoredFile:
@@ -380,31 +516,59 @@ class StorageManager:
         if category not in ["layouts", "mappings", "analyses"]:
             raise ValueError(f"Catégorie {category} non supportée pour JSON direct")
 
+        if not is_valid_uuid(user_id):
+            raise ValueError("User ID invalide")
+
+        # Valide le JSON
+        if not isinstance(data, dict):
+            raise ValueError("Les données doivent être un objet JSON")
+
+        if not validate_json_depth(data):
+            raise ValueError(f"JSON trop profond (max {MAX_JSON_DEPTH} niveaux)")
+
         file_id = str(uuid.uuid4())
-        original_name = secure_filename(name) if name.endswith(".json") else secure_filename(name) + ".json"
+
+        # Sanitize le nom
+        safe_name = sanitize_filename(name)
+        if not safe_name:
+            safe_name = "untitled"
+        original_name = safe_name if safe_name.endswith(".json") else f"{safe_name}.json"
         stored_filename = f"{file_id}.json"
 
-        json_str = json.dumps(data, indent=2)
+        try:
+            json_str = json.dumps(data, indent=2)
+        except (TypeError, ValueError) as e:
+            raise ValueError(f"Données JSON invalides: {e}")
+
         file_size = len(json_str.encode("utf-8"))
 
-        can_upload, error_msg = self.can_upload(user_id, file_size, category)
-        if not can_upload:
-            raise ValueError(error_msg)
+        if file_size > MAX_JSON_SIZE_BYTES:
+            raise ValueError(f"JSON trop volumineux (max {MAX_JSON_SIZE_BYTES // 1024 // 1024} MB)")
 
-        storage_path = get_storage_path(user_id, category)
-        file_path = storage_path / stored_filename
-        file_path.write_text(json_str, encoding="utf-8")
+        with self._get_user_lock(user_id):
+            can_upload, error_msg = self.can_upload(user_id, file_size, category)
+            if not can_upload:
+                raise ValueError(error_msg)
 
-        now = datetime.utcnow().isoformat() + "Z"
+            storage_path = get_storage_path(user_id, category)
+            file_path = storage_path / stored_filename
 
-        with self.db.get_cursor() as cursor:
-            cursor.execute(
-                """
-                INSERT INTO stored_files (id, user_id, category, filename, original_name, size_bytes, uploaded_at, description, metadata)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, '{}')
-                """,
-                (file_id, user_id, category, stored_filename, original_name, file_size, now, description),
-            )
+            if not is_safe_path(storage_path, file_path):
+                raise ValueError("Chemin de fichier invalide")
+
+            file_path.write_text(json_str, encoding="utf-8")
+
+            now = datetime.utcnow().isoformat() + "Z"
+            safe_description = str(description)[:500] if description else ""
+
+            with self.db.get_cursor() as cursor:
+                cursor.execute(
+                    """
+                    INSERT INTO stored_files (id, user_id, category, filename, original_name, size_bytes, uploaded_at, description, metadata)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, '{}')
+                    """,
+                    (file_id, user_id, category, stored_filename, original_name, file_size, now, safe_description),
+                )
 
         return StoredFile(
             id=file_id,
@@ -414,13 +578,18 @@ class StorageManager:
             original_name=original_name,
             size_bytes=file_size,
             uploaded_at=now,
-            description=description,
+            description=safe_description,
         )
 
     def get_file(self, file_id: str, user_id: Optional[str] = None) -> Optional[StoredFile]:
         """Get a file by ID. If user_id provided, checks access (user file OR default)."""
+        if not is_valid_uuid(file_id):
+            return None
+
         with self.db.get_cursor() as cursor:
             if user_id:
+                if not is_valid_uuid(user_id):
+                    return None
                 cursor.execute(
                     "SELECT * FROM stored_files WHERE id = ? AND (user_id = ? OR user_id IS NULL)",
                     (file_id, user_id),
@@ -431,14 +600,31 @@ class StorageManager:
             row = cursor.fetchone()
             return StoredFile.from_row(row) if row else None
 
+    def get_default_file(self, file_id: str) -> Optional[StoredFile]:
+        """Get a default file by ID (strictly default files only)."""
+        if not is_valid_uuid(file_id):
+            return None
+
+        with self.db.get_cursor() as cursor:
+            cursor.execute(
+                "SELECT * FROM stored_files WHERE id = ? AND user_id IS NULL",
+                (file_id,),
+            )
+            row = cursor.fetchone()
+            return StoredFile.from_row(row) if row else None
+
     def get_file_path(self, file_id: str, user_id: Optional[str] = None) -> Optional[Path]:
-        """Return physical path of a file."""
+        """Return physical path of a file with security validation."""
         stored_file = self.get_file(file_id, user_id)
         if not stored_file:
             return None
 
         storage_path = get_storage_path(stored_file.user_id, stored_file.category)
         file_path = storage_path / stored_file.filename
+
+        # Validation de sécurité du chemin
+        if not is_safe_path(storage_path, file_path):
+            return None
 
         return file_path if file_path.exists() else None
 
@@ -449,14 +635,22 @@ class StorageManager:
             return None
 
         try:
-            return json.loads(file_path.read_text(encoding="utf-8"))
+            content = file_path.read_text(encoding="utf-8")
+            if len(content) > MAX_JSON_SIZE_BYTES:
+                return None
+            return json.loads(content)
         except (json.JSONDecodeError, OSError):
             return None
 
     def list_files(self, user_id: str, category: Optional[str] = None, include_default: bool = True) -> List[StoredFile]:
-        """List files accessible by a user. Includes default (DEMO) files if include_default=True."""
+        """List files accessible by a user."""
+        if not is_valid_uuid(user_id):
+            return []
+
         with self.db.get_cursor() as cursor:
             if category:
+                if not validate_category(category):
+                    return []
                 if include_default:
                     cursor.execute(
                         """
@@ -493,6 +687,8 @@ class StorageManager:
         """List default (DEMO) files."""
         with self.db.get_cursor() as cursor:
             if category:
+                if not validate_category(category):
+                    return []
                 cursor.execute(
                     "SELECT * FROM stored_files WHERE user_id IS NULL AND category = ? ORDER BY original_name",
                     (category,),
@@ -503,8 +699,13 @@ class StorageManager:
 
     def count_files(self, user_id: str, category: Optional[str] = None) -> int:
         """Count user files."""
+        if not is_valid_uuid(user_id):
+            return 0
+
         with self.db.get_cursor() as cursor:
             if category:
+                if not validate_category(category):
+                    return 0
                 cursor.execute(
                     "SELECT COUNT(*) as cnt FROM stored_files WHERE user_id = ? AND category = ?",
                     (user_id, category),
@@ -515,6 +716,9 @@ class StorageManager:
 
     def delete_file(self, file_id: str, user_id: str) -> bool:
         """Delete a user file (not default files)."""
+        if not is_valid_uuid(file_id) or not is_valid_uuid(user_id):
+            return False
+
         stored_file = self.get_file(file_id, user_id)
 
         if not stored_file:
@@ -529,7 +733,8 @@ class StorageManager:
         storage_path = get_storage_path(user_id, stored_file.category)
         file_path = storage_path / stored_file.filename
 
-        if file_path.exists():
+        # Validation de sécurité
+        if is_safe_path(storage_path, file_path) and file_path.exists():
             file_path.unlink()
 
         with self.db.get_cursor() as cursor:
@@ -538,6 +743,9 @@ class StorageManager:
 
     def update_file(self, file_id: str, user_id: str, description: Optional[str] = None, metadata: Optional[Dict] = None) -> bool:
         """Update file metadata."""
+        if not is_valid_uuid(file_id) or not is_valid_uuid(user_id):
+            return False
+
         stored_file = self.get_file(file_id, user_id)
 
         if not stored_file or stored_file.is_default or stored_file.user_id != user_id:
@@ -547,12 +755,19 @@ class StorageManager:
         params = []
 
         if description is not None:
+            safe_description = str(description)[:500]
             updates.append("description = ?")
-            params.append(description)
+            params.append(safe_description)
 
         if metadata is not None:
-            updates.append("metadata = ?")
-            params.append(json.dumps(metadata))
+            if isinstance(metadata, dict) and validate_json_depth(metadata):
+                try:
+                    meta_str = json.dumps(metadata)
+                    if len(meta_str) <= 10000:
+                        updates.append("metadata = ?")
+                        params.append(meta_str)
+                except (TypeError, ValueError):
+                    pass
 
         if not updates:
             return True
@@ -564,11 +779,12 @@ class StorageManager:
             return cursor.rowcount > 0
 
 
-# Initialization
+# --- Initialization ---
 
 storage = StorageManager(db)
 
-# Flask Blueprint
+
+# --- Flask Blueprint ---
 
 storage_bp = Blueprint("storage", __name__)
 
@@ -578,9 +794,12 @@ storage_bp = Blueprint("storage", __name__)
 def get_storage_info():
     """Return storage info for current user."""
     user = g.current_user
-    info = storage.get_storage_info(user.id)
-    info["categories"] = {k: v["name"] for k, v in CATEGORIES.items()}
-    return jsonify(info)
+    try:
+        info = storage.get_storage_info(user.id)
+        info["categories"] = {k: v["name"] for k, v in CATEGORIES.items()}
+        return jsonify(info)
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
 
 
 @storage_bp.route("/api/storage/files", methods=["GET"])
@@ -591,7 +810,7 @@ def list_files():
     category = request.args.get("category")
     include_default = request.args.get("include_default", "true").lower() == "true"
 
-    if category and category not in CATEGORIES:
+    if category and not validate_category(category):
         return jsonify({"error": "Catégorie invalide"}), 400
 
     files = storage.list_files(user.id, category, include_default)
@@ -605,21 +824,25 @@ def upload_file(category):
     """Upload a file to a category."""
     user = g.current_user
 
-    if category not in CATEGORIES:
+    if not validate_category(category):
         return jsonify({"error": "Catégorie invalide"}), 400
 
     if "file" not in request.files:
         return jsonify({"error": "Aucun fichier fourni"}), 400
 
     file = request.files["file"]
-    if file.filename == "":
+    if not file.filename:
         return jsonify({"error": "Nom de fichier vide"}), 400
 
-    description = request.form.get("description", "")
+    description = request.form.get("description", "")[:500]
 
     try:
         stored_file = storage.save_file(user.id, category, file, description)
-        return jsonify({"success": True, "file": stored_file.to_dict(), "storage": storage.get_storage_info(user.id)}), 201
+        return jsonify({
+            "success": True,
+            "file": stored_file.to_dict(),
+            "storage": storage.get_storage_info(user.id)
+        }), 201
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
 
@@ -638,8 +861,11 @@ def save_json_route(category):
         return jsonify({"error": "Données JSON requises"}), 400
 
     name = data.get("name", "untitled")
-    content = data.get("content", {})
+    content = data.get("content")
     description = data.get("description", "")
+
+    if not isinstance(content, dict):
+        return jsonify({"error": "Le contenu doit être un objet JSON"}), 400
 
     try:
         stored_file = storage.save_json(user.id, category, name, content, description)
@@ -652,6 +878,9 @@ def save_json_route(category):
 @login_required
 def get_file_info(file_id):
     """Get file info."""
+    if not is_valid_uuid(file_id):
+        return jsonify({"error": "ID de fichier invalide"}), 400
+
     user = g.current_user
     stored_file = storage.get_file(file_id, user.id)
 
@@ -665,6 +894,9 @@ def get_file_info(file_id):
 @login_required
 def download_file(file_id):
     """Download a file."""
+    if not is_valid_uuid(file_id):
+        return jsonify({"error": "ID de fichier invalide"}), 400
+
     user = g.current_user
     stored_file = storage.get_file(file_id, user.id)
 
@@ -683,6 +915,9 @@ def download_file(file_id):
 @login_required
 def get_file_content(file_id):
     """Get JSON file content."""
+    if not is_valid_uuid(file_id):
+        return jsonify({"error": "ID de fichier invalide"}), 400
+
     user = g.current_user
     stored_file = storage.get_file(file_id, user.id)
 
@@ -704,11 +939,21 @@ def get_file_content(file_id):
 @login_required
 def update_file_route(file_id):
     """Update file metadata."""
+    if not is_valid_uuid(file_id):
+        return jsonify({"error": "ID de fichier invalide"}), 400
+
     user = g.current_user
     data = request.get_json()
 
+    if not data:
+        return jsonify({"error": "Données requises"}), 400
+
     try:
-        success = storage.update_file(file_id, user.id, description=data.get("description"), metadata=data.get("metadata"))
+        success = storage.update_file(
+            file_id, user.id,
+            description=data.get("description"),
+            metadata=data.get("metadata")
+        )
 
         if success:
             stored_file = storage.get_file(file_id, user.id)
@@ -724,6 +969,9 @@ def update_file_route(file_id):
 @login_required
 def delete_file_route(file_id):
     """Delete a file."""
+    if not is_valid_uuid(file_id):
+        return jsonify({"error": "ID de fichier invalide"}), 400
+
     user = g.current_user
 
     try:
@@ -734,14 +982,14 @@ def delete_file_route(file_id):
         return jsonify({"error": str(e)}), 403
 
 
-# Public routes (DEMO files)
+# --- Public routes (DEMO files) ---
 
 @storage_bp.route("/api/storage/default", methods=["GET"])
 def list_default_files_route():
     """List default (DEMO) files - accessible to all."""
     category = request.args.get("category")
 
-    if category and category not in CATEGORIES:
+    if category and not validate_category(category):
         return jsonify({"error": "Catégorie invalide"}), 400
 
     files = storage.list_default_files(category)
@@ -756,9 +1004,13 @@ def list_default_files_route():
 @storage_bp.route("/api/storage/default/<file_id>/download", methods=["GET"])
 def download_default_file(file_id):
     """Download a default file - accessible to all."""
-    stored_file = storage.get_file(file_id)
+    if not is_valid_uuid(file_id):
+        return jsonify({"error": "ID de fichier invalide"}), 400
 
-    if not stored_file or not stored_file.is_default:
+    # Utilise get_default_file pour s'assurer que c'est bien un fichier default
+    stored_file = storage.get_default_file(file_id)
+
+    if not stored_file:
         return jsonify({"error": "Fichier non trouvé"}), 404
 
     file_path = storage.get_file_path(file_id)
@@ -769,7 +1021,7 @@ def download_default_file(file_id):
     return send_file(file_path, as_attachment=True, download_name=stored_file.original_name)
 
 
-# Admin routes
+# --- Admin routes ---
 
 @storage_bp.route("/api/admin/storage/stats", methods=["GET"])
 @admin_required
@@ -807,13 +1059,26 @@ def admin_storage_stats():
 @admin_required
 def admin_set_quota(user_id):
     """Set user quota."""
+    if not is_valid_uuid(user_id):
+        return jsonify({"error": "User ID invalide"}), 400
+
     data = request.get_json()
+    if not data:
+        return jsonify({"error": "Données requises"}), 400
+
     quota_gb = data.get("quota_gb")
 
-    if quota_gb is None or quota_gb < 0:
-        return jsonify({"error": "Quota invalide"}), 400
+    if quota_gb is None or not isinstance(quota_gb, (int, float)) or quota_gb < 0 or quota_gb > 1000:
+        return jsonify({"error": "Quota invalide (0-1000 GB)"}), 400
 
     quota_bytes = int(quota_gb * 1024 * 1024 * 1024)
-    storage.set_quota(user_id, quota_bytes)
 
-    return jsonify({"success": True, "quota_bytes": quota_bytes, "quota_human": format_size(quota_bytes)})
+    try:
+        storage.set_quota(user_id, quota_bytes)
+        return jsonify({
+            "success": True,
+            "quota_bytes": quota_bytes,
+            "quota_human": format_size(quota_bytes)
+        })
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
