@@ -1,0 +1,194 @@
+<div class="converter-view">
+    <div class="converter-header">
+        <button class="back-button" onclick="switchView('utilities', document.querySelector('[data-view=utilities]'))">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M15 18l-6-6 6-6"/>
+            </svg>
+            Retour
+        </button>
+        <div class="converter-title">
+            <h1>Conversion de données</h1>
+            <p>Convertir entre différents formats de fichiers de mesure</p>
+        </div>
+        <div class="converter-notice">
+            <div class="notice-item">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                </svg>
+                <span><strong>100% confidentiel</strong> — Aucun log, vos fichiers sont supprimés immédiatement après conversion</span>
+            </div>
+            <div class="notice-item">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                    <polyline points="17 8 12 3 7 8"/>
+                    <line x1="12" y1="3" x2="12" y2="15"/>
+                </svg>
+                <span><strong>Taille max : 1.5 GB</strong> — Le fichier converti reste disponible 1h</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="converter-content">
+        <div class="converter-card">
+            <!-- Étape 1: Fichier d'entrée -->
+            <div class="converter-step">
+                <div class="step-number">1</div>
+                <div class="step-content">
+                    <label class="step-label">Fichier d'entrée</label>
+                    <div class="file-input-wrapper">
+                        <input type="file" id="inputFile" accept=".mat,.csv,.mf4,.dat,.blf" onchange="handleFileSelect(this)">
+                        <div class="file-input-display" id="fileInputDisplay" onclick="document.getElementById('inputFile').click()">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                <polyline points="17 8 12 3 7 8"/>
+                                <line x1="12" y1="3" x2="12" y2="15"/>
+                            </svg>
+                            <span class="file-input-text">Cliquez pour sélectionner un fichier</span>
+                            <span class="file-input-formats">.mat, .csv, .mf4, .dat, .blf</span>
+                        </div>
+                        <div class="file-selected" id="fileSelected" style="display: none;">
+                            <div class="file-info">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                    <polyline points="14 2 14 8 20 8"/>
+                                </svg>
+                                <div class="file-details">
+                                    <span class="file-name" id="fileName">-</span>
+                                    <span class="file-size" id="fileSize">-</span>
+                                </div>
+                            </div>
+                            <button class="file-remove" onclick="removeFile()">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <line x1="18" y1="6" x2="6" y2="18"/>
+                                    <line x1="6" y1="6" x2="18" y2="18"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Fichier DBC optionnel -->
+                    <div class="dbc-section">
+                        <label class="step-label-small">Fichier DBC (optionnel, pour décoder les données CAN)</label>
+                        <div class="file-input-wrapper">
+                            <input type="file" id="dbcFile" accept=".dbc" onchange="handleDbcSelect(this)">
+                            <div class="file-input-display small" id="dbcInputDisplay" onclick="document.getElementById('dbcFile').click()">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                    <polyline points="14 2 14 8 20 8"/>
+                                </svg>
+                                <span class="file-input-text">Ajouter un fichier DBC</span>
+                            </div>
+                            <div class="file-selected small" id="dbcSelected" style="display: none;">
+                                <div class="file-info">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                        <polyline points="14 2 14 8 20 8"/>
+                                    </svg>
+                                    <span class="file-name" id="dbcFileName">-</span>
+                                </div>
+                                <button class="file-remove" onclick="removeDbc()">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <line x1="18" y1="6" x2="6" y2="18"/>
+                                        <line x1="6" y1="6" x2="18" y2="18"/>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Étape 2: Format de sortie -->
+            <div class="converter-step">
+                <div class="step-number">2</div>
+                <div class="step-content">
+                    <label class="step-label">Format de sortie</label>
+                    <select id="outputFormat" class="format-select" onchange="onOutputFormatChange()">
+                        <option value="" disabled selected>Sélectionner un format</option>
+                    </select>
+
+                    <!-- Options spécifiques MF4 → CSV -->
+                    <div id="csvOptions" class="format-options" style="display: none;">
+                        <label class="step-label-small">Raster de rééchantillonnage</label>
+                        <select id="resampleRaster" class="format-select small">
+                            <option value="0.001">1 ms (0.001s)</option>
+                            <option value="0.01" selected>10 ms (0.01s)</option>
+                            <option value="0.1">100 ms (0.1s)</option>
+                            <option value="1">1 s</option>
+                            <option value="original">Conserver les timestamps originaux</option>
+                        </select>
+                        <span class="format-hint">Les signaux seront interpolés sur cette base de temps commune</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Étape 3: Conversion -->
+            <div class="converter-step">
+                <div class="step-number">3</div>
+                <div class="step-content">
+                    <label class="step-label">Conversion</label>
+                    
+                    <!-- État initial: bouton de conversion -->
+                    <div id="convertState" class="convert-state">
+                        <button id="convertBtn" class="convert-button" onclick="startConversion()" disabled>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="23 4 23 10 17 10"/>
+                                <polyline points="1 20 1 14 7 14"/>
+                                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+                            </svg>
+                            Lancer la conversion
+                        </button>
+                    </div>
+
+                    <!-- État en cours: barre de progression -->
+                    <div id="progressState" class="progress-state" style="display: none;">
+                        <div class="progress-info">
+                            <span id="progressText">Conversion en cours...</span>
+                            <span id="progressPercent">0%</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+                        </div>
+                    </div>
+
+                    <!-- État terminé: téléchargement -->
+                    <div id="completeState" class="complete-state" style="display: none;">
+                        <div class="complete-message">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                                <polyline points="22 4 12 14.01 9 11.01"/>
+                            </svg>
+                            <span>Conversion terminée !</span>
+                        </div>
+                        <button id="downloadBtn" class="download-button" onclick="downloadFile()">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                <polyline points="7 10 12 15 17 10"/>
+                                <line x1="12" y1="15" x2="12" y2="3"/>
+                            </svg>
+                            Télécharger <span id="outputFileName">output.csv</span>
+                        </button>
+                        <button class="reset-button" onclick="resetConverter()">
+                            Nouvelle conversion
+                        </button>
+                    </div>
+
+                    <!-- État erreur -->
+                    <div id="errorState" class="error-state" style="display: none;">
+                        <div class="error-message">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10"/>
+                                <line x1="15" y1="9" x2="9" y2="15"/>
+                                <line x1="9" y1="9" x2="15" y2="15"/>
+                            </svg>
+                            <span id="errorMessage">Une erreur est survenue</span>
+                        </div>
+                        <button class="reset-button" onclick="resetConverter()">
+                            Réessayer
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,88 @@
+<div class="utilities-view">
+    <div class="utilities-header">
+        <h1>Utilities</h1>
+        <p>Outils de conversion et manipulation de fichiers</p>
+    </div>
+    
+    <div class="utilities-grid">
+        <!-- Conversion de fichiers de données -->
+        <div class="utility-card" onclick="openUtility('data-conversion')">
+            <div class="utility-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                    <polyline points="14 2 14 8 20 8"/>
+                    <path d="M12 18v-6"/>
+                    <path d="M9 15l3 3 3-3"/>
+                </svg>
+            </div>
+            <div class="utility-content">
+                <h3>Conversion de données</h3>
+                <p>Convertir entre différents formats de fichiers de mesure</p>
+                <div class="utility-formats">
+                    <span class="format-tag">.mat</span>
+                    <span class="format-tag">.csv</span>
+                    <span class="format-tag">.mf4</span>
+                    <span class="format-tag">.dat</span>
+                    <span class="format-tag">.blf</span>
+                </div>
+            </div>
+            <div class="utility-arrow">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M9 18l6-6-6-6"/>
+                </svg>
+            </div>
+        </div>
+
+        <!-- Conversion de fichiers de calibration -->
+        <div class="utility-card" onclick="openUtility('calib-conversion')">
+            <div class="utility-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <path d="M12 3v18"/>
+                    <path d="M3 12h18"/>
+                    <circle cx="12" cy="12" r="8"/>
+                    <circle cx="12" cy="12" r="3"/>
+                </svg>
+            </div>
+            <div class="utility-content">
+                <h3>Conversion de calibration</h3>
+                <p>Convertir entre différents formats de fichiers de calibration</p>
+                <div class="utility-formats">
+                    <span class="format-tag">.DCM</span>
+                    <span class="format-tag">.CDFX</span>
+                    <span class="format-tag">.xlsx</span>
+                </div>
+            </div>
+            <div class="utility-arrow">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M9 18l6-6-6-6"/>
+                </svg>
+            </div>
+        </div>
+
+        <!-- Concaténation de fichiers -->
+        <div class="utility-card" onclick="openUtility('concatenation')">
+            <div class="utility-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <rect x="3" y="3" width="7" height="10" rx="1"/>
+                    <rect x="14" y="3" width="7" height="10" rx="1"/>
+                    <rect x="8" y="17" width="8" height="4" rx="1"/>
+                    <path d="M6.5 13v2.5a1.5 1.5 0 0 0 1.5 1.5"/>
+                    <path d="M17.5 13v2.5a1.5 1.5 0 0 1-1.5 1.5"/>
+                </svg>
+            </div>
+            <div class="utility-content">
+                <h3>Concaténation de fichiers</h3>
+                <p>Fusionner plusieurs fichiers de mesure en un seul</p>
+                <div class="utility-formats">
+                    <span class="format-tag">.mf4</span>
+                    <span class="format-tag">.dat</span>
+                </div>
+            </div>
+            <div class="utility-arrow">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M9 18l6-6-6-6"/>
+                </svg>
+            </div>
+        </div>
+    </div>
+</div>

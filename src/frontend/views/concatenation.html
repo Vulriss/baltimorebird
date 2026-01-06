@@ -1,0 +1,143 @@
+<div class="converter-view">
+    <div class="converter-header">
+        <button class="back-button" onclick="switchView('utilities', document.querySelector('[data-view=utilities]'))">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M15 18l-6-6 6-6"/>
+            </svg>
+            Retour
+        </button>
+        <div class="converter-title">
+            <h1>Concaténation de fichiers</h1>
+            <p>Fusionner plusieurs fichiers MF4 en un seul</p>
+        </div>
+        <div class="converter-notice">
+            <div class="notice-item">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                </svg>
+                <span><strong>100% confidentiel</strong> — Aucun log, fichiers supprimés après téléchargement</span>
+            </div>
+            <div class="notice-item">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M4 6h16M4 12h16M4 18h16"/>
+                </svg>
+                <span><strong>Signaux communs</strong> — Seuls les signaux présents dans tous les fichiers sont conservés</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="converter-content">
+        <div class="converter-card">
+            <!-- Étape 1: Fichiers d'entrée -->
+            <div class="converter-step">
+                <div class="step-number">1</div>
+                <div class="step-content">
+                    <label class="step-label">Fichiers MF4 à concaténer</label>
+                    
+                    <!-- Liste des fichiers -->
+                    <div class="concat-file-list" id="concatFileList">
+                        <div class="concat-empty">
+                            Aucun fichier ajouté
+                        </div>
+                    </div>
+                    
+                    <!-- Bouton ajouter -->
+                    <div class="concat-add-wrapper">
+                        <input type="file" id="concatFileInput" accept=".mf4" multiple onchange="handleConcatFilesSelect(this)" style="display:none;">
+                        <button class="concat-add-btn" onclick="document.getElementById('concatFileInput').click()">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <line x1="12" y1="5" x2="12" y2="19"/>
+                                <line x1="5" y1="12" x2="19" y2="12"/>
+                            </svg>
+                            Ajouter des fichiers MF4
+                        </button>
+                    </div>
+                    
+                    <p class="concat-hint">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"/>
+                            <path d="M12 16v-4M12 8h.01"/>
+                        </svg>
+                        Glissez les fichiers pour réorganiser l'ordre de concaténation
+                    </p>
+                    <div class="concat-info" id="concatInfo">
+                        <span>Max 5 fichiers, 1.5 GB par fichier</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Étape 2: Concaténation -->
+            <div class="converter-step">
+                <div class="step-number">2</div>
+                <div class="step-content">
+                    <label class="step-label">Concaténation</label>
+                    
+                    <!-- État initial -->
+                    <div id="concatConvertState" class="convert-state">
+                        <button id="concatBtn" class="convert-button" onclick="startConcatenation()" disabled>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="3" y="3" width="7" height="7"/>
+                                <rect x="14" y="3" width="7" height="7"/>
+                                <rect x="8" y="14" width="8" height="7"/>
+                                <line x1="6.5" y1="10" x2="6.5" y2="14"/>
+                                <line x1="17.5" y1="10" x2="17.5" y2="14"/>
+                                <line x1="6.5" y1="14" x2="12" y2="14"/>
+                                <line x1="17.5" y1="14" x2="12" y2="14"/>
+                            </svg>
+                            Fusionner les fichiers
+                        </button>
+                    </div>
+
+                    <!-- État en cours -->
+                    <div id="concatProgressState" class="progress-state" style="display: none;">
+                        <div class="progress-info">
+                            <span id="concatProgressText">Concaténation en cours...</span>
+                            <span id="concatProgressPercent">0%</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="concatProgressFill" style="width: 0%"></div>
+                        </div>
+                    </div>
+
+                    <!-- État terminé -->
+                    <div id="concatCompleteState" class="complete-state" style="display: none;">
+                        <div class="complete-message">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                                <polyline points="22 4 12 14.01 9 11.01"/>
+                            </svg>
+                            <span>Concaténation terminée !</span>
+                        </div>
+                        <div id="concatStats" class="concat-stats"></div>
+                        <button id="concatDownloadBtn" class="download-button" onclick="downloadConcatFile()">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                <polyline points="7 10 12 15 17 10"/>
+                                <line x1="12" y1="15" x2="12" y2="3"/>
+                            </svg>
+                            Télécharger <span id="concatOutputFileName">merged.mf4</span>
+                        </button>
+                        <button class="reset-button" onclick="resetConcatenation()">
+                            Nouvelle concaténation
+                        </button>
+                    </div>
+
+                    <!-- État erreur -->
+                    <div id="concatErrorState" class="error-state" style="display: none;">
+                        <div class="error-message">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10"/>
+                                <line x1="15" y1="9" x2="9" y2="15"/>
+                                <line x1="9" y1="9" x2="15" y2="15"/>
+                            </svg>
+                            <span id="concatErrorMessage">Une erreur est survenue</span>
+                        </div>
+                        <button class="reset-button" onclick="resetConcatenation()">
+                            Réessayer
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

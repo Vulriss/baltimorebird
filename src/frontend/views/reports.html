@@ -1,0 +1,89 @@
+<div class="reports-view">
+    <!-- Reports Sidebar (list) -->
+    <aside class="reports-sidebar">
+        <div class="reports-sidebar-header">
+            <h2>Reports</h2>
+        </div>
+        <div class="reports-search">
+            <input type="search"
+                   placeholder="Rechercher un rapport..."
+                   id="reportsSearch"
+                   autocomplete="off"
+                   data-lpignore="true">
+        </div>
+        <div class="reports-list" id="reportsList">
+            <div class="reports-loading">Chargement...</div>
+        </div>
+        <div class="reports-sidebar-footer">
+            <span id="reportsCount">0 rapport(s)</span>
+        </div>
+    </aside>
+
+    <!-- Reports Content (viewer) -->
+    <main class="reports-content">
+        <!-- Empty state -->
+        <div class="reports-empty" id="reportsEmpty">
+            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+                <line x1="16" y1="13" x2="8" y2="13"/>
+                <line x1="16" y1="17" x2="8" y2="17"/>
+            </svg>
+            <h3>Sélectionnez un rapport</h3>
+            <p>Choisissez un rapport dans la liste pour le visualiser</p>
+        </div>
+
+        <!-- Report viewer -->
+        <div class="reports-viewer" id="reportsViewer" style="display: none;">
+            <div class="reports-viewer-toolbar">
+                <div class="reports-viewer-title">
+                    <span id="viewerReportName">Report Name</span>
+                </div>
+                <div class="reports-viewer-actions">
+                    <button class="reports-action-btn"
+                            data-action="openNewTab"
+                            title="Ouvrir dans un nouvel onglet">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+                            <polyline points="15 3 21 3 21 9"/>
+                            <line x1="10" y1="14" x2="21" y2="3"/>
+                        </svg>
+                        Ouvrir
+                    </button>
+                    <button class="reports-action-btn primary"
+                            data-action="download"
+                            title="Télécharger">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                            <polyline points="7 10 12 15 17 10"/>
+                            <line x1="12" y1="15" x2="12" y2="3"/>
+                        </svg>
+                        Télécharger
+                    </button>
+                    <button class="reports-action-btn danger"
+                            data-action="deleteCurrent"
+                            title="Supprimer">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="3 6 5 6 21 6"/>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                        </svg>
+                        Supprimer
+                    </button>
+                </div>
+            </div>
+            <iframe id="reportFrame" class="reports-iframe" sandbox="allow-scripts allow-same-origin"></iframe>
+        </div>
+    </main>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="reports-delete-modal" id="reportsDeleteModal">
+    <div class="reports-delete-modal-content">
+        <h3>Supprimer le rapport ?</h3>
+        <p>Voulez-vous vraiment supprimer "<span id="deleteReportName"></span>" ?<br>Cette action est irréversible.</p>
+        <div class="reports-delete-modal-actions">
+            <button class="cancel-btn" data-action="cancelDelete">Annuler</button>
+            <button class="delete-btn" data-action="executeDelete">Supprimer</button>
+        </div>
+    </div>
+</div>

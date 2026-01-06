@@ -1,0 +1,98 @@
+<div class="modal-overlay" id="uploadModal" onclick="closeUploadModal(event)">
+    <div class="modal-content" onclick="event.stopPropagation()">
+        <div class="modal-header">
+            <h2>Charger un fichier</h2>
+            <button class="modal-close" onclick="closeUploadModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <p class="modal-description">Chargez votre propre fichier de mesure pour l'analyser. Le fichier sera supprimé à la fin de votre session.</p>
+            
+            <!-- Fichier principal -->
+            <div class="modal-field">
+                <label>Fichier de données</label>
+                <div class="file-input-wrapper">
+                    <input type="file" id="edaInputFile" accept=".mf4,.csv,.mat,.dat" onchange="handleEdaFileSelect(this)">
+                    <div class="file-input-display" id="edaFileInputDisplay" onclick="document.getElementById('edaInputFile').click()">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                            <polyline points="17 8 12 3 7 8"/>
+                            <line x1="12" y1="3" x2="12" y2="15"/>
+                        </svg>
+                        <span class="file-input-text">Cliquez pour sélectionner</span>
+                        <span class="file-input-formats">.mf4, .csv, .mat, .dat</span>
+                    </div>
+                    <div class="file-selected" id="edaFileSelected" style="display: none;">
+                        <div class="file-info">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                <polyline points="14 2 14 8 20 8"/>
+                            </svg>
+                            <div class="file-details">
+                                <span class="file-name" id="edaFileName">-</span>
+                                <span class="file-size" id="edaFileSize">-</span>
+                            </div>
+                        </div>
+                        <button class="file-remove" onclick="removeEdaFile()">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <line x1="18" y1="6" x2="6" y2="18"/>
+                                <line x1="6" y1="6" x2="18" y2="18"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Fichier DBC optionnel -->
+            <div class="modal-field">
+                <label>Fichier DBC <span class="optional">(optionnel, pour décoder CAN)</span></label>
+                <div class="file-input-wrapper">
+                    <input type="file" id="edaDbcFile" accept=".dbc" onchange="handleEdaDbcSelect(this)">
+                    <div class="file-input-display small" id="edaDbcInputDisplay" onclick="document.getElementById('edaDbcFile').click()">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                            <polyline points="14 2 14 8 20 8"/>
+                        </svg>
+                        <span class="file-input-text">Ajouter un fichier DBC</span>
+                    </div>
+                    <div class="file-selected small" id="edaDbcSelected" style="display: none;">
+                        <div class="file-info">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                <polyline points="14 2 14 8 20 8"/>
+                            </svg>
+                            <span class="file-name" id="edaDbcFileName">-</span>
+                        </div>
+                        <button class="file-remove" onclick="removeEdaDbc()">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <line x1="18" y1="6" x2="6" y2="18"/>
+                                <line x1="6" y1="6" x2="18" y2="18"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Progress -->
+            <div id="edaUploadProgress" class="upload-progress" style="display: none;">
+                <div class="progress-info">
+                    <span id="edaUploadText">Upload en cours...</span>
+                    <span id="edaUploadPercent">0%</span>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="edaUploadFill" style="width: 0%"></div>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-secondary" onclick="closeUploadModal()">Annuler</button>
+            <button class="btn-primary" id="edaUploadBtn" onclick="uploadEdaFile()" disabled>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                    <polyline points="17 8 12 3 7 8"/>
+                    <line x1="12" y1="3" x2="12" y2="15"/>
+                </svg>
+                Charger
+            </button>
+        </div>
+    </div>
+</div>

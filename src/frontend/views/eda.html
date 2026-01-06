@@ -1,0 +1,81 @@
+<div class="app">
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <div class="sidebar-title">Signaux</div>
+            <input type="text" class="search-box" id="search" placeholder="Rechercher...">
+        </div>
+        <div class="signal-list" id="signalList">
+            <div style="color:#555;padding:20px;text-align:center;">Chargement...</div>
+        </div>
+        <div class="sidebar-footer">
+            Signaux: <span id="statSignals">-</span> &nbsp;|&nbsp; 
+            Longueur: <span id="statDuration">-</span> &nbsp;|&nbsp; 
+            Serveur: <span id="statServer">-</span>
+        </div>
+    </aside>
+
+    <main class="main">
+        <div class="toolbar">
+            <div class="toolbar-title">Interactive EDA</div>
+            
+            <div class="toolbar-group">
+                <label>Source:</label>
+                <select id="sourceSelector">
+                    <option value="">Chargement...</option>
+                </select>
+                <!-- Connecté -->
+                <button class="toolbar-btn upload-btn" id="uploadBtnAuth" title="Charger votre fichier" data-auth="required">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                        <polyline points="17 8 12 3 7 8"/>
+                        <line x1="12" y1="3" x2="12" y2="15"/>
+                    </svg>
+                </button>
+
+                <!-- Non connecté -->
+                <button class="toolbar-btn upload-btn disabled" id="uploadBtnGuest" title="Connexion requise pour uploader" data-auth="guest">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                        <polyline points="17 8 12 3 7 8"/>
+                        <line x1="12" y1="3" x2="12" y2="15"/>
+                    </svg>
+                </button>
+            </div>
+            
+            <div class="toolbar-group">
+                <label>LOD:</label>
+                <input type="number" id="lodInput" value="2000" min="500" max="10000" step="500">
+                <span style="font-size:11px;color:#666;">pts/signal</span>
+            </div>
+            
+            <button id="resetBtn">Reset Zoom</button>
+            <button id="clearBtn">Effacer tout</button>
+        </div>
+
+        <div class="plots-area" id="plotsArea">
+            <div class="tabs-container">
+                <div class="tabs-list" id="tabsList"></div>
+                <button class="tab-add" id="tabAddBtn" title="Nouveau tab">+</button>
+                <div class="tabs-actions">
+                    <button class="tab-action-btn" id="saveLayoutBtn" title="Sauvegarder le layout">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                            <polyline points="17 21 17 13 7 13 7 21"/>
+                            <polyline points="7 3 7 8 15 8"/>
+                        </svg>
+                        Save
+                    </button>
+                    <button class="tab-action-btn" id="loadLayoutBtn" title="Charger un layout">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                            <polyline points="7 10 12 15 17 10"/>
+                            <line x1="12" y1="15" x2="12" y2="3"/>
+                        </svg>
+                        Load
+                    </button>
+                </div>
+            </div>
+            <!-- Tab contents will be created dynamically by JavaScript -->
+        </div>
+    </main>
+</div>

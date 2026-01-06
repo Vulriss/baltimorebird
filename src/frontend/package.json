@@ -1,0 +1,17 @@
+{
+  "name": "baltimore-bird",
+  "version": "1.0.0",
+  "description": "Automotive Telemetry Analysis Platform",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "monaco-editor": "^0.52.2"
+  },
+  "devDependencies": {
+    "vite": "^6.0.7"
+  }
+}

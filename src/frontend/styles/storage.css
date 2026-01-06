@@ -1,0 +1,757 @@
+/* =============================================================================
+   Storage Section Styles
+   ============================================================================= */
+
+/* =============================================================================
+   Quota Card
+   ============================================================================= */
+
+.storage-quota-card {
+    background: linear-gradient(135deg, #1e1e3a, #16162a);
+    border: 1px solid #2d2d5a;
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 24px;
+}
+
+.storage-quota-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.storage-quota-info {
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+}
+
+.storage-quota-used {
+    font-size: 28px;
+    font-weight: 700;
+    color: #fff;
+}
+
+.storage-quota-separator {
+    font-size: 20px;
+    color: #666;
+}
+
+.storage-quota-total {
+    font-size: 18px;
+    color: #888;
+}
+
+.storage-quota-percent {
+    font-size: 24px;
+    font-weight: 600;
+    color: #6366f1;
+}
+
+.storage-quota-bar {
+    height: 8px;
+    background: #2d2d5a;
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 16px;
+}
+
+.storage-quota-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #6366f1, #8b5cf6);
+    border-radius: 4px;
+    transition: width 0.3s ease;
+}
+
+.storage-quota-bar-fill.warning {
+    background: linear-gradient(90deg, #f59e0b, #fbbf24);
+}
+
+.storage-quota-bar-fill.critical {
+    background: linear-gradient(90deg, #ef4444, #f87171);
+}
+
+.storage-quota-details {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+}
+
+.storage-quota-category {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 8px 12px;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 6px;
+}
+
+.storage-quota-category-name {
+    font-size: 11px;
+    color: #888;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.storage-quota-category-value {
+    font-size: 13px;
+    color: #ccc;
+    font-weight: 500;
+}
+
+/* =============================================================================
+   Category Tabs
+   ============================================================================= */
+
+.storage-tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 24px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid #2d2d5a;
+    overflow-x: auto;
+}
+
+.storage-tab {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    background: transparent;
+    border: 1px solid #2d2d5a;
+    border-radius: 8px;
+    color: #888;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+}
+
+.storage-tab:hover {
+    background: rgba(255, 255, 255, 0.03);
+    color: #ccc;
+}
+
+.storage-tab.active {
+    background: rgba(99, 102, 241, 0.1);
+    border-color: rgba(99, 102, 241, 0.3);
+    color: #6366f1;
+}
+
+.storage-tab svg {
+    width: 16px;
+    height: 16px;
+}
+
+.storage-tab-count {
+    padding: 2px 8px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.storage-tab.active .storage-tab-count {
+    background: rgba(99, 102, 241, 0.2);
+}
+
+/* =============================================================================
+   Files Area
+   ============================================================================= */
+
+.storage-files-area {
+    background: #16162a;
+    border: 1px solid #2d2d5a;
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.storage-files-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    border-bottom: 1px solid #2d2d5a;
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.storage-files-title {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.storage-files-title h4 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: #fff;
+}
+
+.storage-show-default {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: #888;
+    cursor: pointer;
+}
+
+.storage-show-default input {
+    accent-color: #6366f1;
+}
+
+.storage-files-actions {
+    display: flex;
+    gap: 8px;
+}
+
+/* =============================================================================
+   Files List
+   ============================================================================= */
+
+.storage-files-list {
+    padding: 16px;
+    max-height: 500px;
+    overflow-y: auto;
+}
+
+.storage-files-list::-webkit-scrollbar {
+    width: 6px;
+}
+
+.storage-files-list::-webkit-scrollbar-thumb {
+    background: #3d3d6a;
+    border-radius: 3px;
+}
+
+.storage-files-group {
+    margin-bottom: 20px;
+}
+
+.storage-files-group:last-child {
+    margin-bottom: 0;
+}
+
+.storage-files-group-title {
+    font-size: 11px;
+    font-weight: 600;
+    color: #666;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 12px;
+    padding-left: 4px;
+}
+
+.storage-file-item {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 14px 16px;
+    background: #1e1e3a;
+    border: 1px solid #2d2d5a;
+    border-radius: 10px;
+    margin-bottom: 8px;
+    transition: all 0.15s;
+}
+
+.storage-file-item:last-child {
+    margin-bottom: 0;
+}
+
+.storage-file-item:hover {
+    border-color: #3d3d6a;
+    background: #232345;
+}
+
+.storage-file-item.default {
+    background: rgba(99, 102, 241, 0.03);
+    border-color: rgba(99, 102, 241, 0.15);
+}
+
+.storage-file-icon {
+    position: relative;
+    flex-shrink: 0;
+}
+
+.storage-file-icon svg {
+    width: 36px;
+    height: 36px;
+    color: #6366f1;
+}
+
+.storage-file-badge {
+    position: absolute;
+    bottom: -4px;
+    right: -8px;
+    padding: 2px 6px;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    border-radius: 4px;
+    font-size: 8px;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: 0.5px;
+}
+
+.storage-file-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.storage-file-name {
+    font-size: 14px;
+    font-weight: 500;
+    color: #fff;
+    margin-bottom: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.storage-file-meta {
+    display: flex;
+    gap: 12px;
+    font-size: 12px;
+    color: #888;
+}
+
+.storage-file-desc {
+    max-width: 200px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: #666;
+}
+
+.storage-file-actions {
+    display: flex;
+    gap: 6px;
+}
+
+.storage-file-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
+    min-height: 32px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid #2d2d5a;
+    border-radius: 6px;
+    color: #888;
+    cursor: pointer;
+    transition: all 0.15s;
+    padding: 0;
+}
+
+.storage-file-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+}
+
+.storage-file-btn.danger:hover {
+    background: rgba(239, 68, 68, 0.1);
+    border-color: rgba(239, 68, 68, 0.3);
+    color: #ef4444;
+}
+
+.storage-file-btn svg {
+    width: 16px;
+    height: 16px;
+    min-width: 16px;
+    min-height: 16px;
+    flex-shrink: 0;
+}
+
+/* =============================================================================
+   Empty & Loading States
+   ============================================================================= */
+
+.storage-loading,
+.storage-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 40px;
+    text-align: center;
+    color: #666;
+}
+
+.storage-empty svg {
+    width: 48px;
+    height: 48px;
+    margin-bottom: 16px;
+    opacity: 0.5;
+}
+
+.storage-empty p {
+    margin: 0;
+    font-size: 14px;
+}
+
+/* =============================================================================
+   Upload Modal
+   ============================================================================= */
+
+.storage-modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.7);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+.storage-modal.active {
+    display: flex;
+}
+
+.storage-modal-content {
+    background: #16162a;
+    border: 1px solid #2d2d5a;
+    border-radius: 16px;
+    width: 100%;
+    max-width: 500px;
+    overflow: hidden;
+    animation: modalSlideIn 0.2s ease;
+}
+
+.storage-modal-content.small {
+    max-width: 400px;
+}
+
+@keyframes modalSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.storage-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 24px;
+    border-bottom: 1px solid #2d2d5a;
+}
+
+.storage-modal-header h3 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+    color: #fff;
+}
+
+.storage-modal-close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    color: #888;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.storage-modal-close:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+}
+
+.storage-modal-close svg {
+    width: 20px;
+    height: 20px;
+}
+
+.storage-modal-body {
+    padding: 24px;
+}
+
+.storage-modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    padding: 16px 24px;
+    border-top: 1px solid #2d2d5a;
+    background: rgba(255, 255, 255, 0.02);
+}
+
+/* =============================================================================
+   Upload Zone
+   ============================================================================= */
+
+.storage-upload-zone {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px;
+    border: 2px dashed #3d3d6a;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.02);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.storage-upload-zone:hover,
+.storage-upload-zone.dragover {
+    border-color: #6366f1;
+    background: rgba(99, 102, 241, 0.05);
+}
+
+.storage-upload-icon {
+    width: 56px;
+    height: 56px;
+    background: rgba(99, 102, 241, 0.1);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 16px;
+}
+
+.storage-upload-icon svg {
+    width: 28px;
+    height: 28px;
+    color: #6366f1;
+}
+
+.storage-upload-zone p {
+    margin: 0 0 8px 0;
+    font-size: 14px;
+    color: #ccc;
+}
+
+.storage-upload-zone p span {
+    color: #6366f1;
+    cursor: pointer;
+    font-weight: 500;
+}
+
+.storage-upload-zone p span:hover {
+    text-decoration: underline;
+}
+
+.storage-upload-hint {
+    font-size: 12px;
+    color: #666;
+}
+
+/* =============================================================================
+   Upload Selected File
+   ============================================================================= */
+
+.storage-upload-selected {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px;
+    background: #1e1e3a;
+    border: 1px solid #2d2d5a;
+    border-radius: 10px;
+    margin-bottom: 16px;
+}
+
+.storage-upload-file-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.storage-upload-file-info svg {
+    width: 32px;
+    height: 32px;
+    color: #6366f1;
+}
+
+.storage-upload-filename {
+    font-size: 14px;
+    font-weight: 500;
+    color: #fff;
+}
+
+.storage-upload-filesize {
+    font-size: 12px;
+    color: #888;
+}
+
+.storage-upload-remove {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    color: #888;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.storage-upload-remove:hover {
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+}
+
+.storage-upload-remove svg {
+    width: 16px;
+    height: 16px;
+}
+
+/* =============================================================================
+   Upload Description
+   ============================================================================= */
+
+.storage-upload-description {
+    margin-bottom: 16px;
+}
+
+.storage-upload-description label {
+    display: block;
+    font-size: 13px;
+    font-weight: 500;
+    color: #ccc;
+    margin-bottom: 8px;
+}
+
+.storage-upload-description input {
+    width: 100%;
+    padding: 12px 16px;
+    background: #1e1e3a;
+    border: 1px solid #2d2d5a;
+    border-radius: 8px;
+    color: #fff;
+    font-size: 14px;
+}
+
+.storage-upload-description input:focus {
+    outline: none;
+    border-color: #6366f1;
+}
+
+.storage-upload-description input::placeholder {
+    color: #555;
+}
+
+/* =============================================================================
+   Upload Progress
+   ============================================================================= */
+
+.storage-upload-progress {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.storage-upload-progress-bar {
+    flex: 1;
+    height: 6px;
+    background: #2d2d5a;
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.storage-upload-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #6366f1, #8b5cf6);
+    border-radius: 3px;
+    transition: width 0.2s;
+}
+
+.storage-upload-progress-text {
+    font-size: 13px;
+    font-weight: 600;
+    color: #6366f1;
+    min-width: 40px;
+    text-align: right;
+}
+
+/* =============================================================================
+   Delete Modal
+   ============================================================================= */
+
+.storage-delete-warning {
+    font-size: 13px;
+    color: #ef4444;
+    margin-top: 8px;
+}
+
+.storage-modal-body p {
+    margin: 0;
+    font-size: 14px;
+    color: #ccc;
+    line-height: 1.5;
+}
+
+.storage-modal-body strong {
+    color: #fff;
+}
+
+/* =============================================================================
+   Responsive
+   ============================================================================= */
+
+@media (max-width: 768px) {
+    .storage-tabs {
+        gap: 4px;
+    }
+    
+    .storage-tab {
+        padding: 8px 12px;
+        font-size: 12px;
+    }
+    
+    .storage-tab svg {
+        display: none;
+    }
+    
+    .storage-files-header {
+        flex-direction: column;
+        gap: 12px;
+        align-items: stretch;
+    }
+    
+    .storage-files-title {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+    
+    .storage-files-actions {
+        justify-content: flex-end;
+    }
+    
+    .storage-file-item {
+        flex-wrap: wrap;
+    }
+    
+    .storage-file-info {
+        flex-basis: calc(100% - 60px);
+    }
+    
+    .storage-file-actions {
+        margin-left: auto;
+    }
+    
+    .storage-quota-details {
+        flex-direction: column;
+        gap: 8px;
+    }
+}

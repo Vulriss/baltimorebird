@@ -1,0 +1,276 @@
+/* =========================================================================
+   Python Syntax Highlighting avec Prism.js + FiraCode
+   Fichier: css/python-syntax-prism.css
+   ========================================================================= */
+
+/* Import FiraCode */
+@import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&display=swap');
+
+/* =========================================================================
+   Code Block Container - Override Prism defaults
+   ========================================================================= */
+
+.canvas-block-code-content {
+    font-family: 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace !important;
+    font-size: 13px !important;
+    line-height: 1.6 !important;
+    font-feature-settings: "liga" 1, "calt" 1; /* Ligatures FiraCode */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    
+    /* Theme Tokyo Night */
+    background: #1a1b26 !important;
+    color: #a9b1d6 !important;
+    padding: 16px !important;
+    border-radius: 8px !important;
+    overflow-x: auto;
+    white-space: pre !important;
+    tab-size: 4;
+    margin: 0 !important;
+    
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.canvas-block-code-content code {
+    font-family: inherit !important;
+    font-size: inherit !important;
+    background: transparent !important;
+    padding: 0 !important;
+    color: inherit !important;
+}
+
+/* =========================================================================
+   Prism Token Overrides - Tokyo Night Theme
+   ========================================================================= */
+
+.canvas-block-code-content .token.comment,
+.canvas-block-code-content .token.prolog,
+.canvas-block-code-content .token.doctype,
+.canvas-block-code-content .token.cdata {
+    color: #565f89;
+    font-style: italic;
+}
+
+.canvas-block-code-content .token.punctuation {
+    color: #9abdf5;
+}
+
+.canvas-block-code-content .token.property,
+.canvas-block-code-content .token.tag,
+.canvas-block-code-content .token.constant,
+.canvas-block-code-content .token.symbol,
+.canvas-block-code-content .token.deleted {
+    color: #f7768e;
+}
+
+.canvas-block-code-content .token.boolean,
+.canvas-block-code-content .token.number {
+    color: #ff9e64;
+}
+
+.canvas-block-code-content .token.selector,
+.canvas-block-code-content .token.attr-name,
+.canvas-block-code-content .token.string,
+.canvas-block-code-content .token.char,
+.canvas-block-code-content .token.builtin,
+.canvas-block-code-content .token.inserted {
+    color: #9ece6a;
+}
+
+.canvas-block-code-content .token.operator,
+.canvas-block-code-content .token.entity,
+.canvas-block-code-content .token.url,
+.language-css .canvas-block-code-content .token.string,
+.style .canvas-block-code-content .token.string {
+    color: #89ddff;
+}
+
+.canvas-block-code-content .token.atrule,
+.canvas-block-code-content .token.attr-value,
+.canvas-block-code-content .token.keyword {
+    color: #bb9af7;
+    font-weight: 500;
+}
+
+.canvas-block-code-content .token.function,
+.canvas-block-code-content .token.class-name {
+    color: #7aa2f7;
+}
+
+.canvas-block-code-content .token.regex,
+.canvas-block-code-content .token.important,
+.canvas-block-code-content .token.variable {
+    color: #e0af68;
+}
+
+.canvas-block-code-content .token.important,
+.canvas-block-code-content .token.bold {
+    font-weight: 600;
+}
+
+.canvas-block-code-content .token.italic {
+    font-style: italic;
+}
+
+.canvas-block-code-content .token.entity {
+    cursor: help;
+}
+
+/* Python-specific: decorator */
+.canvas-block-code-content .token.decorator {
+    color: #e0af68;
+    font-style: italic;
+}
+
+/* Python-specific: self */
+.canvas-block-code-content .token.self {
+    color: #f7768e;
+    font-style: italic;
+}
+
+/* Python-specific: triple-quoted strings */
+.canvas-block-code-content .token.triple-quoted-string {
+    color: #9ece6a;
+}
+
+/* =========================================================================
+   Scrollbar Styling
+   ========================================================================= */
+
+.canvas-block-code-content::-webkit-scrollbar {
+    height: 8px;
+    width: 8px;
+}
+
+.canvas-block-code-content::-webkit-scrollbar-track {
+    background: #1a1b26;
+    border-radius: 4px;
+}
+
+.canvas-block-code-content::-webkit-scrollbar-thumb {
+    background: #414868;
+    border-radius: 4px;
+}
+
+.canvas-block-code-content::-webkit-scrollbar-thumb:hover {
+    background: #565f89;
+}
+
+/* =========================================================================
+   Code Block Header
+   ========================================================================= */
+
+.canvas-block-code-header {
+    font-family: 'Fira Code', monospace;
+    font-size: 12px;
+    background: linear-gradient(135deg, #1e1e2e 0%, #24253a 100%);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    padding: 8px 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    user-select: none;
+    border-radius: 8px 8px 0 0;
+    color: #7982a9;
+    transition: background 0.2s ease;
+}
+
+.canvas-block-code-header:hover {
+    background: linear-gradient(135deg, #252638 0%, #2d2e45 100%);
+}
+
+.canvas-block-code-header-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.canvas-block-code-header-left svg {
+    width: 14px;
+    height: 14px;
+    transition: transform 0.2s ease;
+}
+
+.canvas-block-code.expanded .canvas-block-code-header-left svg {
+    transform: rotate(90deg);
+}
+
+.canvas-block-code-copy {
+    font-family: 'Fira Code', monospace;
+    font-size: 11px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 8px;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.05);
+    border: none;
+    color: #7982a9;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.canvas-block-code-copy:hover {
+    background: rgba(122, 162, 247, 0.2);
+    color: #7aa2f7;
+}
+
+.canvas-block-code-copy svg {
+    width: 12px;
+    height: 12px;
+}
+
+/* =========================================================================
+   Code Block Expand/Collapse
+   ========================================================================= */
+
+.canvas-block-code {
+    border-radius: 8px;
+    overflow: hidden;
+    background: #1a1b26;
+    margin-top: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.canvas-block-code-content {
+    display: none;
+    border-radius: 0 0 8px 8px !important;
+}
+
+.canvas-block-code.expanded .canvas-block-code-content {
+    display: block;
+}
+
+/* =========================================================================
+   Alternative Themes (Uncomment to use)
+   ========================================================================= */
+
+/* --- One Dark Pro Theme ---
+.canvas-block-code-content { background: #282c34 !important; color: #abb2bf !important; }
+.canvas-block-code-content .token.keyword { color: #c678dd; }
+.canvas-block-code-content .token.string { color: #98c379; }
+.canvas-block-code-content .token.comment { color: #5c6370; }
+.canvas-block-code-content .token.number { color: #d19a66; }
+.canvas-block-code-content .token.function { color: #61afef; }
+*/
+
+/* --- Dracula Theme ---
+.canvas-block-code-content { background: #282a36 !important; color: #f8f8f2 !important; }
+.canvas-block-code-content .token.keyword { color: #ff79c6; }
+.canvas-block-code-content .token.string { color: #f1fa8c; }
+.canvas-block-code-content .token.comment { color: #6272a4; }
+.canvas-block-code-content .token.number { color: #bd93f9; }
+.canvas-block-code-content .token.function { color: #50fa7b; }
+*/
+
+/* =========================================================================
+   Responsive
+   ========================================================================= */
+
+@media (max-width: 768px) {
+    .canvas-block-code-content {
+        font-size: 12px !important;
+        padding: 12px !important;
+    }
+}
