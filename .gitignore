@@ -99,14 +99,24 @@ logs/
 !backend/examples/*.DBC
 
 # -----------------------------------------------------------------------------
-# Frontend
+# Frontend - Node.js & Vite
 # -----------------------------------------------------------------------------
 node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+pnpm-debug.log*
+
+# Build output
 frontend/dist/
 frontend/build/
+
+# Vite
+*.local
+.vite/
+
+# TypeScript (si migration future)
+*.tsbuildinfo
 
 # -----------------------------------------------------------------------------
 # IDE & Éditeurs
@@ -154,5 +164,8 @@ $RECYCLE.BIN/
 *.backup
 *.old
 
-#Ignore vscode AI rules
-.github\instructions\codacy.instructions.md
+# -----------------------------------------------------------------------------
+# Misc
+# -----------------------------------------------------------------------------
+# Ignore vscode AI rules
+.github/instructions/codacy.instructions.md
