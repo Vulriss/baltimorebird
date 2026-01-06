@@ -108,10 +108,79 @@ The Vite dev server proxies `/api` requests to the backend automatically.
 
 ## Deployment
 
-For production deployment:
-- nginx (reverse proxy)
-- gunicorn or uwsgi (WSGI server)
-- SSL certificate (Let's Encrypt recommended)
+### Build for production
+
+```bash
+cd frontend
+npm run build
+```
+
+This generates an optimized `dist/` folder with:
+- Bundled and minified JavaScript
+- Optimized CSS
+- Cache-busted asset filenames
+- Copied `views/` and `components/` folders
+
+### Nginx configuration
+
+```nginx
+server {
+    listen 80;
+    server_name your-domain.com;
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl;
+    server_name your-domain.com;
+    
+    # Point to the Vite build output
+    root /var/www/baltimorebird/frontend/dist;
+    index index.html;
+    
+    ssl_certificate /etc/letsencrypt/live/your-domain.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/your-domain.com/privkey.pem;
+    
+    client_max_body_size 1500M;
+    
+    # Frontend (SPA fallback)
+    location / {
+        try_files $uri /index.html;
+    }
+    
+    # API proxy to backend
+    location /api/ {
+        proxy_pass http://127.0.0.1:5000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        
+        proxy_read_timeout 300s;
+        proxy_connect_timeout 75s;
+        proxy_request_buffering off;
+        proxy_buffering off;
+    }
+}
+```
+
+### Local nginx (for testing)
+
+```nginx
+server {
+    listen 8080;
+    server_name localhost;
+    root /path/to/baltimorebird/frontend/dist;
+
+    # [...] Identical to prod conf
+}
+```
+
+### Production stack
+
+- **nginx** — Reverse proxy & static file serving
+- **gunicorn** or **uwsgi** — WSGI server for Flask
+- **Let's Encrypt** — SSL certificate
 
 See [Deployment Guide](docs/deployment.md) for detailed instructions.
 
