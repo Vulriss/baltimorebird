@@ -1,0 +1,1274 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OBD2 Analysis Report - Demo</title>
+
+    <!-- KaTeX for LaTeX rendering -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    
+    <style>
+        :root {
+            --bg-primary: #ffffff;
+            --bg-secondary: #f8f9fa;
+            --bg-tertiary: #e9ecef;
+            --text-primary: #1a1a2e;
+            --text-secondary: #666;
+            --text-muted: #999;
+            --border-color: #e0e0e0;
+            --accent: #6366f1;
+            --accent-light: rgba(99, 102, 241, 0.1);
+            --success: #22c55e;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+        }
+        
+        [data-theme="dark"] {
+            --bg-primary: #1a1a2e;
+            --bg-secondary: #16162a;
+            --bg-tertiary: #252550;
+            --text-primary: #e0e0e0;
+            --text-secondary: #aaa;
+            --text-muted: #666;
+            --border-color: #2d2d5a;
+        }
+        
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+        
+        /* ===== Layout ===== */
+        .report-container {
+            max-width: 1100px;
+            margin: 0 auto;
+            background: var(--bg-primary);
+            min-height: 100vh;
+            box-shadow: 0 0 30px rgba(0,0,0,0.1);
+        }
+        
+        .report-header {
+            padding: 50px 60px 40px;
+            border-bottom: 1px solid var(--border-color);
+            background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
+        }
+        
+        .report-header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 12px;
+            color: var(--text-primary);
+        }
+        
+        .report-subtitle {
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+            margin-bottom: 20px;
+        }
+        
+        .report-meta {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            font-size: 0.9rem;
+            color: var(--text-muted);
+        }
+        
+        .report-meta-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .report-meta-item svg {
+            width: 16px;
+            height: 16px;
+            opacity: 0.7;
+        }
+        
+        .report-body {
+            display: flex;
+            min-height: calc(100vh - 200px);
+        }
+        
+        /* ===== Sidebar / TOC ===== */
+        .table-of-contents {
+            width: 260px;
+            padding: 30px 20px;
+            border-right: 1px solid var(--border-color);
+            position: sticky;
+            top: 0;
+            height: 100vh;
+            overflow-y: auto;
+            flex-shrink: 0;
+            background: var(--bg-secondary);
+        }
+        
+        .toc-title {
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            font-size: 0.7rem;
+            letter-spacing: 1.5px;
+        }
+        
+        .table-of-contents ul {
+            list-style: none;
+        }
+        
+        .table-of-contents > ul > li {
+            margin-bottom: 4px;
+        }
+        
+        .table-of-contents a {
+            display: block;
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.9rem;
+            padding: 6px 12px;
+            border-radius: 6px;
+            transition: all 0.2s;
+            border-left: 2px solid transparent;
+        }
+        
+        .table-of-contents a:hover {
+            background: var(--accent-light);
+            color: var(--accent);
+        }
+        
+        .table-of-contents a.active {
+            background: var(--accent-light);
+            color: var(--accent);
+            border-left-color: var(--accent);
+            font-weight: 500;
+        }
+        
+        .table-of-contents .toc-h2 {
+            padding-left: 24px;
+            font-size: 0.85rem;
+        }
+        
+        /* ===== Main Content ===== */
+        .report-content {
+            flex: 1;
+            padding: 40px 60px;
+            min-width: 0;
+        }
+        
+        /* ===== Typography ===== */
+        h1, h2, h3, h4 {
+            margin-top: 2.5rem;
+            margin-bottom: 1rem;
+            font-weight: 600;
+        }
+        
+        h1:first-child, h2:first-child {
+            margin-top: 0;
+        }
+        
+        h1.section-title {
+            font-size: 1.8rem;
+            padding-bottom: 12px;
+            border-bottom: 2px solid var(--accent);
+            margin-bottom: 1.5rem;
+        }
+        
+        h2 { font-size: 1.4rem; color: var(--text-primary); }
+        h3 { font-size: 1.15rem; color: var(--text-secondary); }
+        
+        /* ===== Text Blocks ===== */
+        .text-block {
+            margin: 1.2rem 0;
+            font-size: 1rem;
+            line-height: 1.7;
+        }
+        
+        .text-block p {
+            margin-bottom: 0.8rem;
+        }
+        
+        .text-block strong {
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+        
+        .text-block code {
+            background: var(--bg-tertiary);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.9em;
+            font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+        }
+        
+        /* ===== Key Metrics ===== */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin: 1.5rem 0;
+        }
+        
+        .metric-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .metric-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--accent);
+            line-height: 1.2;
+        }
+        
+        .metric-label {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+        
+        .metric-card.success .metric-value { color: var(--success); }
+        .metric-card.warning .metric-value { color: var(--warning); }
+        .metric-card.danger .metric-value { color: var(--danger); }
+        
+        /* ===== Plot Containers ===== */
+        .plot-container {
+            margin: 2rem 0;
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            overflow: visible;
+            background: var(--bg-primary);
+        }
+        
+        .plot-container .plotly-graph-div {
+            width: 100%;
+        }
+        
+        .plot-container figcaption {
+            padding: 12px 20px;
+            background: var(--bg-secondary);
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            border-top: 1px solid var(--border-color);
+        }
+        
+        /* ===== Tables ===== */
+        .table-container {
+            margin: 1.5rem 0;
+            overflow-x: auto;
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+        }
+        
+        .table-container caption {
+            text-align: left;
+            font-weight: 600;
+            padding: 16px 20px;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-color);
+            font-size: 0.95rem;
+        }
+        
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }
+        
+        .data-table th, .data-table td {
+            padding: 12px 16px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .data-table th {
+            background: var(--bg-secondary);
+            font-weight: 600;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-secondary);
+        }
+        
+        .data-table tbody tr:hover {
+            background: var(--accent-light);
+        }
+        
+        .data-table tbody tr:last-child td {
+            border-bottom: none;
+        }
+        
+        .table-note {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            padding: 10px 16px;
+            background: var(--bg-secondary);
+            border-top: 1px solid var(--border-color);
+        }
+        
+        /* Status badges in tables */
+        .status-badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        
+        .status-badge.ok { background: rgba(34, 197, 94, 0.15); color: var(--success); }
+        .status-badge.warning { background: rgba(245, 158, 11, 0.15); color: var(--warning); }
+        .status-badge.error { background: rgba(239, 68, 68, 0.15); color: var(--danger); }
+        
+        /* ===== LaTeX ===== */
+        .latex-display {
+            margin: 2rem 0;
+            padding: 20px;
+            background: var(--bg-secondary);
+            border-radius: 8px;
+            text-align: center;
+            overflow-x: auto;
+        }
+        
+        .latex-inline {
+            display: inline;
+        }
+        
+        /* ===== Images ===== */
+        .image-container {
+            margin: 2rem 0;
+            text-align: center;
+        }
+        
+        .image-container img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+        }
+        
+        .image-container figcaption {
+            margin-top: 12px;
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+        }
+        
+        /* ===== Collapsible ===== */
+        .collapsible {
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            margin: 1.5rem 0;
+            overflow: hidden;
+        }
+        
+        .collapsible summary {
+            padding: 16px 20px;
+            cursor: pointer;
+            font-weight: 500;
+            background: var(--bg-secondary);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: background 0.2s;
+            list-style: none;
+        }
+        
+        .collapsible summary::-webkit-details-marker {
+            display: none;
+        }
+        
+        .collapsible summary::after {
+            content: '▼';
+            font-size: 0.7rem;
+            transition: transform 0.2s;
+            color: var(--text-muted);
+        }
+        
+        .collapsible[open] summary::after {
+            transform: rotate(180deg);
+        }
+        
+        .collapsible summary:hover {
+            background: var(--bg-tertiary);
+        }
+        
+        .collapsible-content {
+            padding: 20px;
+            border-top: 1px solid var(--border-color);
+        }
+        
+        /* ===== Columns ===== */
+        .columns-container {
+            display: flex;
+            gap: 24px;
+            margin: 1.5rem 0;
+        }
+        
+        .column {
+            flex: 1;
+            min-width: 0;
+        }
+        
+        /* ===== Alerts/Callouts ===== */
+        .callout {
+            padding: 16px 20px;
+            border-radius: 8px;
+            margin: 1.5rem 0;
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+        }
+        
+        .callout svg {
+            width: 20px;
+            height: 20px;
+            flex-shrink: 0;
+            margin-top: 2px;
+        }
+        
+        .callout-content {
+            flex: 1;
+        }
+        
+        .callout-title {
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+        
+        .callout.info {
+            background: rgba(99, 102, 241, 0.1);
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            color: var(--accent);
+        }
+        
+        .callout.success {
+            background: rgba(34, 197, 94, 0.1);
+            border: 1px solid rgba(34, 197, 94, 0.3);
+            color: var(--success);
+        }
+        
+        .callout.warning {
+            background: rgba(245, 158, 11, 0.1);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+            color: var(--warning);
+        }
+        
+        .callout.danger {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: var(--danger);
+        }
+        
+        /* ===== Code Blocks ===== */
+        .code-block {
+            background: #1e1e2e;
+            color: #cdd6f4;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 1.5rem 0;
+            overflow-x: auto;
+            font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+            font-size: 0.85rem;
+            line-height: 1.5;
+        }
+        
+        /* ===== Theme Toggle ===== */
+        .theme-toggle {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            transition: all 0.2s;
+            z-index: 100;
+        }
+        
+        .theme-toggle:hover {
+            transform: scale(1.1);
+        }
+        
+        .theme-toggle svg {
+            width: 24px;
+            height: 24px;
+            color: var(--text-primary);
+        }
+        
+        /* ===== Print Styles ===== */
+        @media print {
+            .table-of-contents, .theme-toggle {
+                display: none;
+            }
+            
+            .report-container {
+                box-shadow: none;
+                max-width: none;
+            }
+            
+            .report-body {
+                display: block;
+            }
+            
+            .plot-container, .collapsible {
+                break-inside: avoid;
+            }
+        }
+        
+        /* ===== Responsive ===== */
+        @media (max-width: 900px) {
+            .report-body {
+                flex-direction: column;
+            }
+            
+            .table-of-contents {
+                width: 100%;
+                height: auto;
+                position: static;
+                border-right: none;
+                border-bottom: 1px solid var(--border-color);
+            }
+            
+            .report-header, .report-content {
+                padding: 30px;
+            }
+            
+            .columns-container {
+                flex-direction: column;
+            }
+            
+            .report-header h1 {
+                font-size: 1.8rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="report-container">
+        <header class="report-header">
+            <h1>OBD2 Analysis Report</h1>
+            <p class="report-subtitle">Comprehensive analysis of vehicle telemetry data from highway driving session</p>
+            <div class="report-meta">
+                <div class="report-meta-item">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"/>
+                        <path d="M12 6v6l4 2"/>
+                    </svg>
+                    <span>Generated: December 22, 2025 at 22:32</span>
+                </div>
+                <div class="report-meta-item">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                        <circle cx="12" cy="7" r="4"/>
+                    </svg>
+                    <span>Author: Geoffrey</span>
+                </div>
+                <div class="report-meta-item">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                        <polyline points="14 2 14 8 20 8"/>
+                    </svg>
+                    <span>Source: 00000002.mf4</span>
+                </div>
+            </div>
+        </header>
+        
+        <div class="report-body">
+            <nav class="table-of-contents">
+                <div class="toc-title">Table of Contents</div>
+                <ul>
+                    <li><a href="#overview">Overview</a></li>
+                    <li><a href="#key-metrics" class="toc-h2">Key Metrics</a></li>
+                    <li><a href="#statistics">Signal Statistics</a></li>
+                    <li><a href="#time-series">Time Series Analysis</a></li>
+                    <li><a href="#vehicle-speed" class="toc-h2">Vehicle Speed</a></li>
+                    <li><a href="#engine-rpm" class="toc-h2">Engine RPM</a></li>
+                    <li><a href="#correlation">Correlation Analysis</a></li>
+                    <li><a href="#anomalies">Anomaly Detection</a></li>
+                    <li><a href="#thermal">Thermal Analysis</a></li>
+                    <li><a href="#conclusions">Conclusions</a></li>
+                </ul>
+            </nav>
+            
+            <main class="report-content">
+                <!-- Section: Overview -->
+                <h1 class="section-title" id="overview">Overview</h1>
+                
+                <div class="text-block">
+                    <p>This report presents a comprehensive analysis of vehicle telemetry data collected during a <strong>50-minute highway driving session</strong>. The data was captured using an OBD2 interface and decoded using the standard 11-bit OBD2 DBC specification.</p>
+                    <p>The analysis covers <strong>24 signals</strong> including engine parameters, vehicle dynamics, and environmental sensors. A total of <strong>3,000,000+ data points</strong> were processed.</p>
+                </div>
+                
+                <h2 id="key-metrics">Key Metrics</h2>
+                
+                <div class="metrics-grid">
+                    <div class="metric-card">
+                        <div class="metric-value">3,247,812</div>
+                        <div class="metric-label">Total Data Points</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value">24</div>
+                        <div class="metric-label">Signals Analyzed</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value">50:23</div>
+                        <div class="metric-label">Recording Duration</div>
+                    </div>
+                    <div class="metric-card success">
+                        <div class="metric-value">99.7%</div>
+                        <div class="metric-label">Data Quality</div>
+                    </div>
+                </div>
+                
+                <div class="callout info">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"/>
+                        <path d="M12 16v-4M12 8h.01"/>
+                    </svg>
+                    <div class="callout-content">
+                        <div class="callout-title">Data Processing</div>
+                        <div>All signals were resampled to a common 10ms raster for consistent analysis. Missing values were interpolated using linear interpolation.</div>
+                    </div>
+                </div>
+                
+                <!-- Section: Statistics -->
+                <h1 class="section-title" id="statistics">Signal Statistics</h1>
+                
+                <div class="text-block">
+                    <p>The following table summarizes the key statistical measures for all analyzed signals. Values are computed over the entire recording duration.</p>
+                </div>
+                
+                <div class="table-container">
+                    <caption>Signal Statistics Summary</caption>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Signal</th>
+                                <th>Unit</th>
+                                <th>Min</th>
+                                <th>Max</th>
+                                <th>Mean</th>
+                                <th>Std Dev</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Vehicle Speed</td>
+                                <td>km/h</td>
+                                <td>0.0</td>
+                                <td>142.5</td>
+                                <td>98.3</td>
+                                <td>28.4</td>
+                                <td><span class="status-badge ok">OK</span></td>
+                            </tr>
+                            <tr>
+                                <td>Engine RPM</td>
+                                <td>rpm</td>
+                                <td>750</td>
+                                <td>5,420</td>
+                                <td>2,845</td>
+                                <td>892</td>
+                                <td><span class="status-badge ok">OK</span></td>
+                            </tr>
+                            <tr>
+                                <td>Throttle Position</td>
+                                <td>%</td>
+                                <td>0.0</td>
+                                <td>87.2</td>
+                                <td>24.6</td>
+                                <td>18.3</td>
+                                <td><span class="status-badge ok">OK</span></td>
+                            </tr>
+                            <tr>
+                                <td>Coolant Temperature</td>
+                                <td>°C</td>
+                                <td>45.0</td>
+                                <td>98.5</td>
+                                <td>91.2</td>
+                                <td>8.4</td>
+                                <td><span class="status-badge ok">OK</span></td>
+                            </tr>
+                            <tr>
+                                <td>Intake Air Temperature</td>
+                                <td>°C</td>
+                                <td>22.0</td>
+                                <td>48.5</td>
+                                <td>35.8</td>
+                                <td>6.2</td>
+                                <td><span class="status-badge warning">WARM</span></td>
+                            </tr>
+                            <tr>
+                                <td>MAF Sensor</td>
+                                <td>g/s</td>
+                                <td>2.1</td>
+                                <td>156.8</td>
+                                <td>42.3</td>
+                                <td>28.9</td>
+                                <td><span class="status-badge ok">OK</span></td>
+                            </tr>
+                            <tr>
+                                <td>Fuel Pressure</td>
+                                <td>kPa</td>
+                                <td>340</td>
+                                <td>385</td>
+                                <td>362</td>
+                                <td>12.4</td>
+                                <td><span class="status-badge ok">OK</span></td>
+                            </tr>
+                            <tr>
+                                <td>Battery Voltage</td>
+                                <td>V</td>
+                                <td>13.2</td>
+                                <td>14.6</td>
+                                <td>14.1</td>
+                                <td>0.3</td>
+                                <td><span class="status-badge ok">OK</span></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <div class="table-note">Showing 8 of 24 signals. Status thresholds based on manufacturer specifications.</div>
+                </div>
+                
+                <!-- Section: Time Series -->
+                <h1 class="section-title" id="time-series">Time Series Analysis</h1>
+                
+                <h2 id="vehicle-speed">Vehicle Speed</h2>
+                
+                <div class="text-block">
+                    <p>The vehicle speed profile shows typical highway driving patterns with cruise control engagement visible as stable speed plateaus. Three distinct acceleration events were detected during overtaking maneuvers.</p>
+                </div>
+                
+                <figure class="plot-container" id="plot-speed">
+                    <div class="plotly-graph-div" style="height: 400px;">
+                        <script type="application/json">
+                        {
+                            "data": [{
+                                "type": "scatter",
+                                "mode": "lines",
+                                "name": "Vehicle Speed",
+                                "x": [0, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1100, 1200, 1300, 1400, 1500, 1600, 1700, 1800, 1900, 2000, 2100, 2200, 2300, 2400, 2500, 2600, 2700, 2800, 2900, 3000],
+                                "y": [0, 45, 78, 95, 110, 118, 120, 120, 122, 118, 115, 120, 125, 130, 128, 120, 120, 120, 118, 122, 120, 115, 110, 95, 85, 70, 55, 40, 25, 10, 0],
+                                "line": {"color": "#6366f1", "width": 2},
+                                "fill": "tozeroy",
+                                "fillcolor": "rgba(99, 102, 241, 0.1)"
+                            }],
+                            "layout": {
+                                "title": {"text": "Vehicle Speed over Time", "font": {"size": 16}},
+                                "xaxis": {"title": "Time (s)", "gridcolor": "#e0e0e0"},
+                                "yaxis": {"title": "Speed (km/h)", "gridcolor": "#e0e0e0"},
+                                "hovermode": "x unified",
+                                "plot_bgcolor": "white",
+                                "paper_bgcolor": "white",
+                                "margin": {"t": 50, "b": 50, "l": 60, "r": 30},
+                                "shapes": [{
+                                    "type": "line",
+                                    "x0": 0, "x1": 3000,
+                                    "y0": 120, "y1": 120,
+                                    "line": {"color": "#ef4444", "width": 1, "dash": "dash"}
+                                }],
+                                "annotations": [{
+                                    "x": 2800, "y": 120,
+                                    "text": "Speed Limit",
+                                    "showarrow": false,
+                                    "font": {"size": 10, "color": "#ef4444"}
+                                }]
+                            },
+                            "config": {"responsive": true, "displayModeBar": false}
+                        }
+                        </script>
+                    </div>
+                    <figcaption>Figure 1: Vehicle speed profile during the recording session. Dashed red line indicates highway speed limit.</figcaption>
+                </figure>
+                
+                <h2 id="engine-rpm">Engine RPM</h2>
+                
+                <div class="text-block">
+                    <p>Engine RPM correlates strongly with vehicle speed, showing the expected relationship for a 6-speed automatic transmission. Gear shift points are clearly visible as sudden RPM drops.</p>
+                </div>
+                
+                <figure class="plot-container" id="plot-rpm">
+                    <div class="plotly-graph-div" style="height: 400px;">
+                        <script type="application/json">
+                        {
+                            "data": [{
+                                "type": "scatter",
+                                "mode": "lines",
+                                "name": "Engine RPM",
+                                "x": [0, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1100, 1200, 1300, 1400, 1500, 1600, 1700, 1800, 1900, 2000, 2100, 2200, 2300, 2400, 2500, 2600, 2700, 2800, 2900, 3000],
+                                "y": [800, 2200, 3100, 2400, 3200, 2800, 2600, 2600, 2700, 2500, 2400, 2600, 3000, 3400, 3200, 2600, 2600, 2600, 2500, 2700, 2600, 2400, 2200, 2000, 1800, 1600, 1400, 1200, 1000, 850, 800],
+                                "line": {"color": "#22c55e", "width": 2}
+                            }],
+                            "layout": {
+                                "title": {"text": "Engine RPM over Time", "font": {"size": 16}},
+                                "xaxis": {"title": "Time (s)", "gridcolor": "#e0e0e0"},
+                                "yaxis": {"title": "RPM", "gridcolor": "#e0e0e0"},
+                                "hovermode": "x unified",
+                                "plot_bgcolor": "white",
+                                "paper_bgcolor": "white",
+                                "margin": {"t": 50, "b": 50, "l": 60, "r": 30}
+                            },
+                            "config": {"responsive": true, "displayModeBar": false}
+                        }
+                        </script>
+                    </div>
+                    <figcaption>Figure 2: Engine RPM showing gear shift patterns and correlation with vehicle speed.</figcaption>
+                </figure>
+                
+                <!-- Section: Correlation -->
+                <h1 class="section-title" id="correlation">Correlation Analysis</h1>
+                
+                <div class="text-block">
+                    <p>A correlation analysis was performed to identify relationships between key signals. The scatter plot below shows the relationship between vehicle speed and engine RPM, with color indicating throttle position.</p>
+                </div>
+                
+                <figure class="plot-container" id="plot-correlation">
+                    <div class="plotly-graph-div" style="height: 450px;">
+                        <script type="application/json">
+                        {
+                            "data": [{
+                                "type": "scatter",
+                                "mode": "markers",
+                                "name": "Data Points",
+                                "x": [20, 35, 45, 55, 65, 75, 85, 95, 105, 115, 120, 125, 130, 118, 110, 100, 90, 80, 70, 60, 50, 40, 30, 122, 124, 126, 119, 117, 116],
+                                "y": [1200, 1800, 2100, 2400, 2200, 2700, 2500, 2900, 2700, 3100, 2600, 3200, 3500, 2800, 2600, 2500, 2300, 2100, 1900, 1700, 1500, 1400, 1100, 2650, 2700, 2750, 2600, 2550, 2500],
+                                "marker": {
+                                    "color": [5, 15, 20, 25, 18, 30, 22, 35, 28, 45, 20, 55, 70, 25, 22, 20, 18, 15, 12, 10, 8, 6, 4, 22, 24, 26, 21, 20, 19],
+                                    "colorscale": "Viridis",
+                                    "colorbar": {"title": "Throttle %"},
+                                    "size": 8,
+                                    "opacity": 0.7
+                                }
+                            }],
+                            "layout": {
+                                "title": {"text": "Speed vs RPM (colored by Throttle Position)", "font": {"size": 16}},
+                                "xaxis": {"title": "Vehicle Speed (km/h)", "gridcolor": "#e0e0e0"},
+                                "yaxis": {"title": "Engine RPM", "gridcolor": "#e0e0e0"},
+                                "hovermode": "closest",
+                                "plot_bgcolor": "white",
+                                "paper_bgcolor": "white",
+                                "margin": {"t": 50, "b": 50, "l": 60, "r": 30}
+                            },
+                            "config": {"responsive": true, "displayModeBar": false}
+                        }
+                        </script>
+                    </div>
+                    <figcaption>Figure 3: Correlation between vehicle speed and engine RPM. Color represents throttle position percentage.</figcaption>
+                </figure>
+                
+                <div class="text-block">
+                    <p>The Pearson correlation coefficient between speed and RPM is calculated as:</p>
+                </div>
+                
+                <div class="latex-display" data-latex="r = \frac{\sum_{i=1}^{n}(x_i - \bar{x})(y_i - \bar{y})}{\sqrt{\sum_{i=1}^{n}(x_i - \bar{x})^2 \sum_{i=1}^{n}(y_i - \bar{y})^2}} = 0.847"></div>
+                
+                <div class="text-block">
+                    <p>This strong positive correlation (<span class="latex-inline" data-latex="r = 0.847"></span>) confirms the expected relationship. The spread at higher speeds indicates the influence of gear selection and throttle position.</p>
+                </div>
+                
+                <!-- Section: Anomalies -->
+                <h1 class="section-title" id="anomalies">Anomaly Detection</h1>
+                
+                <div class="text-block">
+                    <p>Anomalies were detected using a Z-score threshold of 3σ (3 standard deviations from the mean). The following events were flagged for review:</p>
+                </div>
+                
+                <div class="callout warning">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                        <line x1="12" y1="9" x2="12" y2="13"/>
+                        <line x1="12" y1="17" x2="12.01" y2="17"/>
+                    </svg>
+                    <div class="callout-content">
+                        <div class="callout-title">3 Anomalies Detected</div>
+                        <div>Review recommended for the events listed below. These may indicate sensor issues or genuine unusual conditions.</div>
+                    </div>
+                </div>
+                
+                <div class="table-container">
+                    <caption>Detected Anomalies</caption>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Time (s)</th>
+                                <th>Signal</th>
+                                <th>Value</th>
+                                <th>Expected Range</th>
+                                <th>Z-Score</th>
+                                <th>Severity</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>847.234</td>
+                                <td>MAF Sensor</td>
+                                <td>156.8 g/s</td>
+                                <td>2.1 - 120.0</td>
+                                <td>3.95</td>
+                                <td><span class="status-badge warning">Medium</span></td>
+                            </tr>
+                            <tr>
+                                <td>1523.891</td>
+                                <td>Intake Air Temp</td>
+                                <td>48.5 °C</td>
+                                <td>22.0 - 42.0</td>
+                                <td>3.24</td>
+                                <td><span class="status-badge warning">Medium</span></td>
+                            </tr>
+                            <tr>
+                                <td>2891.456</td>
+                                <td>Engine RPM</td>
+                                <td>5,420 rpm</td>
+                                <td>750 - 4,800</td>
+                                <td>3.12</td>
+                                <td><span class="status-badge ok">Low</span></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                
+                <details class="collapsible">
+                    <summary>Technical Details: Anomaly Detection Algorithm</summary>
+                    <div class="collapsible-content">
+                        <div class="text-block">
+                            <p>The anomaly detection uses a rolling Z-score approach with the following parameters:</p>
+                        </div>
+                        <ul style="margin-left: 20px; margin-bottom: 15px;">
+                            <li>Window size: 1000 samples (10 seconds at 100 Hz)</li>
+                            <li>Z-score threshold: 3.0</li>
+                            <li>Minimum anomaly duration: 50ms (to filter noise)</li>
+                        </ul>
+                        <div class="code-block">
+# Polars implementation
+anomalies = df.with_columns([
+    ((pl.col("value") - pl.col("value").rolling_mean(1000)) / 
+     pl.col("value").rolling_std(1000)).alias("z_score")
+]).filter(pl.col("z_score").abs() > 3.0)</div>
+                    </div>
+                </details>
+                
+                <!-- Section: Thermal -->
+                <h1 class="section-title" id="thermal">Thermal Analysis</h1>
+                
+                <div class="text-block">
+                    <p>Thermal management is critical for engine longevity. The following analysis shows the relationship between coolant temperature and operating conditions.</p>
+                </div>
+                
+                <div class="columns-container">
+                    <div class="column">
+                        <div class="metric-card">
+                            <div class="metric-value">91.2°C</div>
+                            <div class="metric-label">Avg Coolant Temp</div>
+                        </div>
+                        <div class="text-block">
+                            <p><strong>Coolant System:</strong> Operating within normal range. Thermostat opening observed at 87°C.</p>
+                        </div>
+                    </div>
+                    <div class="column">
+                        <div class="metric-card warning">
+                            <div class="metric-value">48.5°C</div>
+                            <div class="metric-label">Peak Intake Air Temp</div>
+                        </div>
+                        <div class="text-block">
+                            <p><strong>Intake Air:</strong> Elevated temperatures during high load periods. Consider heat soak mitigation.</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <figure class="plot-container" id="plot-thermal">
+                    <div class="plotly-graph-div" style="height: 350px;">
+                        <script type="application/json">
+                        {
+                            "data": [
+                                {
+                                    "type": "scatter",
+                                    "mode": "lines",
+                                    "name": "Coolant Temp",
+                                    "x": [0, 300, 600, 900, 1200, 1500, 1800, 2100, 2400, 2700, 3000],
+                                    "y": [45, 72, 85, 90, 92, 91, 93, 92, 91, 90, 88],
+                                    "line": {"color": "#ef4444", "width": 2}
+                                },
+                                {
+                                    "type": "scatter",
+                                    "mode": "lines",
+                                    "name": "Intake Air Temp",
+                                    "x": [0, 300, 600, 900, 1200, 1500, 1800, 2100, 2400, 2700, 3000],
+                                    "y": [22, 28, 32, 35, 38, 42, 45, 43, 40, 36, 32],
+                                    "line": {"color": "#f59e0b", "width": 2}
+                                },
+                                {
+                                    "type": "scatter",
+                                    "mode": "lines",
+                                    "name": "Oil Temp",
+                                    "x": [0, 300, 600, 900, 1200, 1500, 1800, 2100, 2400, 2700, 3000],
+                                    "y": [40, 65, 82, 92, 98, 100, 102, 101, 99, 96, 92],
+                                    "line": {"color": "#8b5cf6", "width": 2}
+                                }
+                            ],
+                            "layout": {
+                                "title": {"text": "Temperature Profiles", "font": {"size": 16}},
+                                "xaxis": {"title": "Time (s)", "gridcolor": "#e0e0e0"},
+                                "yaxis": {"title": "Temperature (°C)", "gridcolor": "#e0e0e0"},
+                                "hovermode": "x unified",
+                                "plot_bgcolor": "white",
+                                "paper_bgcolor": "white",
+                                "margin": {"t": 50, "b": 50, "l": 60, "r": 30},
+                                "legend": {"orientation": "h", "y": -0.15}
+                            },
+                            "config": {"responsive": true, "displayModeBar": false}
+                        }
+                        </script>
+                    </div>
+                    <figcaption>Figure 4: Temperature evolution for coolant, intake air, and oil during the session.</figcaption>
+                </figure>
+                
+                <!-- Section: Conclusions -->
+                <h1 class="section-title" id="conclusions">Conclusions</h1>
+                
+                <div class="callout success">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                        <polyline points="22 4 12 14.01 9 11.01"/>
+                    </svg>
+                    <div class="callout-content">
+                        <div class="callout-title">Overall Assessment: Good</div>
+                        <div>Vehicle systems are operating within expected parameters. Minor attention items noted below.</div>
+                    </div>
+                </div>
+                
+                <div class="text-block">
+                    <p><strong>Key Findings:</strong></p>
+                </div>
+                
+                <ol style="margin-left: 24px; margin-bottom: 20px; line-height: 1.8;">
+                    <li><strong>Engine Performance:</strong> Operating efficiently with expected speed/RPM correlation (r = 0.847)</li>
+                    <li><strong>Thermal Management:</strong> Coolant system stable; intake air temps slightly elevated during sustained high load</li>
+                    <li><strong>Anomalies:</strong> 3 events detected, all within acceptable severity range</li>
+                    <li><strong>Data Quality:</strong> 99.7% valid data points; sensor reliability confirmed</li>
+                </ol>
+                
+                <div class="text-block">
+                    <p><strong>Recommendations:</strong></p>
+                </div>
+                
+                <ul style="margin-left: 24px; margin-bottom: 20px; line-height: 1.8;">
+                    <li>Monitor intake air temperature during summer months</li>
+                    <li>Investigate MAF sensor spike at t=847s if recurrent</li>
+                    <li>Consider aftermarket air intake for heat soak reduction</li>
+                </ul>
+                
+                <details class="collapsible">
+                    <summary>Appendix: Data Processing Pipeline</summary>
+                    <div class="collapsible-content">
+                        <div class="code-block">
+# Data loading and preprocessing
+import polars as pl
+from asammdf import MDF
+
+# Load MF4 with DBC decoding
+mdf = MDF("00000002.mf4")
+decoded = mdf.extract_bus_logging(database_files={"CAN": [("11-bit-OBD2-v4.0.dbc", 0)]})
+
+# Convert to Polars DataFrame
+df = pl.from_pandas(decoded.to_dataframe())
+
+# Resample to 10ms raster
+df = df.group_by_dynamic("timestamp", every="10ms").agg([
+    pl.col("*").mean()
+])
+
+# Calculate statistics
+stats = df.select([
+    pl.col("*").mean().suffix("_mean"),
+    pl.col("*").std().suffix("_std"),
+    pl.col("*").min().suffix("_min"),
+    pl.col("*").max().suffix("_max"),
+])</div>
+                    </div>
+                </details>
+                
+                <div style="margin-top: 60px; padding-top: 30px; border-top: 1px solid var(--border-color); color: var(--text-muted); font-size: 0.85rem; text-align: center;">
+                    <p>Generated by <strong>Baltimore bird</strong> • Automotive Data Analysis Platform</p>
+                    <p style="margin-top: 5px;">Report ID: RPT-20241223-143256 • Version 1.0</p>
+                </div>
+            </main>
+        </div>
+    </div>
+    
+    <!-- Theme Toggle Button -->
+    <button class="theme-toggle" onclick="toggleTheme()" title="Toggle dark mode">
+        <svg class="sun-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="5"/>
+            <line x1="12" y1="1" x2="12" y2="3"/>
+            <line x1="12" y1="21" x2="12" y2="23"/>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+            <line x1="1" y1="12" x2="3" y2="12"/>
+            <line x1="21" y1="12" x2="23" y2="12"/>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+        </svg>
+    </button>
+    
+    <!-- Scripts -->
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    
+    <script>
+        // Initialize Plotly charts	
+        document.addEventListener("DOMContentLoaded", () => {
+            const theme = document.documentElement.getAttribute('data-theme');
+
+            document.querySelectorAll('.plotly-graph-div').forEach(container => {
+                const script = container.querySelector('script[type="application/json"]');
+                if (!script) return;
+
+                const figure = JSON.parse(script.textContent);
+                script.remove();
+
+                Plotly.newPlot(
+                    container,
+                    figure.data,
+                    figure.layout,
+                    figure.config || { responsive: true }
+                ).then(() => {
+                    applyPlotlyTheme(theme);   // ✅ clé ici
+                });
+            });
+
+        });
+        
+        // Initialize KaTeX
+        document.querySelectorAll('[data-latex]').forEach(el => {
+            try {
+                katex.render(el.dataset.latex, el, {
+                    displayMode: el.classList.contains('latex-display'),
+                    throwOnError: false
+                });
+            } catch (e) {
+                console.error('Error rendering LaTeX:', e);
+                el.textContent = el.dataset.latex;
+            }
+        });
+        
+        // TOC scroll highlighting
+        const tocLinks = document.querySelectorAll('.table-of-contents a');
+        const sections = document.querySelectorAll('[id]');
+        
+        function updateTocHighlight() {
+            let current = '';
+            sections.forEach(section => {
+                const rect = section.getBoundingClientRect();
+                if (rect.top <= 100) {
+                    current = section.id;
+                }
+            });
+            
+            tocLinks.forEach(link => {
+                link.classList.toggle('active', link.getAttribute('href') === '#' + current);
+            });
+        }
+        
+        window.addEventListener('scroll', updateTocHighlight);
+        updateTocHighlight();
+        
+        // Theme toggle
+        function toggleTheme() {
+            const html = document.documentElement;
+            const currentTheme = html.getAttribute('data-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            html.setAttribute('data-theme', newTheme);
+            localStorage.setItem('report-theme', newTheme);
+
+            applyPlotlyTheme(newTheme);
+            
+            // Update Plotly charts for theme
+            const plotBg = newTheme === 'dark' ? '#1a1a2e' : 'white';
+            const gridColor = newTheme === 'dark' ? '#2d2d5a' : '#e0e0e0';
+            const fontColor = newTheme === 'dark' ? '#e0e0e0' : '#1a1a2e';
+            
+            document.querySelectorAll('.plotly-graph-div > div').forEach(div => {
+                Plotly.relayout(div, {
+                    'plot_bgcolor': plotBg,
+                    'paper_bgcolor': plotBg,
+                    'font.color': fontColor,
+                    'xaxis.gridcolor': gridColor,
+                    'yaxis.gridcolor': gridColor
+                });
+            });
+        }
+        
+        // Restore theme preference
+        const savedTheme = localStorage.getItem('report-theme');
+        if (savedTheme) {
+            document.documentElement.setAttribute('data-theme', savedTheme);
+        }
+        
+        // Smooth scroll for TOC links
+        tocLinks.forEach(link => {
+            link.addEventListener('click', e => {
+                e.preventDefault();
+                const targetId = link.getAttribute('href').slice(1);
+                const target = document.getElementById(targetId);
+                if (target) {
+                    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            });
+        });
+
+        const PLOTLY_THEMES = {
+            light: {
+                plot_bgcolor: "white",
+                paper_bgcolor: "white",
+                font: { color: "#1a1a2e" },
+                xaxis: {
+                    gridcolor: "#e0e0e0",
+                    zerolinecolor: "#e0e0e0"
+                },
+                yaxis: {
+                    gridcolor: "#e0e0e0",
+                    zerolinecolor: "#e0e0e0"
+                }
+            },
+            dark: {
+                plot_bgcolor: "#1a1a2e",
+                paper_bgcolor: "#1a1a2e",
+                font: { color: "#e0e0e0" },
+                xaxis: {
+                    gridcolor: "#2d2d5a",
+                    zerolinecolor: "#2d2d5a"
+                },
+                yaxis: {
+                    gridcolor: "#2d2d5a",
+                    zerolinecolor: "#2d2d5a"
+                }
+            }
+        };
+
+        function applyPlotlyTheme(theme) {
+            document.querySelectorAll('.plotly-graph-div.js-plotly-plot').forEach(div => {
+                Plotly.relayout(div, PLOTLY_THEMES[theme]);
+            });
+        };
+
+        PLOTLY_THEMES.dark.hoverlabel = {
+            bgcolor: "#252550",
+            font: { color: "#e0e0e0" }
+        };
+    </script>
+</body>
+</html>

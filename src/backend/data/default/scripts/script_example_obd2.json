@@ -1,0 +1,92 @@
+{
+  "id": "script_example_obd2",
+  "name": "Analyse OBD2 Standard",
+  "description": "Script d'exemple pour l'analyse des données OBD2",
+  "created": "2024-01-15T10:30:00Z",
+  "modified": "2024-01-15T10:30:00Z",
+  "blocks": [
+    {
+      "id": "block_1",
+      "type": "section",
+      "config": { "title": "Introduction", "level": "H1" }
+    },
+    {
+      "id": "block_2",
+      "type": "text",
+      "config": { "content": "Ce rapport présente une analyse des données OBD2 enregistrées.\nLes données couvrent une période de conduite avec différentes conditions." }
+    },
+    {
+      "id": "block_3",
+      "type": "section",
+      "config": { "title": "Métriques clés", "level": "H1" }
+    },
+    {
+      "id": "block_4",
+      "type": "metrics",
+      "config": { "columns": 4 }
+    },
+    {
+      "id": "block_5",
+      "type": "section",
+      "config": { "title": "Analyse de la vitesse", "level": "H1" }
+    },
+    {
+      "id": "block_6",
+      "type": "text",
+      "config": { "content": "Évolution de la vitesse véhicule au cours du temps." }
+    },
+    {
+      "id": "block_7",
+      "type": "lineplot",
+      "config": { "signal": "VehicleSpeed", "title": "Vitesse véhicule", "color": "#6366f1" }
+    },
+    {
+      "id": "block_8",
+      "type": "section",
+      "config": { "title": "Vitesses de roue", "level": "H2" }
+    },
+    {
+      "id": "block_9",
+      "type": "callout",
+      "config": { "content": "Les écarts entre les vitesses de roue peuvent indiquer un glissement.", "type": "info" }
+    },
+    {
+      "id": "block_10",
+      "type": "section",
+      "config": { "title": "Analyse moteur", "level": "H1" }
+    },
+    {
+      "id": "block_11",
+      "type": "lineplot",
+      "config": { "signal": "EngineRPM", "title": "Régime moteur", "color": "#ef4444" }
+    },
+    {
+      "id": "block_12",
+      "type": "section",
+      "config": { "title": "Température", "level": "H2" }
+    },
+    {
+      "id": "block_13",
+      "type": "lineplot",
+      "config": { "signal": "CoolantTemp", "title": "Température liquide refroidissement", "color": "#f59e0b" }
+    },
+    {
+      "id": "block_14",
+      "type": "section",
+      "config": { "title": "Statistiques", "level": "H1" }
+    },
+    {
+      "id": "block_15",
+      "type": "table",
+      "config": { "caption": "Statistiques descriptives" }
+    }
+  ],
+  "settings": {
+    "title": "Analyse OBD2",
+    "author": "Baltimore Bird",
+    "mappingId": "mapping_obd2_standard"
+  },
+  "lastRun": null,
+  "lastRunStatus": null,
+  "lastRunDuration": null
+}

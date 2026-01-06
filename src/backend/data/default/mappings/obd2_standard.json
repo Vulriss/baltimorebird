@@ -1,0 +1,46 @@
+{
+  "id": "mapping_default",
+  "name": "Default Mapping",
+  "description": "Mapping standard pour les données OBD2",
+  "created": "2024-01-15T10:30:00Z",
+  "modified": "2024-01-15T14:45:00Z",
+  "variables": [
+    {
+      "id": "mapping_1",
+      "name": "VehicleSpeed",
+      "description": "Vitesse véhicule en km/h",
+      "unit": "km/h",
+      "aliases": [
+        "Vxx_vh_spd",
+        "Vxx_vs",
+        "Vxx_vh_spd_20ms",
+        "Vxx_vh_spd_10ms",
+        "OBD_VehicleSpeed"
+      ]
+    },
+    {
+      "id": "mapping_2",
+      "name": "EngineRPM",
+      "description": "Régime moteur",
+      "unit": "rpm",
+      "aliases": [
+        "Vxx_eng_rpm",
+        "Vxx_n_mot",
+        "OBD_EngineRPM",
+        "Engine_Speed"
+      ]
+    },
+    {
+      "id": "mapping_3",
+      "name": "CoolantTemp",
+      "description": "Température liquide de refroidissement",
+      "unit": "°C",
+      "aliases": [
+        "Vxx_t_cool",
+        "Vxx_eng_coolant_temp",
+        "OBD_CoolantTemp",
+        "Engine_Coolant_Temperature"
+      ]
+    }
+  ]
+}

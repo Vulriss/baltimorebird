@@ -73,6 +73,11 @@ dmypy.json
 # -----------------------------------------------------------------------------
 # Base de données
 backend/data/auth/*.db
+backend/data/users.db
+users.db
+
+# User data (private uploads, scripts, etc.)
+backend/data/users/
 
 # Métriques (données générées)
 backend/metrics_data/
