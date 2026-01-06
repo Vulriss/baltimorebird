@@ -5,6 +5,7 @@ Web-based automotive data analysis platform for MF4/CAN bus data visualization a
 [![Codacy Badge](https://app.codacy.com/project/badge/Grade/9761719c527d46cea247a9c0852a1f35)](https://app.codacy.com/gh/Vulriss/baltimorebird/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-7a60f4.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-7a60f4.svg)](https://www.python.org/downloads/)
+[![Vite](https://img.shields.io/badge/Vite-6.0-646CFF.svg)](https://vitejs.dev/)
 
 ![Baltimore Bird Interface](docs/screenshots/gui-overview.png)
 
@@ -56,6 +57,22 @@ nano .env  # Edit with your values
 python server.py
 ```
 
+### Frontend setup
+```bash
+cd frontend
+
+# Dependencies
+npm install
+
+# Dev
+npm run dev
+# → http://localhost:5173 (proxies API to :5000)
+
+# Production build
+npm run build
+# → generates dist/
+```
+
 ### Production configuration
 
 Generate a secret key:
@@ -72,41 +89,22 @@ FLASK_DEBUG=0
 ```
 
 ## Development
+
+Start both backend and frontend:
+
 ```bash
+# Terminal 1 - Backend
 cd backend
 FLASK_DEBUG=1 python server.py
+# → http://localhost:5000
+
+# Terminal 2 - Frontend (Vite dev server)
+cd frontend
+npm run dev
+# → http://localhost:5173
 ```
 
-Server starts at `http://localhost:5000`
-
-To mimic production deployment locally, you can use this nginx configuration:
-```nginx
-server {
-    listen 8080;
-    server_name localhost;
-    root /path/to/baltimore_bird/frontend;
-    index index.html;
-
-    client_max_body_size 1500M;
-
-    location / {
-        try_files $uri /index.html;
-    }
-
-    location /api/ {
-        proxy_pass http://127.0.0.1:5000;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        
-        proxy_read_timeout 300s;
-        proxy_connect_timeout 75s;
-        proxy_request_buffering off;
-        proxy_buffering off;
-        
-        client_max_body_size 1500M;
-    }
-}
-```
+The Vite dev server proxies `/api` requests to the backend automatically.
 
 ## Deployment
 
