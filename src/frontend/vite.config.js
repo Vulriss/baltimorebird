@@ -32,9 +32,9 @@ function copyFoldersPlugin() {
         const dest = resolve(__dirname, 'dist', folder)
         try {
           copyRecursive(src, dest)
-          console.log(`✅ Copied ${folder}/ to dist/`)
+          console.log(`Copied ${folder}/ to dist/`)
         } catch (e) {
-          console.warn(`⚠️ Could not copy ${folder}/: ${e.message}`)
+          console.warn(`Could not copy ${folder}/: ${e.message}`)
         }
       }
     }

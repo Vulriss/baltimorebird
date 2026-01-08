@@ -110,7 +110,7 @@ def add_security_headers(response):
         "img-src 'self' data: blob:",
         "font-src 'self'",
         "connect-src 'self'",
-        "frame-ancestors 'none'",
+        "frame-ancestors 'self'",
         "form-action 'self'",
         "base-uri 'self'",
         "object-src 'none'",
