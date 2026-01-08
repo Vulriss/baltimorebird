@@ -1,8 +1,14 @@
 /**
- * ViewLoader - Dynamic HTML view loader
+ * ViewLoader - Dynamic HTML view loader with lazy loading
+ * 
+ * Strategy:
+ * - Only EDA is loaded at startup
+ * - Other views are preloaded on hover (anticipate user intent)
+ * - Click = instant display (already cached)
  */
 const ViewLoader = (() => {
     const cache = new Map();
+    const preloadingInProgress = new Set();
 
     const viewPaths = Object.freeze({
         eda: '/views/eda.html',
@@ -47,19 +53,42 @@ const ViewLoader = (() => {
         `;
     }
 
-    async function preloadSingle(viewId) {
-        if (cache.has(viewId)) return;
-        const path = viewPaths[viewId];
-        if (!path) return;
-
-        try {
-            cache.set(viewId, await fetchHTML(path));
-        } catch {
-            // Preload failures are non-critical
-        }
-    }
-
     return Object.freeze({
+        /**
+         * Preload a view in background (called on hover)
+         * Non-blocking, silent failures
+         */
+        async preloadView(viewId) {
+            // Already cached or loading
+            if (cache.has(viewId) || preloadingInProgress.has(viewId)) return;
+            
+            const path = viewPaths[viewId];
+            if (!path) return;
+
+            preloadingInProgress.add(viewId);
+            
+            try {
+                const html = await fetchHTML(path);
+                cache.set(viewId, html);
+                console.log(`📦 Preloaded: ${viewId}`);
+            } catch (e) {
+                // Silent fail - will load on click if needed
+                console.warn(`Preload failed for ${viewId}:`, e.message);
+            } finally {
+                preloadingInProgress.delete(viewId);
+            }
+        },
+
+        /**
+         * Check if a view is cached
+         */
+        isCached(viewId) {
+            return cache.has(viewId);
+        },
+
+        /**
+         * Load and display a view
+         */
         async loadView(viewId) {
             const container = document.getElementById(`view-${viewId}`);
             if (!container) {
@@ -123,23 +152,17 @@ const ViewLoader = (() => {
             }
         },
 
-        async preloadCritical() {
-            await Promise.all([
-                preloadSingle('eda'),
-                preloadSingle('dashboard')
-            ]);
-        },
-
-        async preloadAll() {
-            await Promise.allSettled(Object.keys(viewPaths).map(preloadSingle));
+        /**
+         * Get cache stats (for debugging)
+         */
+        getStats() {
+            return {
+                cached: Array.from(cache.keys()),
+                loading: Array.from(preloadingInProgress)
+            };
         }
     });
 })();
 
 // Expose globally for other modules
 window.ViewLoader = ViewLoader;
-
-document.addEventListener('DOMContentLoaded', () => {
-    setTimeout(() => ViewLoader.preloadCritical(), 1000);
-    setTimeout(() => ViewLoader.preloadAll(), 3000);
-});

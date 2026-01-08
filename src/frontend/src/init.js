@@ -1,19 +1,25 @@
 /**
  * Init Module - Initialisation de l'application
- * Remplace le script inline de index.html pour compatibilité CSP
+ * 
+ * Lazy loading strategy:
+ * - Only EDA loaded at startup
+ * - Other views preloaded on hover (anticipate user intent)
+ * - Click = instant display
  */
 
 (function() {
     'use strict';
 
-    // Charge les vues et modals au démarrage
+    // Charge uniquement EDA et les modals au démarrage
     async function bootstrapApp() {
         // Charge la vue EDA (active par défaut)
         await window.ViewLoader.loadView('eda');
         
-        // Charge les modals
+        // Charge les modals (légers, nécessaires rapidement)
         await window.ViewLoader.loadModal('upload', 'modalsContainer');
         await window.ViewLoader.loadModal('auth', 'modalsContainer');
+        
+        console.log('✅ App bootstrapped (EDA only)');
     }
 
     // Override switchView pour charger les vues dynamiquement
@@ -70,9 +76,18 @@
 
         // Nav items avec data-view
         document.querySelectorAll('.nav-item[data-view]').forEach(item => {
+            const viewId = item.getAttribute('data-view');
+            
+            // HOVER: Preload la vue (anticipe l'intention)
+            item.addEventListener('mouseenter', function() {
+                if (viewId && !window.ViewLoader.isCached(viewId)) {
+                    window.ViewLoader.preloadView(viewId);
+                }
+            });
+            
+            // CLICK: Affiche la vue (instantané si preloaded)
             item.addEventListener('click', function(e) {
                 e.preventDefault();
-                const viewId = this.getAttribute('data-view');
                 if (viewId) {
                     switchView(viewId, this);
                 }
