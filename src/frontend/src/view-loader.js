@@ -70,10 +70,8 @@ const ViewLoader = (() => {
             try {
                 const html = await fetchHTML(path);
                 cache.set(viewId, html);
-                console.log(`📦 Preloaded: ${viewId}`);
             } catch (e) {
-                // Silent fail - will load on click if needed
-                console.warn(`Preload failed for ${viewId}:`, e.message);
+                // Silent fail - will load on demand
             } finally {
                 preloadingInProgress.delete(viewId);
             }

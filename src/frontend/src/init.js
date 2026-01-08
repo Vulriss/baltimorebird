@@ -19,7 +19,7 @@
         await window.ViewLoader.loadModal('upload', 'modalsContainer');
         await window.ViewLoader.loadModal('auth', 'modalsContainer');
         
-        console.log('✅ App bootstrapped (EDA only)');
+        console.log('[Init] App bootstrapped');
     }
 
     // Override switchView pour charger les vues dynamiquement

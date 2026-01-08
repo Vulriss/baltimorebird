@@ -1,5 +1,6 @@
 /**
  * Storage Module - User storage management in settings
+ * Security: All user data is escaped to prevent XSS
  */
 const StorageManager = (() => {
     const state = {
@@ -20,12 +21,55 @@ const StorageManager = (() => {
         analyses: { name: 'Analyses', extensions: '.json, .py', accept: '.json,.py' }
     });
 
+    // Allowed API endpoints (whitelist)
+    const ALLOWED_ENDPOINTS = [
+        '/api/storage/info',
+        '/api/storage/files',
+        '/api/storage/default'
+    ];
+
     const $ = (id) => document.getElementById(id);
     const setText = (id, text) => { const el = $(id); if (el) el.textContent = text; };
-    const setHTML = (id, html) => { const el = $(id); if (el) el.innerHTML = html; };
     const setDisplay = (id, show) => { const el = $(id); if (el) el.style.display = show ? '' : 'none'; };
 
+    /**
+     * Escape HTML to prevent XSS
+     */
+    function escapeHtml(str) {
+        if (typeof str !== 'string') return '';
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    }
+
+    /**
+     * Escape attribute value
+     */
+    function escapeAttr(str) {
+        if (typeof str !== 'string') return '';
+        return str.replace(/&/g, '&amp;')
+                  .replace(/"/g, '&quot;')
+                  .replace(/'/g, '&#39;')
+                  .replace(/</g, '&lt;')
+                  .replace(/>/g, '&gt;');
+    }
+
+    /**
+     * Validate endpoint against whitelist
+     */
+    function isValidEndpoint(endpoint) {
+        return ALLOWED_ENDPOINTS.some(allowed => endpoint.startsWith(allowed));
+    }
+
+    /**
+     * Safe API call with endpoint validation
+     */
     async function api(endpoint, options = {}) {
+        // Validate endpoint
+        if (!isValidEndpoint(endpoint)) {
+            throw new Error('Invalid API endpoint');
+        }
+
         const token = sessionStorage.getItem('auth_token');
         const headers = { ...options.headers };
         if (token) headers['Authorization'] = `Bearer ${token}`;
@@ -53,16 +97,29 @@ const StorageManager = (() => {
         const listEl = $('storageFilesList');
         if (!listEl) return;
 
-        listEl.innerHTML = '<div class="storage-loading">Chargement...</div>';
+        // Safe: static content only
+        listEl.textContent = '';
+        const loadingDiv = document.createElement('div');
+        loadingDiv.className = 'storage-loading';
+        loadingDiv.textContent = 'Chargement...';
+        listEl.appendChild(loadingDiv);
 
         try {
+            // Validate category against whitelist
+            if (!CATEGORIES[state.currentCategory]) {
+                throw new Error('Invalid category');
+            }
             const includeDefault = state.showDefaultFiles ? 'true' : 'false';
-            const res = await api(`/api/storage/files?category=${state.currentCategory}&include_default=${includeDefault}`);
+            const res = await api(`/api/storage/files?category=${encodeURIComponent(state.currentCategory)}&include_default=${includeDefault}`);
             state.files = (await res.json()).files;
             renderFiles();
         } catch (error) {
             console.error('Error loading files:', error);
-            listEl.innerHTML = '<div class="storage-empty">Erreur de chargement</div>';
+            listEl.textContent = '';
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'storage-empty';
+            errorDiv.textContent = 'Erreur de chargement';
+            listEl.appendChild(errorDiv);
         }
     }
 
@@ -81,124 +138,202 @@ const StorageManager = (() => {
 
         const barFill = $('storageBarFill');
         if (barFill) {
-            barFill.style.width = info.usage_percent + '%';
+            barFill.style.width = Math.min(100, Math.max(0, info.usage_percent)) + '%';
             barFill.classList.toggle('critical', info.usage_percent > 90);
             barFill.classList.toggle('warning', info.usage_percent > 75 && info.usage_percent <= 90);
         }
 
-        if (info.by_category) {
-            const detailsHTML = Object.entries(info.by_category)
-                .map(([cat, catInfo]) => `
-                    <div class="storage-quota-category">
-                        <span class="storage-quota-category-name">${CATEGORIES[cat]?.name || cat}</span>
-                        <span class="storage-quota-category-value">${catInfo.used_human} (${catInfo.count})</span>
-                    </div>
-                `).join('');
-            setHTML('storageDetails', detailsHTML);
+        // Build quota details using DOM methods
+        const detailsEl = $('storageDetails');
+        if (detailsEl && info.by_category) {
+            detailsEl.textContent = '';
+            Object.entries(info.by_category).forEach(([cat, catInfo]) => {
+                const div = document.createElement('div');
+                div.className = 'storage-quota-category';
+
+                const nameSpan = document.createElement('span');
+                nameSpan.className = 'storage-quota-category-name';
+                nameSpan.textContent = CATEGORIES[cat]?.name || cat;
+
+                const valueSpan = document.createElement('span');
+                valueSpan.className = 'storage-quota-category-value';
+                valueSpan.textContent = `${catInfo.used_human} (${catInfo.count})`;
+
+                div.appendChild(nameSpan);
+                div.appendChild(valueSpan);
+                detailsEl.appendChild(div);
+            });
         }
     }
 
     function renderTabCounts() {
         const byCategory = state.info?.by_category;
         if (!byCategory) return;
-        Object.entries(byCategory).forEach(([cat, info]) => setText(`count-${cat}`, info.count));
+        Object.entries(byCategory).forEach(([cat, info]) => {
+            // Validate category name
+            if (CATEGORIES[cat]) {
+                setText(`count-${cat}`, info.count);
+            }
+        });
     }
 
     function renderFiles() {
         const listEl = $('storageFilesList');
         if (!listEl) return;
 
+        listEl.textContent = '';
+
         if (!state.files?.length) {
-            listEl.innerHTML = `
-                <div class="storage-empty">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
-                    </svg>
-                    <p>Aucun fichier dans cette catégorie</p>
-                </div>
+            const emptyDiv = document.createElement('div');
+            emptyDiv.className = 'storage-empty';
+            emptyDiv.innerHTML = `
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+                </svg>
             `;
+            const p = document.createElement('p');
+            p.textContent = 'Aucun fichier dans cette catégorie';
+            emptyDiv.appendChild(p);
+            listEl.appendChild(emptyDiv);
             return;
         }
 
         const defaultFiles = state.files.filter(f => f.is_default);
         const userFiles = state.files.filter(f => !f.is_default);
-        let html = '';
 
         if (userFiles.length > 0) {
-            html += `
-                <div class="storage-files-group">
-                    <div class="storage-files-group-title">Mes fichiers</div>
-                    ${userFiles.map(renderFileItem).join('')}
-                </div>
-            `;
+            const group = createFileGroup('Mes fichiers', userFiles);
+            listEl.appendChild(group);
         }
 
         if (defaultFiles.length > 0 && state.showDefaultFiles) {
-            html += `
-                <div class="storage-files-group">
-                    <div class="storage-files-group-title">Fichiers de démonstration</div>
-                    ${defaultFiles.map(renderFileItem).join('')}
-                </div>
-            `;
+            const group = createFileGroup('Fichiers de démonstration', defaultFiles);
+            listEl.appendChild(group);
         }
-
-        listEl.innerHTML = html;
     }
 
-    function renderFileItem(file) {
-        const dateStr = new Date(file.uploaded_at).toLocaleDateString('fr-FR', {
-            day: '2-digit', month: 'short', year: 'numeric'
+    function createFileGroup(title, files) {
+        const group = document.createElement('div');
+        group.className = 'storage-files-group';
+
+        const titleDiv = document.createElement('div');
+        titleDiv.className = 'storage-files-group-title';
+        titleDiv.textContent = title;
+        group.appendChild(titleDiv);
+
+        files.forEach(file => {
+            group.appendChild(createFileElement(file));
         });
 
-        const deleteBtn = file.is_default ? '' : `
-            <button class="storage-file-btn danger"
-                    data-action="promptDelete"
-                    data-file-id="${file.id}"
-                    data-filename="${file.filename.replace(/"/g, '&quot;')}"
-                    title="Supprimer">
+        return group;
+    }
+
+    function createFileElement(file) {
+        const item = document.createElement('div');
+        item.className = `storage-file-item ${file.is_default ? 'default' : ''}`;
+        item.dataset.fileId = file.id;
+
+        // File icon
+        const iconDiv = document.createElement('div');
+        iconDiv.className = 'storage-file-icon';
+        iconDiv.innerHTML = `
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+            </svg>
+        `;
+        if (file.is_default) {
+            const badge = document.createElement('span');
+            badge.className = 'storage-file-badge';
+            badge.textContent = 'DEMO';
+            iconDiv.appendChild(badge);
+        }
+        item.appendChild(iconDiv);
+
+        // File info
+        const infoDiv = document.createElement('div');
+        infoDiv.className = 'storage-file-info';
+
+        const nameDiv = document.createElement('div');
+        nameDiv.className = 'storage-file-name';
+        nameDiv.title = file.filename;
+        nameDiv.textContent = file.filename;  // Safe: textContent escapes
+        infoDiv.appendChild(nameDiv);
+
+        const metaDiv = document.createElement('div');
+        metaDiv.className = 'storage-file-meta';
+
+        const sizeSpan = document.createElement('span');
+        sizeSpan.className = 'storage-file-size';
+        sizeSpan.textContent = file.size_human;
+        metaDiv.appendChild(sizeSpan);
+
+        const dateSpan = document.createElement('span');
+        dateSpan.className = 'storage-file-date';
+        dateSpan.textContent = new Date(file.uploaded_at).toLocaleDateString('fr-FR', {
+            day: '2-digit', month: 'short', year: 'numeric'
+        });
+        metaDiv.appendChild(dateSpan);
+
+        if (file.description) {
+            const descSpan = document.createElement('span');
+            descSpan.className = 'storage-file-desc';
+            descSpan.title = file.description;
+            descSpan.textContent = file.description;  // Safe: textContent escapes
+            metaDiv.appendChild(descSpan);
+        }
+
+        infoDiv.appendChild(metaDiv);
+        item.appendChild(infoDiv);
+
+        // Actions
+        const actionsDiv = document.createElement('div');
+        actionsDiv.className = 'storage-file-actions';
+
+        // Download button
+        const downloadBtn = document.createElement('button');
+        downloadBtn.className = 'storage-file-btn';
+        downloadBtn.dataset.action = 'download';
+        downloadBtn.dataset.fileId = file.id;
+        downloadBtn.dataset.isDefault = file.is_default;
+        downloadBtn.title = 'Télécharger';
+        downloadBtn.innerHTML = `
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="7 10 12 15 17 10"/>
+                <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+        `;
+        actionsDiv.appendChild(downloadBtn);
+
+        // Delete button (only for non-default files)
+        if (!file.is_default) {
+            const deleteBtn = document.createElement('button');
+            deleteBtn.className = 'storage-file-btn danger';
+            deleteBtn.dataset.action = 'promptDelete';
+            deleteBtn.dataset.fileId = file.id;
+            deleteBtn.dataset.filename = file.filename;  // Safe: stored in dataset
+            deleteBtn.title = 'Supprimer';
+            deleteBtn.innerHTML = `
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <polyline points="3 6 5 6 21 6"/>
                     <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
                 </svg>
-            </button>
-        `;
+            `;
+            actionsDiv.appendChild(deleteBtn);
+        }
 
-        return `
-            <div class="storage-file-item ${file.is_default ? 'default' : ''}" data-file-id="${file.id}">
-                <div class="storage-file-icon">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                        <polyline points="14 2 14 8 20 8"/>
-                    </svg>
-                    ${file.is_default ? '<span class="storage-file-badge">DEMO</span>' : ''}
-                </div>
-                <div class="storage-file-info">
-                    <div class="storage-file-name" title="${file.filename}">${file.filename}</div>
-                    <div class="storage-file-meta">
-                        <span class="storage-file-size">${file.size_human}</span>
-                        <span class="storage-file-date">${dateStr}</span>
-                        ${file.description ? `<span class="storage-file-desc" title="${file.description}">${file.description}</span>` : ''}
-                    </div>
-                </div>
-                <div class="storage-file-actions">
-                    <button class="storage-file-btn"
-                            data-action="download"
-                            data-file-id="${file.id}"
-                            data-is-default="${file.is_default}"
-                            title="Télécharger">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                            <polyline points="7 10 12 15 17 10"/>
-                            <line x1="12" y1="15" x2="12" y2="3"/>
-                        </svg>
-                    </button>
-                    ${deleteBtn}
-                </div>
-            </div>
-        `;
+        item.appendChild(actionsDiv);
+        return item;
     }
 
     function switchCategory(category, element) {
+        // Validate category against whitelist
+        if (!CATEGORIES[category]) {
+            console.error('Invalid category:', category);
+            return;
+        }
+
         state.currentCategory = category;
         const config = CATEGORIES[category];
 
@@ -222,8 +357,8 @@ const StorageManager = (() => {
     function openUploadModal() {
         const modal = $('storageUploadModal');
         if (!modal) return;
-
         modal.classList.add('active');
+
         const config = CATEGORIES[state.currentCategory];
         setText('storageUploadHint', `Extensions: ${config?.extensions || ''}`);
 
@@ -238,6 +373,7 @@ const StorageManager = (() => {
 
     function resetUploadModal() {
         state.selectedFile = null;
+
         const fileInput = $('storageFileInput');
         if (fileInput) fileInput.value = '';
 
@@ -254,9 +390,10 @@ const StorageManager = (() => {
 
     function handleFileSelection(file) {
         state.selectedFile = file;
+
         setDisplay('storageUploadZone', false);
         setDisplay('storageUploadSelected', true);
-        setText('storageUploadFilename', file.name);
+        setText('storageUploadFilename', file.name);  // Safe: setText uses textContent
         setText('storageUploadFilesize', formatFileSize(file.size));
 
         const uploadBtn = $('storageUploadBtn');
@@ -265,6 +402,7 @@ const StorageManager = (() => {
 
     function removeSelectedFile() {
         state.selectedFile = null;
+
         const fileInput = $('storageFileInput');
         if (fileInput) fileInput.value = '';
 
@@ -277,6 +415,12 @@ const StorageManager = (() => {
 
     async function upload() {
         if (!state.selectedFile) return;
+
+        // Validate category
+        if (!CATEGORIES[state.currentCategory]) {
+            showNotification('Catégorie invalide', 'error');
+            return;
+        }
 
         const progressFill = $('storageUploadProgressFill');
         const progressText = $('storageUploadProgressText');
@@ -319,17 +463,25 @@ const StorageManager = (() => {
         });
 
         const token = sessionStorage.getItem('auth_token');
-        xhr.open('POST', `/api/storage/files/${state.currentCategory}`);
+        // Safe: category is validated above
+        xhr.open('POST', `/api/storage/files/${encodeURIComponent(state.currentCategory)}`);
         if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
         xhr.send(formData);
     }
 
     async function download(fileId, isDefault) {
+        // Validate fileId format (UUID or alphanumeric)
+        if (!/^[a-zA-Z0-9_-]+$/.test(fileId)) {
+            console.error('Invalid file ID');
+            return;
+        }
+
         const endpoint = isDefault
-            ? `/api/storage/default/${fileId}/download`
-            : `/api/storage/files/${fileId}/download`;
+            ? `/api/storage/default/${encodeURIComponent(fileId)}/download`
+            : `/api/storage/files/${encodeURIComponent(fileId)}/download`;
 
         const token = sessionStorage.getItem('auth_token');
+
         if (isDefault || !token) {
             window.open(endpoint, '_blank');
             return;
@@ -339,6 +491,7 @@ const StorageManager = (() => {
             const res = await fetch(endpoint, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
+
             if (!res.ok) throw new Error('Download failed');
 
             const blob = await res.blob();
@@ -359,8 +512,14 @@ const StorageManager = (() => {
     }
 
     function promptDelete(fileId, filename) {
+        // Validate fileId format
+        if (!/^[a-zA-Z0-9_-]+$/.test(fileId)) {
+            console.error('Invalid file ID');
+            return;
+        }
+
         state.fileToDelete = fileId;
-        setText('storageDeleteFilename', filename);
+        setText('storageDeleteFilename', filename);  // Safe: setText uses textContent
         $('storageDeleteModal')?.classList.add('active');
     }
 
@@ -372,8 +531,14 @@ const StorageManager = (() => {
     async function confirmDelete() {
         if (!state.fileToDelete) return;
 
+        // Validate fileId format
+        if (!/^[a-zA-Z0-9_-]+$/.test(state.fileToDelete)) {
+            console.error('Invalid file ID');
+            return;
+        }
+
         try {
-            await api(`/api/storage/files/${state.fileToDelete}`, { method: 'DELETE' });
+            await api(`/api/storage/files/${encodeURIComponent(state.fileToDelete)}`, { method: 'DELETE' });
             showNotification('Fichier supprimé', 'success');
             closeDeleteModal();
             refresh();
@@ -415,11 +580,21 @@ const StorageManager = (() => {
             const { action, category, fileId, filename, isDefault } = target.dataset;
 
             switch (action) {
-                case 'switchCategory': switchCategory(category, target); break;
-                case 'refresh': refresh(); break;
-                case 'openUpload': openUploadModal(); break;
-                case 'download': download(fileId, isDefault === 'true'); break;
-                case 'promptDelete': promptDelete(fileId, filename); break;
+                case 'switchCategory':
+                    switchCategory(category, target);
+                    break;
+                case 'refresh':
+                    refresh();
+                    break;
+                case 'openUpload':
+                    openUploadModal();
+                    break;
+                case 'download':
+                    download(fileId, isDefault === 'true');
+                    break;
+                case 'promptDelete':
+                    promptDelete(fileId, filename);
+                    break;
             }
         });
 
@@ -436,10 +611,18 @@ const StorageManager = (() => {
 
                 e.preventDefault();
                 switch (target.dataset.action) {
-                    case 'closeUpload': closeUploadModal(); break;
-                    case 'browseFile': $('storageFileInput')?.click(); break;
-                    case 'removeSelected': removeSelectedFile(); break;
-                    case 'upload': upload(); break;
+                    case 'closeUpload':
+                        closeUploadModal();
+                        break;
+                    case 'browseFile':
+                        $('storageFileInput')?.click();
+                        break;
+                    case 'removeSelected':
+                        removeSelectedFile();
+                        break;
+                    case 'upload':
+                        upload();
+                        break;
                 }
             });
         }
@@ -456,8 +639,12 @@ const StorageManager = (() => {
 
                 e.preventDefault();
                 switch (target.dataset.action) {
-                    case 'closeDelete': closeDeleteModal(); break;
-                    case 'confirmDelete': confirmDelete(); break;
+                    case 'closeDelete':
+                        closeDeleteModal();
+                        break;
+                    case 'confirmDelete':
+                        confirmDelete();
+                        break;
                 }
             });
         }
@@ -500,6 +687,7 @@ const StorageManager = (() => {
 
 // Global alias for settings.js integration
 const initStorage = () => StorageManager.init();
+
 // =========================================================================
 // Expose globals for other modules (Vite compatibility)
 // =========================================================================

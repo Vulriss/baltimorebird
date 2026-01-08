@@ -33,4 +33,4 @@ import './code-editor.js'
 // ============================================================================
 // Ready
 // ============================================================================
-console.log('🐦 Baltimore Bird loaded via Vite')
+console.log('[Baltimore Bird] Loaded')

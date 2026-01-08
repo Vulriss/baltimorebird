@@ -12,7 +12,7 @@ const SettingsManager = (() => {
     }
 
     function switchSection(sectionId, element) {
-        if (!currentUser && sectionId !== 'not-logged') {
+        if (!window.currentUser && sectionId !== 'not-logged') {
             showSection('not-logged');
             return;
         }
@@ -31,18 +31,18 @@ const SettingsManager = (() => {
     }
 
     function updateAdminSections() {
-        const isAdmin = currentUser?.role === 'admin';
+        const isAdmin = window.currentUser?.role === 'admin';
         document.querySelectorAll('.settings-nav-section[data-auth="admin"]').forEach(section => {
             section.style.display = isAdmin ? '' : 'none';
         });
     }
 
     function loadProfileData() {
-        if (!currentUser) return;
+        if (!window.currentUser) return;
         const nameInput = $('settingsName');
         const emailInput = $('settingsEmail');
-        if (nameInput) nameInput.value = currentUser.name || '';
-        if (emailInput) emailInput.value = currentUser.email || '';
+        if (nameInput) nameInput.value = window.currentUser.name || '';
+        if (emailInput) emailInput.value = window.currentUser.email || '';
     }
 
     async function saveProfile() {
@@ -130,7 +130,7 @@ const SettingsManager = (() => {
                             <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
                         </svg>
                     </button>
-                    ${user.id !== currentUser.id ? `
+                    ${user.id !== window.currentUser.id ? `
                         <button class="settings-btn small danger"
                                 data-action="toggleUserActive"
                                 data-user-id="${user.id}"
@@ -493,7 +493,7 @@ const SettingsManager = (() => {
     function init() {
         setupEventListeners();
 
-        if (!currentUser) {
+        if (!window.currentUser) {
             showSection('not-logged');
             return;
         }
@@ -514,3 +514,4 @@ const switchSettingsSection = (id, el) => SettingsManager.switchSection(id, el);
 // =========================================================================
 window.SettingsManager = SettingsManager;
 window.initSettings = initSettings;
+window.switchSettingsSection = switchSettingsSection;

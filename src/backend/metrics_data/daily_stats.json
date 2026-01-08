@@ -304,9 +304,44 @@
       "min": 0.0,
       "max": 219.8,
       "avg": 11.18,
-      "p50": 1.0,
-      "p95": 3.02,
-      "p99": 219.8
+      "p50": 0,
+      "p95": 0,
+      "p99": 0
+    }
+  },
+  "2026-01-08": {
+    "total_requests": 100,
+    "unique_users": [
+      "b2aeadbb5b4cd836"
+    ],
+    "endpoints": {
+      "/api/auth/me": 14,
+      "/api/sources": 32,
+      "/api/info": 21,
+      "/api/scripts": 2,
+      "/api/reports": 2,
+      "/api/auth/logout": 5,
+      "/api/auth/login": 6,
+      "/api/storage/info": 8,
+      "/api/storage/files": 8,
+      "/api/admin/users": 2
+    },
+    "status_codes": {
+      "200": 100
+    },
+    "sessions": {
+      "count": 0,
+      "total_duration": 0,
+      "max_duration": 0
+    },
+    "latency": {
+      "count": 100,
+      "min": 0.0,
+      "max": 221.62,
+      "avg": 15.58,
+      "p50": 1.01,
+      "p95": 206.01,
+      "p99": 221.62
     }
   }
 }

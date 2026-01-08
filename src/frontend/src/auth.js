@@ -915,6 +915,18 @@ window.handleLogout = handleLogout;
 window.toggleUserMenu = toggleUserMenu;
 window.updateAuthUI = updateAuthUI;
 window.showNotification = showNotification;
-window.currentUser = currentUser;
-window.authToken = authToken;
 window.initAuth = initAuth;
+window.apiCall = apiCall;
+window.updateProfile = updateProfile;
+window.changePassword = changePassword;
+
+// Dynamic getter for currentUser (so other modules always get the current value)
+Object.defineProperty(window, 'currentUser', {
+    get: () => currentUser,
+    set: (val) => { currentUser = val; }
+});
+
+Object.defineProperty(window, 'authToken', {
+    get: () => authToken,
+    set: (val) => { authToken = val; }
+});
