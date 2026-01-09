@@ -131,48 +131,52 @@ server {
 }
 
 server {
-    listen 443 ssl;
+    listen 443 ssl http2;
     server_name your-domain.com;
     
-    # Point to the Vite build output
     root /var/www/baltimorebird/frontend/dist;
     index index.html;
     
+    # SSL
     ssl_certificate /etc/letsencrypt/live/your-domain.com/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/your-domain.com/privkey.pem;
     
+    # Gzip
+    gzip on;
+    gzip_types text/plain text/css application/javascript application/json;
+    
+    # Upload size (MF4 files)
     client_max_body_size 1500M;
     
-    # Frontend (SPA fallback)
-    location / {
-        try_files $uri /index.html;
+    # Vite assets (immutable)
+    location /assets/ {
+        expires 1y;
+        add_header Cache-Control "public, immutable";
     }
     
-    # API proxy to backend
+    # Dynamic views (no cache)
+    location /views/ {
+        expires -1;
+        add_header Cache-Control "no-cache";
+    }
+    
+    # SPA fallback
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+    
+    # API proxy
     location /api/ {
         proxy_pass http://127.0.0.1:5000;
+        proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
         
         proxy_read_timeout 300s;
-        proxy_connect_timeout 75s;
         proxy_request_buffering off;
-        proxy_buffering off;
     }
-}
-```
-
-### Local nginx (for testing)
-
-```nginx
-server {
-    listen 8080;
-    server_name localhost;
-    root /path/to/baltimorebird/frontend/dist;
-
-    # [...] Identical to prod conf
 }
 ```
 

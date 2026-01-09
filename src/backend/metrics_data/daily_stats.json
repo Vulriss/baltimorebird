@@ -330,9 +330,9 @@
       "200": 103
     },
     "sessions": {
-      "count": 0,
-      "total_duration": 0,
-      "max_duration": 0
+      "count": 1,
+      "total_duration": 3022.202201128006,
+      "max_duration": 3022.202201128006
     },
     "latency": {
       "count": 103,
