@@ -339,9 +339,66 @@
       "min": 0.0,
       "max": 221.62,
       "avg": 15.17,
-      "p50": 1.0,
-      "p95": 199.86,
-      "p99": 211.6
+      "p50": 0,
+      "p95": 0,
+      "p99": 0
+    }
+  },
+  "2026-01-09": {
+    "total_requests": 81,
+    "unique_users": [
+      "b2aeadbb5b4cd836"
+    ],
+    "endpoints": {
+      "/api/sources": 8,
+      "/api/info": 15,
+      "/api/auth/me": 7,
+      "/api/source/user_mf4_df08fab3-2347-4271-9dec-bc0605e79d6b": 10,
+      "/api/eda/preload-signal/df08fab3-2347-4271-9dec-bc0605e79d6b/244": 2,
+      "/api/eda/preload-signal/df08fab3-2347-4271-9dec-bc0605e79d6b/238": 1,
+      "/api/eda/view/df08fab3-2347-4271-9dec-bc0605e79d6b": 11,
+      "/api/eda/preload-signal/df08fab3-2347-4271-9dec-bc0605e79d6b/503": 1,
+      "/api/eda/preload-signal/df08fab3-2347-4271-9dec-bc0605e79d6b/475": 2,
+      "/api/eda/preload-signal/df08fab3-2347-4271-9dec-bc0605e79d6b/476": 1,
+      "/api/source/mf4": 2,
+      "/api/source/synthetic": 1,
+      "/api/eda/preload-signal/df08fab3-2347-4271-9dec-bc0605e79d6b/577": 1,
+      "/api/eda/preload-signal/df08fab3-2347-4271-9dec-bc0605e79d6b/523": 1,
+      "/api/eda/preload-signal/df08fab3-2347-4271-9dec-bc0605e79d6b/535": 1,
+      "/api/eda/preload-signal/df08fab3-2347-4271-9dec-bc0605e79d6b/525": 1,
+      "/api/eda/preload-signal/df08fab3-2347-4271-9dec-bc0605e79d6b/943": 1,
+      "/api/eda/preload-signal/df08fab3-2347-4271-9dec-bc0605e79d6b/890": 1,
+      "/api/eda/preload-signal/df08fab3-2347-4271-9dec-bc0605e79d6b/139": 1,
+      "/api/eda/preload-signal/df08fab3-2347-4271-9dec-bc0605e79d6b/111": 1,
+      "/api/eda/preload-signal/df08fab3-2347-4271-9dec-bc0605e79d6b/204": 1,
+      "/api/eda/preload-signal/df08fab3-2347-4271-9dec-bc0605e79d6b/227": 1,
+      "/api/eda/preload-signal/df08fab3-2347-4271-9dec-bc0605e79d6b/97": 1,
+      "/api/eda/preload-signal/df08fab3-2347-4271-9dec-bc0605e79d6b/84": 1,
+      "/api/eda/preload-signal/df08fab3-2347-4271-9dec-bc0605e79d6b/66": 1,
+      "/api/eda/preload-signal/df08fab3-2347-4271-9dec-bc0605e79d6b/908": 1,
+      "/api/view": 1,
+      "/api/eda/preload-signal/df08fab3-2347-4271-9dec-bc0605e79d6b/12": 1,
+      "/api/eda/preload-signal/df08fab3-2347-4271-9dec-bc0605e79d6b/13": 1,
+      "/api/eda/preload-signal/df08fab3-2347-4271-9dec-bc0605e79d6b/11": 1,
+      "/api/eda/preload-signal/df08fab3-2347-4271-9dec-bc0605e79d6b/8": 1,
+      "/api/eda/preload-signal/df08fab3-2347-4271-9dec-bc0605e79d6b/19": 1
+    },
+    "status_codes": {
+      "200": 81
+    },
+    "sessions": {
+      "count": 2,
+      "total_duration": 450.32372546195984,
+      "max_duration": 431.2914009094238
+    },
+    "latency": {
+      "count": 81,
+      "min": 0.0,
+      "max": 99236.96,
+      "avg": 1273.49,
+      "p50": 3.0,
+      "p95": 266.77,
+      "p99": 266.77
     }
   }
 }

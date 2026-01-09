@@ -24,6 +24,7 @@ from converter import (
     get_supported_conversions, is_conversion_supported
 )
 from metrics import metrics
+from lazy_eda import lazy_eda
 from metrics_api import metrics_bp
 from scripts_api import scripts_bp
 from user_storage import storage, storage_bp
@@ -805,7 +806,7 @@ def get_sources():
 @app.route("/api/source/<source_id>", methods=["POST"])
 @optional_auth
 def set_source(source_id):
-    """Change active data source."""
+    """Change active data source - uses lazy loading for user files."""
     try:
         if source_id.startswith("user_mf4_"):
             user = getattr(g, "current_user", None)
@@ -834,6 +835,7 @@ def set_source(source_id):
             if not is_safe_path(user_mf4_dir, mf4_path):
                 return jsonify({"error": "Accès non autorisé"}), 403
 
+            # Check for DBC
             dbc_path = None
             user_dbc_dir = BASE_DIR / "data" / "users" / user_id / "dbc"
             if user_dbc_dir.exists():
@@ -841,19 +843,51 @@ def set_source(source_id):
                 if dbc_files:
                     dbc_path = dbc_files[0]
 
-            datastore.load_user_file(mf4_path, dbc_path, source_id)
+            session_id = file_stem  # Use file stem as session ID
+            
+            # Check if session already exists
+            session = lazy_eda.get_session(session_id)
+            if not session:
+                # Create new lazy session
+                session = lazy_eda.create_session(
+                    session_id=session_id,
+                    user_id=user_id,
+                    mf4_path=mf4_path,
+                    dbc_path=dbc_path
+                )
+            
+            # List signals (fast - metadata only, no data loaded)
+            result = lazy_eda.list_signals(session_id)
+            
+            if not result:
+                return jsonify({"error": "Erreur lors du listing des signaux"}), 500
+
+            # Return with lazy flag so frontend knows to use lazy endpoints
+            return jsonify({
+                "success": True,
+                "source": source_id,
+                "session_id": session_id,
+                "lazy": True,  # Important: tells frontend to use /api/eda/view/<session_id>
+                "n_signals": result["n_signals"],
+                "time_range": result["time_range"],
+                "duration": result["duration"],
+                "signals": result["signals"]  # Includes loaded status for each signal
+            })
+            
         else:
-            # Validate source_id for demo sources
+            # Demo sources - keep existing behavior (loads all data)
             if source_id not in DATA_SOURCES and not source_id.startswith("session_"):
                 return jsonify({"error": "Source inconnue"}), 404
             datastore.reload(source_id)
 
-        return jsonify({
-            "success": True,
-            "source": source_id,
-            "n_signals": len(datastore.signals),
-            "time_range": {"min": datastore.t_min, "max": datastore.t_max},
-        })
+            return jsonify({
+                "success": True,
+                "source": source_id,
+                "lazy": False,  # Uses traditional /api/view endpoint
+                "n_signals": len(datastore.signals),
+                "time_range": {"min": datastore.t_min, "max": datastore.t_max},
+            })
+            
     except FileNotFoundError:
         return jsonify({"error": "Fichier introuvable"}), 404
     except ValueError as e:
@@ -1416,7 +1450,10 @@ def health_check():
 @app.route("/api/eda/upload", methods=["POST"])
 @login_required
 def upload_eda_file():
-    """Upload MF4 file for interactive EDA."""
+    """
+    Upload MF4 file for interactive EDA (lazy loading version).
+    Only saves the file and returns a session ID - does NOT load all data.
+    """
     if "file" not in request.files:
         return jsonify({"error": "Aucun fichier fourni"}), 400
 
@@ -1435,6 +1472,7 @@ def upload_eda_file():
 
     file_ext = Path(filename).suffix.lower()
 
+    # Determine destination directory
     if file_ext == ".mf4":
         dest_dir = BASE_DIR / "data" / "users" / user_id / "mf4"
     elif file_ext == ".dbc":
@@ -1444,11 +1482,13 @@ def upload_eda_file():
 
     dest_dir.mkdir(parents=True, exist_ok=True)
 
-    file_id = str(uuid.uuid4())
-    file_path = dest_dir / f"{file_id}_{filename}"
+    # Save file
+    session_id = str(uuid.uuid4())
+    file_path = dest_dir / f"{session_id}_{filename}"
     file.save(file_path)
-    print(f"EDA Upload: {file_path} ({file_path.stat().st_size / 1024 / 1024:.2f} MB)")
+    print(f"[EDA] File saved: {file_path} ({file_path.stat().st_size / 1024 / 1024:.2f} MB)")
 
+    # Handle DBC file
     dbc_path = None
     if "dbc" in request.files:
         dbc_file = request.files["dbc"]
@@ -1460,49 +1500,259 @@ def upload_eda_file():
                 dbc_id = str(uuid.uuid4())
                 dbc_path = dbc_dir / f"{dbc_id}_{dbc_filename}"
                 dbc_file.save(dbc_path)
-                print(f"EDA DBC saved: {dbc_path}")
+                print(f"[EDA] DBC saved: {dbc_path}")
 
+    # Check for existing user DBC
     if not dbc_path:
         user_dbc_dir = BASE_DIR / "data" / "users" / user_id / "dbc"
         if user_dbc_dir.exists():
             dbc_files = list(user_dbc_dir.glob("*.dbc"))
             if dbc_files:
                 dbc_path = dbc_files[0]
-                print(f"EDA using existing DBC: {dbc_path}")
+                print(f"[EDA] Using existing DBC: {dbc_path}")
 
+    # Create lazy session (does NOT load data yet)
     try:
-        if file_ext == ".mf4":
-            signals, metadata, t_min, t_max = load_mf4_with_dbc(file_path, dbc_path)
-        elif file_ext == ".csv":
-            signals, metadata, t_min, t_max = load_csv_file(file_path)
-        else:
-            return jsonify({"error": f"Format {file_ext} non supporté pour EDA"}), 400
-
-        source_id = f"user_mf4_{file_path.stem}"
-
-        datastore.signals = signals
-        datastore.metadata = metadata
-        datastore.t_min = t_min
-        datastore.t_max = t_max
-        datastore.current_source = source_id
-        datastore.loaded = True
-
-        print(f"EDA file loaded: {source_id} ({len(signals)} signals)")
-
+        lazy_eda.create_session(
+            session_id=session_id,
+            user_id=user_id,
+            mf4_path=file_path,
+            dbc_path=dbc_path
+        )
+        
         return jsonify({
             "success": True,
-            "source_id": source_id,
-            "filename": file_path.name,
-            "n_signals": len(signals),
-            "duration": t_max - t_min,
+            "session_id": session_id,
+            "filename": filename,
+            "message": "Fichier uploadé. Utilisez /api/eda/list-signals pour lister les signaux."
         })
+
+    except Exception as e:
+        app.logger.error(f"EDA session creation error: {e}")
+        return jsonify({"error": "Erreur lors de la création de la session"}), 500
+
+
+@app.route("/api/eda/list-signals/<session_id>")
+@login_required
+def list_eda_signals(session_id):
+    """
+    List all signals in an MF4 file WITHOUT loading full data.
+    This is fast because we only read signal metadata.
+    """
+    # Validate session_id format
+    safe_session_id = sanitize_task_id(session_id)
+    if not safe_session_id:
+        return jsonify({"error": "ID de session invalide"}), 400
+
+    session = lazy_eda.get_session(safe_session_id)
+    if not session:
+        return jsonify({"error": "Session introuvable"}), 404
+
+    # Verify user owns this session
+    user = g.current_user
+    if session.user_id != user.id:
+        return jsonify({"error": "Accès non autorisé"}), 403
+
+    try:
+        result = lazy_eda.list_signals(safe_session_id)
+        if result is None:
+            return jsonify({"error": "Erreur lors du listing des signaux"}), 500
+        
+        return jsonify(result)
 
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
     except Exception as e:
-        app.logger.error(f"EDA upload error: {e}")
-        return jsonify({"error": "Erreur lors du traitement du fichier"}), 500
+        app.logger.error(f"Error listing signals: {e}")
+        return jsonify({"error": "Erreur lors du listing des signaux"}), 500
+    
 
+@app.route("/api/eda/preload-signal/<session_id>/<int:signal_index>", methods=["POST"])
+@login_required
+def preload_eda_signal(session_id, signal_index):
+    """
+    Preload a specific signal's data.
+    Called when user hovers over a signal in the list.
+    """
+    # Validate session_id format
+    safe_session_id = sanitize_task_id(session_id)
+    if not safe_session_id:
+        return jsonify({"error": "ID de session invalide"}), 400
+
+    # Validate signal_index
+    if signal_index < 0 or signal_index > 1000:
+        return jsonify({"error": "Index de signal invalide"}), 400
+
+    session = lazy_eda.get_session(safe_session_id)
+    if not session:
+        return jsonify({"error": "Session introuvable"}), 404
+
+    # Verify user owns this session
+    user = g.current_user
+    if session.user_id != user.id:
+        return jsonify({"error": "Accès non autorisé"}), 403
+
+    try:
+        result = lazy_eda.preload_signal(safe_session_id, signal_index)
+        if result is None:
+            return jsonify({"error": "Signal introuvable"}), 404
+        
+        return jsonify(result)
+
+    except Exception as e:
+        app.logger.error(f"Error preloading signal: {e}")
+        return jsonify({"error": "Erreur lors du préchargement"}), 500
+
+
+@app.route("/api/eda/view/<session_id>")
+@login_required  
+def get_lazy_eda_view(session_id):
+    """
+    Get downsampled view of signals from a lazy session.
+    Similar to /api/view but for lazy-loaded user files.
+    """
+    # Validate session_id
+    safe_session_id = sanitize_task_id(session_id)
+    if not safe_session_id:
+        return jsonify({"error": "ID de session invalide"}), 400
+
+    session = lazy_eda.get_session(safe_session_id)
+    if not session:
+        return jsonify({"error": "Session introuvable"}), 404
+
+    # Verify user owns this session
+    user = g.current_user
+    if session.user_id != user.id:
+        return jsonify({"error": "Accès non autorisé"}), 403
+
+    # Parse parameters
+    signals_param = request.args.get("signals", "0")
+    try:
+        signal_indices = [int(x) for x in signals_param.split(",") if x.strip()]
+        if len(signal_indices) > 50:
+            signal_indices = signal_indices[:50]
+    except ValueError:
+        return jsonify({"error": "Paramètre signals invalide"}), 400
+
+    try:
+        start = float(request.args.get("start", session.t_min))
+        end = float(request.args.get("end", session.t_max))
+    except (ValueError, TypeError):
+        return jsonify({"error": "Paramètres start/end invalides"}), 400
+
+    try:
+        max_points = int(request.args.get("max_points", 2000))
+        max_points = max(100, min(max_points, 10000))
+    except (ValueError, TypeError):
+        max_points = 2000
+
+    # Build result
+    result = {
+        "view": {
+            "start": float(start),
+            "end": float(end),
+            "original_points": 0,
+            "returned_points": 0
+        },
+        "signals": []
+    }
+
+    for sig_idx in signal_indices:
+        lazy_signal = lazy_eda.get_signal_data(safe_session_id, sig_idx)
+        if lazy_signal is None or not lazy_signal.is_loaded:
+            continue
+
+        timestamps = lazy_signal.timestamps
+        values = lazy_signal.values
+        meta = lazy_signal.metadata
+
+        # Filter by time range
+        mask = (timestamps >= start) & (timestamps <= end)
+        view_ts = timestamps[mask]
+        view_vals = values[mask]
+
+        if len(view_ts) == 0:
+            continue
+
+        result["view"]["original_points"] += len(view_ts)
+
+        # Downsample with LTTB
+        if len(view_ts) > max_points:
+            ds_ts, ds_vals = lttb_downsample(view_ts, view_vals, max_points)
+        else:
+            ds_ts, ds_vals = view_ts, view_vals
+
+        result["view"]["returned_points"] += len(ds_ts)
+
+        result["signals"].append({
+            "index": sig_idx,
+            "name": meta.name,
+            "unit": meta.unit,
+            "color": meta.color,
+            "timestamps": ds_ts.tolist(),
+            "values": ds_vals.tolist(),
+            "is_complete": len(view_ts) <= max_points,
+            "stats": {
+                "min": float(np.min(view_vals)),
+                "max": float(np.max(view_vals))
+            }
+        })
+
+    return jsonify(result) if result["signals"] else (jsonify({"error": "No data in range"}), 404)
+
+
+@app.route("/api/eda/session/<session_id>")
+@login_required
+def get_eda_session_info(session_id):
+    """Get information about a lazy EDA session."""
+    safe_session_id = sanitize_task_id(session_id)
+    if not safe_session_id:
+        return jsonify({"error": "ID de session invalide"}), 400
+
+    session = lazy_eda.get_session(safe_session_id)
+    if not session:
+        return jsonify({"error": "Session introuvable"}), 404
+
+    user = g.current_user
+    if session.user_id != user.id:
+        return jsonify({"error": "Accès non autorisé"}), 403
+
+    # Count loaded signals
+    loaded_count = sum(1 for s in session.signals.values() if s.is_loaded)
+
+    return jsonify({
+        "session_id": session.session_id,
+        "filename": session.filename,
+        "listed": session.listed,
+        "n_signals": session.n_signals,
+        "loaded_signals": loaded_count,
+        "time_range": {
+            "min": session.t_min,
+            "max": session.t_max
+        },
+        "duration": session.t_max - session.t_min
+    })
+
+
+@app.route("/api/eda/session/<session_id>", methods=["DELETE"])
+@login_required
+def close_eda_session(session_id):
+    """Close a lazy EDA session and free resources."""
+    safe_session_id = sanitize_task_id(session_id)
+    if not safe_session_id:
+        return jsonify({"error": "ID de session invalide"}), 400
+
+    session = lazy_eda.get_session(safe_session_id)
+    if not session:
+        return jsonify({"error": "Session introuvable"}), 404
+
+    user = g.current_user
+    if session.user_id != user.id:
+        return jsonify({"error": "Accès non autorisé"}), 403
+
+    lazy_eda.close_session(safe_session_id)
+    
+    return jsonify({"success": True, "message": "Session fermée"})
 
 # --- Main ---
 
