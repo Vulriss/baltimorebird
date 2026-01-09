@@ -7,13 +7,13 @@
 // ============================================================================
 // Styles (Vite les bundle automatiquement)
 // ============================================================================
-import '../styles/styles.css'
-import '../styles/auth.css'
-import '../styles/dashboard.css'
-import '../styles/reports.css'
-import '../styles/settings.css'
-import '../styles/storage.css'
-import '../styles/python-syntax-prism.css'
+import '../styles/styles.scss'
+import '../styles/auth.scss'
+import '../styles/dashboard.scss'
+import '../styles/reports.scss'
+import '../styles/settings.scss'
+import '../styles/storage.scss'
+import '../styles/python-syntax-prism.scss'
 
 // ============================================================================
 // Legacy modules (ordre important préservé)

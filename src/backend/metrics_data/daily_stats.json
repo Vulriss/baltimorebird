@@ -339,9 +339,36 @@
       "min": 0.0,
       "max": 221.62,
       "avg": 15.17,
-      "p50": 1.0,
-      "p95": 199.86,
-      "p99": 211.6
+      "p50": 0,
+      "p95": 0,
+      "p99": 0
+    }
+  },
+  "2026-01-09": {
+    "total_requests": 6,
+    "unique_users": [
+      "b2aeadbb5b4cd836"
+    ],
+    "endpoints": {
+      "/api/sources": 3,
+      "/api/info": 3
+    },
+    "status_codes": {
+      "200": 6
+    },
+    "sessions": {
+      "count": 1,
+      "total_duration": 40.294103145599365,
+      "max_duration": 40.294103145599365
+    },
+    "latency": {
+      "count": 6,
+      "min": 0.0,
+      "max": 12.0,
+      "avg": 2.0,
+      "p50": 0.0,
+      "p95": 12.0,
+      "p99": 12.0
     }
   }
 }
