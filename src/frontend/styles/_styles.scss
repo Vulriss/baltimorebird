@@ -2147,3 +2147,79 @@ pre::-webkit-scrollbar-thumb:hover {
 .palette-blocks:hover::-webkit-scrollbar-thumb {
     background: var(--scrollbar-thumb);
 }
+
+* Signal status indicator */
+.signal-status {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    margin-left: auto;
+    flex-shrink: 0;
+}
+
+.status-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    transition: background-color 0.2s;
+}
+
+.status-dot.pending {
+    background: #555;
+}
+
+.status-dot.ready {
+    background: #4ade80;
+}
+
+.status-dot.error {
+    background: #f87171;
+}
+
+.status-spinner {
+    width: 10px;
+    height: 10px;
+    border: 2px solid #333;
+    border-top-color: #7a60f4;
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Signal item states */
+.signal-item.signal-pending {
+    opacity: 0.6;
+}
+
+.signal-item.signal-pending:hover {
+    opacity: 0.8;
+}
+
+.signal-item.signal-loading {
+    opacity: 0.7;
+    pointer-events: none;
+}
+
+.signal-item.signal-ready {
+    opacity: 1;
+}
+
+.signal-item.signal-error {
+    opacity: 0.4;
+    color: #f87171;
+}
+
+/* Cursor change on hover for pending signals */
+.signal-item.signal-ready:hover {
+    cursor: grab;
+}
+
+/* Dragging state */
+.signal-item.signal-ready.dragging {
+    cursor: grabbing;
+}
