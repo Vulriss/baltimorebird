@@ -1,0 +1,16 @@
+// =========================================================================
+// MAIN - Point d'entrée principal SCSS
+// Baltimore Bird - Automotive Data Analysis Platform
+// =========================================================================
+
+// Variables (optionnel - pour usage futur)
+@use 'abstracts/variables' as *;
+
+// Tous les styles originaux - importés tels quels
+@use 'styles';
+@use 'dashboard';
+@use 'settings';
+@use 'storage';
+@use 'auth';
+@use 'reports';
+@use 'python-syntax-prism';
