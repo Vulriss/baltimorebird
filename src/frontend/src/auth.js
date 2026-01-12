@@ -54,7 +54,6 @@ function validateUserObject(user) {
     };
 }
 
-
 // --- Stockage sécurisé ---
 
 function saveAuthData(token, user, expiresAt = null) {
@@ -916,9 +915,6 @@ window.toggleUserMenu = toggleUserMenu;
 window.updateAuthUI = updateAuthUI;
 window.showNotification = showNotification;
 window.initAuth = initAuth;
-window.apiCall = apiCall;
-window.updateProfile = updateProfile;
-window.changePassword = changePassword;
 
 // Dynamic getter for currentUser (so other modules always get the current value)
 Object.defineProperty(window, 'currentUser', {

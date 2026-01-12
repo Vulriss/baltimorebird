@@ -12,6 +12,7 @@
     "monaco-editor": "^0.52.2"
   },
   "devDependencies": {
-    "vite": "^6.0.7"
+    "vite": "^6.0.7",
+    "sass": "^1.97.2"
   }
 }

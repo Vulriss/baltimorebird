@@ -339,9 +339,67 @@
       "min": 0.0,
       "max": 221.62,
       "avg": 15.17,
-      "p50": 1.0,
-      "p95": 199.86,
-      "p99": 211.6
+      "p50": 0,
+      "p95": 0,
+      "p99": 0
+    }
+  },
+  "2026-01-09": {
+    "total_requests": 6,
+    "unique_users": [
+      "b2aeadbb5b4cd836"
+    ],
+    "endpoints": {
+      "/api/sources": 3,
+      "/api/info": 3
+    },
+    "status_codes": {
+      "200": 6
+    },
+    "sessions": {
+      "count": 1,
+      "total_duration": 40.294103145599365,
+      "max_duration": 40.294103145599365
+    },
+    "latency": {
+      "count": 6,
+      "min": 0.0,
+      "max": 12.0,
+      "avg": 2.0,
+      "p50": 0,
+      "p95": 0,
+      "p99": 0
+    }
+  },
+  "2026-01-12": {
+    "total_requests": 24,
+    "unique_users": [
+      "b2aeadbb5b4cd836"
+    ],
+    "endpoints": {
+      "/api/sources": 7,
+      "/api/info": 8,
+      "/api/reports": 5,
+      "/api/reports/demo": 1,
+      "/api/view": 2,
+      "/api/source/synthetic": 1
+    },
+    "status_codes": {
+      "200": 24
+    },
+    "sessions": {
+      "count": 0,
+      "total_duration": 0,
+      "max_duration": 0
+    },
+    "latency": {
+      "count": 24,
+      "min": 0.0,
+      "max": 221.71,
+      "avg": 13.14,
+      "p50": 0.0,
+      "p95": 67.56,
+      "p99": 221.71
     }
   }
 }
