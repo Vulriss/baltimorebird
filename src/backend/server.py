@@ -39,7 +39,7 @@ REPORTS_DIR.mkdir(exist_ok=True)
 
 ALLOWED_EXTENSIONS = {".mf4", ".csv", ".mat", ".dat", ".blf", ".dbc"}
 
-# CORS: origines autorisées (à configurer selon ton environnement)
+# CORS: origines autorisées
 ALLOWED_ORIGINS = os.environ.get("CORS_ORIGINS", "").split(",")
 if not ALLOWED_ORIGINS or ALLOWED_ORIGINS == [""]:
     # Dev mode: localhost seulement
@@ -105,10 +105,10 @@ def add_security_headers(response):
     # Autorise les CDN nécessaires (uPlot, Prism.js)
     csp_directives = [
         "default-src 'self'",
-        "script-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com",
-        "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com",
+        "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.plot.ly",
+        "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.plot.ly https://fonts.googleapis.com",
         "img-src 'self' data: blob:",
-        "font-src 'self'",
+        "font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net data:",
         "connect-src 'self'",
         "frame-ancestors 'self'",
         "form-action 'self'",
