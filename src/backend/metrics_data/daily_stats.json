@@ -457,30 +457,31 @@
     }
   },
   "2026-01-14": {
-    "total_requests": 257,
+    "total_requests": 325,
     "unique_users": [
       "b2aeadbb5b4cd836"
     ],
     "endpoints": {
-      "/api/auth/me": 33,
-      "/api/sources": 40,
-      "/api/info": 42,
+      "/api/auth/me": 41,
+      "/api/sources": 50,
+      "/api/info": 50,
       "/api/source/user_mf4_df08fab3-2347-4271-9dec-bc0605e79d6b": 1,
       "/api/create-variable": 6,
       "/api/view": 78,
       "/api/source/synthetic": 1,
       "/api/computed-variables/20": 2,
-      "/api/storage/info": 11,
-      "/api/storage/files": 15,
+      "/api/storage/info": 25,
+      "/api/storage/files": 32,
       "/api/scripts": 3,
-      "/api/layouts": 13,
-      "/api/auth/logout": 3,
-      "/api/auth/login": 3,
+      "/api/layouts": 20,
+      "/api/auth/logout": 4,
+      "/api/auth/login": 4,
       "/api/layouts/TEST_00_aa6ad58d": 2,
-      "/api/layouts/TEST_01_e1683e1c": 4
+      "/api/layouts/TEST_01_e1683e1c": 4,
+      "/api/admin/users": 2
     },
     "status_codes": {
-      "200": 248,
+      "200": 316,
       "404": 1,
       "400": 3,
       "401": 5
@@ -491,13 +492,13 @@
       "max_duration": 3014.997478723526
     },
     "latency": {
-      "count": 257,
+      "count": 325,
       "min": 0.0,
       "max": 225.68,
-      "avg": 5.91,
-      "p50": 1.02,
-      "p95": 3.18,
-      "p99": 11.03
+      "avg": 5.77,
+      "p50": 1.11,
+      "p95": 3.51,
+      "p99": 19.45
     }
   }
 }

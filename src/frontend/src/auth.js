@@ -915,6 +915,7 @@ window.toggleUserMenu = toggleUserMenu;
 window.updateAuthUI = updateAuthUI;
 window.showNotification = showNotification;
 window.initAuth = initAuth;
+window.apiCall = apiCall;
 
 // Dynamic getter for currentUser (so other modules always get the current value)
 Object.defineProperty(window, 'currentUser', {
