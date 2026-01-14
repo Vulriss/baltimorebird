@@ -1,3 +1,5 @@
+@use 'abstracts/variables' as *;
+
 /* =============================================================================
    Settings Styles
    ============================================================================= */
@@ -30,8 +32,8 @@
 
 .settings-sidebar {
     width: 260px;
-    background: #16162a;
-    border-right: 1px solid #2d2d5a;
+    background: $bg-darkest;
+    border-right: 1px solid $border-color;
     display: flex;
     flex-direction: column;
     flex-shrink: 0;
@@ -39,13 +41,13 @@
 
 .settings-sidebar-header {
     padding: 24px;
-    border-bottom: 1px solid #2d2d5a;
+    border-bottom: 1px solid $border-color;
 }
 
 .settings-sidebar-header h2 {
     font-size: 20px;
     font-weight: 600;
-    color: #fff;
+    color: $text-white;
     margin: 0;
 }
 
@@ -63,7 +65,7 @@
     padding: 8px 24px;
     font-size: 11px;
     font-weight: 600;
-    color: #666;
+    color: $text-dark;
     text-transform: uppercase;
     letter-spacing: 0.5px;
 }
@@ -73,7 +75,7 @@
     align-items: center;
     gap: 12px;
     padding: 12px 24px;
-    color: #888;
+    color: $text-muted;
     text-decoration: none;
     font-size: 14px;
     transition: all 0.15s;
@@ -82,14 +84,14 @@
 }
 
 .settings-nav-item:hover {
-    color: #fff;
+    color: $text-white;
     background: rgba(255, 255, 255, 0.03);
 }
 
 .settings-nav-item.active {
-    color: #fff;
-    background: rgba(99, 102, 241, 0.1);
-    border-left-color: #6366f1;
+    color: $text-white;
+    background: rgba($color-primary, 0.1);
+    border-left-color: $color-primary;
 }
 
 .settings-nav-item svg {
@@ -106,7 +108,7 @@
     flex: 1;
     padding: 32px 48px;
     overflow-y: auto;
-    background: #0d0d1a;
+    background: $bg-dark;
 }
 
 .settings-section {
@@ -127,13 +129,13 @@
 .settings-section-header h3 {
     font-size: 26px;
     font-weight: 600;
-    color: #fff;
+    color: $text-white;
     margin: 0 0 8px 0;
 }
 
 .settings-section-header p {
     font-size: 14px;
-    color: #888;
+    color: $text-muted;
     margin: 0;
 }
 
@@ -148,8 +150,8 @@
 }
 
 .settings-card {
-    background: #16162a;
-    border: 1px solid #2d2d5a;
+    background: $bg-darkest;
+    border: 1px solid $border-color;
     border-radius: 12px;
     padding: 24px;
 }
@@ -164,13 +166,13 @@
     justify-content: space-between;
     margin-bottom: 20px;
     padding-bottom: 16px;
-    border-bottom: 1px solid #2d2d5a;
+    border-bottom: 1px solid $border-color;
 }
 
 .settings-card-header h4 {
     font-size: 16px;
     font-weight: 600;
-    color: #fff;
+    color: $text-white;
     margin: 0;
     display: flex;
     align-items: center;
@@ -180,7 +182,7 @@
 .settings-card-header h4 svg {
     width: 20px;
     height: 20px;
-    color: #6366f1;
+    color: $color-primary;
 }
 
 .settings-card-header .settings-btn {
@@ -216,16 +218,16 @@
 .settings-field label {
     font-size: 13px;
     font-weight: 500;
-    color: #ccc;
+    color: $text-light;
 }
 
 .settings-field input,
 .settings-field select {
     padding: 12px 16px;
-    background: #1e1e3a;
-    border: 1px solid #2d2d5a;
+    background: $bg-card;
+    border: 1px solid $border-color;
     border-radius: 8px;
-    color: #fff;
+    color: $text-white;
     font-size: 14px;
     transition: all 0.2s;
     width: 100%;
@@ -234,8 +236,8 @@
 .settings-field input:focus,
 .settings-field select:focus {
     outline: none;
-    border-color: #6366f1;
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+    border-color: $color-primary;
+    box-shadow: 0 0 0 3px rgba($color-primary, 0.1);
 }
 
 .settings-field input:disabled {
@@ -244,12 +246,12 @@
 }
 
 .settings-field input::placeholder {
-    color: #555;
+    color: $text-darker;
 }
 
 .settings-hint {
     font-size: 11px;
-    color: #666;
+    color: $text-dark;
 }
 
 /* =============================================================================
@@ -261,7 +263,7 @@
     gap: 12px;
     margin-top: 8px;
     padding-top: 16px;
-    border-top: 1px solid #2d2d5a;
+    border-top: 1px solid $border-color;
 }
 
 .settings-btn {
@@ -283,25 +285,26 @@
 }
 
 .settings-btn.primary {
-    background: linear-gradient(135deg, #6366f1, #8b5cf6);
-    color: #fff;
+    background: linear-gradient(135deg, $color-primary, $color-primary-dark);
+    color: $ctp-crust;
 }
 
 .settings-btn.primary:hover {
     transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+    box-shadow: 0 4px 12px rgba($color-primary, 0.4);
+    filter: brightness(1.05);
 }
 
 .settings-btn.secondary {
-    background: #1e1e3a;
-    border: 1px solid #2d2d5a;
-    color: #ccc;
+    background: $bg-card;
+    border: 1px solid $border-color;
+    color: $text-light;
 }
 
 .settings-btn.secondary:hover {
-    background: #252550;
-    border-color: #3d3d6a;
-    color: #fff;
+    background: $bg-hover;
+    border-color: $border-light;
+    color: $text-white;
 }
 
 .settings-btn.small {
@@ -315,13 +318,13 @@
 }
 
 .settings-btn.danger {
-    background: rgba(239, 68, 68, 0.1);
-    border: 1px solid rgba(239, 68, 68, 0.3);
-    color: #ef4444;
+    background: rgba($ctp-red, 0.1);
+    border: 1px solid rgba($ctp-red, 0.3);
+    color: $color-error;
 }
 
 .settings-btn.danger:hover {
-    background: rgba(239, 68, 68, 0.2);
+    background: rgba($ctp-red, 0.2);
 }
 
 /* =============================================================================
@@ -345,28 +348,28 @@
     align-items: center;
     gap: 16px;
     padding: 16px 20px;
-    background: #1e1e3a;
-    border: 1px solid #2d2d5a;
+    background: $bg-card;
+    border: 1px solid $border-color;
     border-radius: 10px;
     transition: all 0.15s;
 }
 
 .settings-user-item:hover {
-    border-color: #3d3d6a;
-    background: #232345;
+    border-color: $border-light;
+    background: $bg-card-hover;
 }
 
 .settings-user-avatar {
     width: 48px;
     height: 48px;
-    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    background: linear-gradient(135deg, $color-primary, $color-primary-dark);
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
     font-size: 18px;
     font-weight: 600;
-    color: #fff;
+    color: $ctp-crust;
     flex-shrink: 0;
 }
 
@@ -378,13 +381,13 @@
 .settings-user-name {
     font-size: 15px;
     font-weight: 600;
-    color: #fff;
+    color: $text-white;
     margin-bottom: 4px;
 }
 
 .settings-user-email {
     font-size: 13px;
-    color: #888;
+    color: $text-muted;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -398,12 +401,12 @@
 
 .settings-user-role {
     padding: 5px 12px;
-    background: rgba(99, 102, 241, 0.1);
-    border: 1px solid rgba(99, 102, 241, 0.3);
+    background: rgba($color-primary, 0.1);
+    border: 1px solid rgba($color-primary, 0.3);
     border-radius: 12px;
     font-size: 11px;
     font-weight: 600;
-    color: #6366f1;
+    color: $color-primary;
     text-transform: uppercase;
     letter-spacing: 0.5px;
 }
@@ -411,19 +414,19 @@
 .settings-user-role.admin {
     background: rgba(245, 158, 11, 0.1);
     border-color: rgba(245, 158, 11, 0.3);
-    color: #f59e0b;
+    color: $color-warning;
 }
 
 .settings-user-status {
     width: 10px;
     height: 10px;
     border-radius: 50%;
-    background: #22c55e;
-    box-shadow: 0 0 8px rgba(34, 197, 94, 0.5);
+    background: $color-success;
+    box-shadow: 0 0 8px rgba($ctp-green, 0.5);
 }
 
 .settings-user-status.inactive {
-    background: #666;
+    background: $text-dark;
     box-shadow: none;
 }
 
@@ -447,24 +450,24 @@
     flex-direction: column;
     gap: 8px;
     padding: 16px;
-    background: #1e1e3a;
-    border: 1px solid #2d2d5a;
+    background: $bg-card;
+    border: 1px solid $border-color;
     border-radius: 10px;
 }
 
 .settings-pref-item label {
     font-size: 13px;
     font-weight: 500;
-    color: #ccc;
+    color: $text-light;
 }
 
 .settings-pref-item select,
 .settings-pref-item input {
     padding: 10px 14px;
-    background: #16162a;
-    border: 1px solid #2d2d5a;
+    background: $bg-darkest;
+    border: 1px solid $border-color;
     border-radius: 6px;
-    color: #fff;
+    color: $text-white;
     font-size: 14px;
 }
 
@@ -480,8 +483,8 @@
 }
 
 .settings-stat-card {
-    background: #1e1e3a;
-    border: 1px solid #2d2d5a;
+    background: $bg-card;
+    border: 1px solid $border-color;
     border-radius: 10px;
     padding: 20px;
     text-align: center;
@@ -490,22 +493,22 @@
 .settings-stat-value {
     font-size: 32px;
     font-weight: 700;
-    color: #fff;
+    color: $text-white;
     margin-bottom: 4px;
 }
 
 .settings-stat-label {
     font-size: 13px;
-    color: #888;
+    color: $text-muted;
 }
 
 .settings-stat-card.highlight {
-    border-color: #6366f1;
-    background: rgba(99, 102, 241, 0.05);
+    border-color: $color-primary;
+    background: rgba($color-primary, 0.05);
 }
 
 .settings-stat-card.highlight .settings-stat-value {
-    color: #6366f1;
+    color: $color-primary;
 }
 
 /* =============================================================================
@@ -517,7 +520,7 @@
     align-items: center;
     justify-content: center;
     padding: 60px;
-    color: #888;
+    color: $text-muted;
     font-size: 14px;
 }
 
@@ -528,7 +531,7 @@
     justify-content: center;
     gap: 16px;
     padding: 60px;
-    color: #666;
+    color: $text-dark;
     font-size: 14px;
     text-align: center;
 }
@@ -536,7 +539,7 @@
 .settings-coming-soon svg {
     width: 48px;
     height: 48px;
-    color: #444;
+    color: $ctp-surface2;
 }
 
 /* =============================================================================
@@ -557,20 +560,20 @@
 .settings-login-prompt svg {
     width: 72px;
     height: 72px;
-    color: #444;
+    color: $ctp-surface2;
     margin-bottom: 24px;
 }
 
 .settings-login-prompt h3 {
     font-size: 22px;
     font-weight: 600;
-    color: #fff;
+    color: $text-white;
     margin: 0 0 8px 0;
 }
 
 .settings-login-prompt p {
     font-size: 14px;
-    color: #888;
+    color: $text-muted;
     margin: 0 0 24px 0;
     line-height: 1.5;
 }
@@ -586,20 +589,20 @@
     justify-content: center;
     padding: 80px 40px;
     text-align: center;
-    color: #888;
+    color: $text-muted;
 }
 
 .view-load-error svg {
     width: 48px;
     height: 48px;
-    color: #ef4444;
+    color: $color-error;
     margin-bottom: 16px;
 }
 
 .view-load-error h3 {
     font-size: 18px;
     font-weight: 600;
-    color: #fff;
+    color: $text-white;
     margin: 0 0 8px 0;
 }
 
@@ -610,18 +613,18 @@
 
 .view-load-error button {
     padding: 10px 24px;
-    background: #1e1e3a;
-    border: 1px solid #2d2d5a;
+    background: $bg-card;
+    border: 1px solid $border-color;
     border-radius: 8px;
-    color: #fff;
+    color: $text-white;
     font-size: 14px;
     cursor: pointer;
     transition: all 0.2s;
 }
 
 .view-load-error button:hover {
-    background: #252550;
-    border-color: #3d3d6a;
+    background: $bg-hover;
+    border-color: $border-light;
 }
 
 /* ===================================================
@@ -635,11 +638,11 @@
 }
 
 .metrics-realtime .settings-stat-card {
-    background: linear-gradient(135deg, #1e1e3a 0%, #252550 100%);
+    background: linear-gradient(135deg, $bg-card 0%, $bg-hover 100%);
 }
 
 .metrics-realtime .settings-stat-card.highlight {
-    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+    background: linear-gradient(135deg, $color-primary 0%, $color-primary-dark 100%);
 }
 
 /* Weekly Summary */
@@ -655,7 +658,7 @@
 }
 
 .metrics-weekly-stat {
-    background: #16162a;
+    background: $bg-darkest;
     border-radius: 8px;
     padding: 16px;
     text-align: center;
@@ -664,17 +667,17 @@
 .metrics-weekly-stat-value {
     font-size: 24px;
     font-weight: 700;
-    color: #fff;
+    color: $text-white;
     margin-bottom: 4px;
 }
 
 .metrics-weekly-stat-label {
     font-size: 12px;
-    color: #888;
+    color: $text-muted;
 }
 
 .metrics-weekly-stat.highlight .metrics-weekly-stat-value {
-    color: #6366f1;
+    color: $color-primary;
 }
 
 /* Daily Breakdown */
@@ -688,19 +691,19 @@
     gap: 12px;
     align-items: center;
     padding: 12px 16px;
-    background: #16162a;
+    background: $bg-darkest;
     border-radius: 8px;
     margin-bottom: 8px;
     transition: background 0.2s;
 }
 
 .metrics-day-row:hover {
-    background: #1e1e3a;
+    background: $bg-card;
 }
 
 .metrics-day-row.header {
     background: transparent;
-    color: #666;
+    color: $text-dark;
     font-size: 11px;
     font-weight: 600;
     text-transform: uppercase;
@@ -713,36 +716,36 @@
 
 .metrics-day-date {
     font-weight: 500;
-    color: #fff;
+    color: $text-white;
 }
 
 .metrics-day-date .day-name {
     font-size: 11px;
-    color: #666;
+    color: $text-dark;
     margin-left: 8px;
 }
 
 .metrics-day-value {
     text-align: center;
-    color: #ccc;
+    color: $text-light;
     font-size: 14px;
 }
 
 .metrics-day-value.highlight {
-    color: #6366f1;
+    color: $color-primary;
     font-weight: 600;
 }
 
 .metrics-day-bar {
     height: 6px;
-    background: #2d2d5a;
+    background: $border-color;
     border-radius: 3px;
     overflow: hidden;
 }
 
 .metrics-day-bar-fill {
     height: 100%;
-    background: linear-gradient(90deg, #6366f1, #8b5cf6);
+    background: linear-gradient(90deg, $color-primary, $color-primary-dark);
     border-radius: 3px;
     transition: width 0.3s ease;
 }
@@ -757,7 +760,7 @@
     align-items: center;
     gap: 16px;
     padding: 12px 16px;
-    background: #16162a;
+    background: $bg-darkest;
     border-radius: 8px;
     margin-bottom: 8px;
 }
@@ -765,26 +768,26 @@
 .metrics-endpoint-rank {
     width: 28px;
     height: 28px;
-    background: #2d2d5a;
+    background: $border-color;
     border-radius: 6px;
     display: flex;
     align-items: center;
     justify-content: center;
     font-size: 12px;
     font-weight: 600;
-    color: #888;
+    color: $text-muted;
 }
 
 .metrics-endpoint-rank.top-3 {
-    background: linear-gradient(135deg, #6366f1, #8b5cf6);
-    color: #fff;
+    background: linear-gradient(135deg, $color-primary, $color-primary-dark);
+    color: $ctp-crust;
 }
 
 .metrics-endpoint-path {
     flex: 1;
-    font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+    font-family: $font-mono;
     font-size: 13px;
-    color: #ccc;
+    color: $text-light;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -793,7 +796,7 @@
 .metrics-endpoint-count {
     font-size: 14px;
     font-weight: 600;
-    color: #fff;
+    color: $text-white;
     min-width: 60px;
     text-align: right;
 }
@@ -801,14 +804,14 @@
 .metrics-endpoint-bar {
     width: 120px;
     height: 6px;
-    background: #2d2d5a;
+    background: $border-color;
     border-radius: 3px;
     overflow: hidden;
 }
 
 .metrics-endpoint-bar-fill {
     height: 100%;
-    background: linear-gradient(90deg, #22c55e, #16a34a);
+    background: linear-gradient(90deg, $color-success, $color-success-dark);
     border-radius: 3px;
 }
 
@@ -824,7 +827,7 @@
 }
 
 .metrics-latency-item {
-    background: #16162a;
+    background: $bg-darkest;
     border-radius: 8px;
     padding: 16px;
     text-align: center;
@@ -833,25 +836,25 @@
 .metrics-latency-value {
     font-size: 20px;
     font-weight: 700;
-    color: #fff;
+    color: $text-white;
     margin-bottom: 4px;
 }
 
 .metrics-latency-value.good {
-    color: #22c55e;
+    color: $color-success;
 }
 
 .metrics-latency-value.warning {
-    color: #f59e0b;
+    color: $color-warning;
 }
 
 .metrics-latency-value.bad {
-    color: #ef4444;
+    color: $color-error;
 }
 
 .metrics-latency-label {
     font-size: 11px;
-    color: #888;
+    color: $text-muted;
     text-transform: uppercase;
     letter-spacing: 0.5px;
 }
@@ -863,7 +866,7 @@
     align-items: center;
     justify-content: center;
     padding: 40px 20px;
-    color: #666;
+    color: $text-dark;
     text-align: center;
 }
 
@@ -894,18 +897,18 @@
 }
 
 .metrics-status-badge.success {
-    background: rgba(34, 197, 94, 0.15);
-    color: #22c55e;
+    background: rgba($ctp-green, 0.15);
+    color: $color-success;
 }
 
 .metrics-status-badge.error {
-    background: rgba(239, 68, 68, 0.15);
-    color: #ef4444;
+    background: rgba($ctp-red, 0.15);
+    color: $color-error;
 }
 
 .metrics-status-badge.other {
-    background: rgba(99, 102, 241, 0.15);
-    color: #6366f1;
+    background: rgba($color-primary, 0.15);
+    color: $color-primary;
 }
 
 /* Responsive */
@@ -935,7 +938,7 @@
     .settings-sidebar {
         width: 100%;
         border-right: none;
-        border-bottom: 1px solid #2d2d5a;
+        border-bottom: 1px solid $border-color;
     }
     
     .settings-nav {
@@ -959,7 +962,7 @@
     }
     
     .settings-nav-item.active {
-        background: rgba(99, 102, 241, 0.2);
+        background: rgba($color-primary, 0.2);
     }
     
     .settings-content {

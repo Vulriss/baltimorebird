@@ -1,3 +1,5 @@
+@use 'abstracts/variables' as *;
+
 /* ===================================================
    DASHBOARD VIEW V2 - Tree Structure
    Fichier: css/dashboard-v2.css
@@ -9,7 +11,7 @@
     width: 100%;
     height: 100%;
     overflow: hidden;
-    background: #0d0d1a;
+    background: $bg-dark;
 }
 
 /* === Toggle Header === */
@@ -18,16 +20,16 @@
     align-items: center;
     justify-content: center;
     padding: 12px 20px;
-    background: #16162a;
-    border-bottom: 1px solid #2d2d5a;
+    background: $bg-darkest;
+    border-bottom: 1px solid $border-color;
     height: 56px;
     min-height: 56px;
 }
 
 .dashboard-toggle {
     display: flex;
-    background: #1e1e3a;
-    border: 1px solid #2d2d5a;
+    background: $bg-card;
+    border: 1px solid $border-color;
     border-radius: 8px;
     overflow: hidden;
     position: relative;
@@ -39,7 +41,7 @@
     padding: 10px 0;
     font-size: 13px;
     font-weight: 500;
-    color: #888;
+    color: $text-muted;
     background: transparent;
     border: none;
     cursor: pointer;
@@ -58,11 +60,11 @@
 }
 
 .dashboard-toggle-btn:hover {
-    color: #ccc;
+    color: $text-light;
 }
 
 .dashboard-toggle-btn.active {
-    color: #fff;
+    color: $text-white;
     z-index: 3;
 }
 
@@ -72,7 +74,7 @@
     bottom: 3px;
     left: 3px;
     width: calc(33.333% - 2px);
-    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    background: linear-gradient(135deg, $color-primary, $color-primary-dark);
     border-radius: 6px;
     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     z-index: 2;
@@ -124,7 +126,7 @@
     flex-direction: column;
     width: 100%;
     height: 100%;
-    background: #0d0d1a;
+    background: $bg-dark;
 }
 
 .execution-scripts {
@@ -143,19 +145,19 @@
 .execution-scripts-header h3 {
     font-size: 14px;
     font-weight: 600;
-    color: #fff;
+    color: $text-white;
     margin: 0;
 }
 
 .execution-scripts-count {
     font-size: 12px;
-    color: #666;
+    color: $text-dark;
 }
 
 /* Script Cards */
 .script-card {
-    background: #1e1e3a;
-    border: 1px solid #2d2d5a;
+    background: $bg-card;
+    border: 1px solid $border-color;
     border-radius: 12px;
     padding: 16px;
     margin-bottom: 12px;
@@ -163,8 +165,8 @@
 }
 
 .script-card:hover {
-    border-color: #4d4d7a;
-    background: #232345;
+    border-color: $border-lighter;
+    background: $bg-card-hover;
 }
 
 .script-card-main {
@@ -177,7 +179,7 @@
 .script-card-icon {
     width: 48px;
     height: 48px;
-    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    background: linear-gradient(135deg, $color-primary, $color-primary-dark);
     border-radius: 12px;
     display: flex;
     align-items: center;
@@ -188,7 +190,7 @@
 .script-card-icon svg {
     width: 24px;
     height: 24px;
-    color: #fff;
+    color: $ctp-crust;
 }
 
 .script-card-content {
@@ -199,7 +201,7 @@
 .script-card-name {
     font-size: 16px;
     font-weight: 600;
-    color: #fff;
+    color: $text-white;
     margin-bottom: 6px;
 }
 
@@ -208,17 +210,17 @@
     align-items: center;
     gap: 16px;
     font-size: 12px;
-    color: #888;
+    color: $text-muted;
 }
 
-.script-card-status.success { color: #22c55e; }
-.script-card-status.error { color: #ef4444; }
+.script-card-status.success { color: $color-success; }
+.script-card-status.error { color: $color-error; }
 
 .script-card-actions {
     display: flex;
     gap: 10px;
     padding-top: 14px;
-    border-top: 1px solid #2d2d5a;
+    border-top: 1px solid $border-color;
 }
 
 .script-btn-edit,
@@ -244,25 +246,26 @@
 
 .script-btn-edit {
     background: transparent;
-    border: 1px solid #4d4d7a;
-    color: #ccc;
+    border: 1px solid $border-lighter;
+    color: $text-light;
 }
 
 .script-btn-edit:hover {
-    border-color: #6366f1;
-    background: rgba(99, 102, 241, 0.1);
-    color: #fff;
+    border-color: $color-primary;
+    background: rgba($color-primary, 0.1);
+    color: $text-white;
 }
 
 .script-btn-run {
-    background: linear-gradient(135deg, #22c55e, #16a34a);
+    background: linear-gradient(135deg, $color-success, $color-success-dark);
     border: none;
-    color: #fff;
+    color: $ctp-crust;
 }
 
 .script-btn-run:hover {
     transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(34, 197, 94, 0.4);
+    box-shadow: 0 4px 12px rgba($ctp-green, 0.4);
+    filter: brightness(1.05);
 }
 
 /* Scripts Loading & Empty */
@@ -274,13 +277,13 @@
     justify-content: center;
     padding: 40px 20px;
     text-align: center;
-    color: #888;
+    color: $text-muted;
 }
 
 .scripts-empty svg {
     width: 48px;
     height: 48px;
-    color: #333;
+    color: $ctp-surface1;
     margin-bottom: 16px;
 }
 
@@ -291,7 +294,7 @@
 
 .scripts-empty-hint {
     font-size: 12px;
-    color: #555;
+    color: $text-darker;
     margin-top: 8px;
 }
 
@@ -299,8 +302,8 @@
 .execution-console {
     height: 200px;
     min-height: 150px;
-    background: #0a0a14;
-    border-top: 1px solid #2d2d5a;
+    background: $bg-darker;
+    border-top: 1px solid $border-color;
     display: flex;
     flex-direction: column;
 }
@@ -310,14 +313,14 @@
     align-items: center;
     justify-content: space-between;
     padding: 8px 16px;
-    background: #16162a;
-    border-bottom: 1px solid #2d2d5a;
+    background: $bg-darkest;
+    border-bottom: 1px solid $border-color;
 }
 
 .execution-console-header h4 {
     font-size: 12px;
     font-weight: 600;
-    color: #888;
+    color: $text-muted;
     margin: 0;
     display: flex;
     align-items: center;
@@ -332,17 +335,17 @@
 .console-clear-btn {
     padding: 4px 8px;
     font-size: 10px;
-    color: #666;
+    color: $text-dark;
     background: transparent;
-    border: 1px solid #2d2d5a;
+    border: 1px solid $border-color;
     border-radius: 4px;
     cursor: pointer;
     transition: all 0.2s;
 }
 
 .console-clear-btn:hover {
-    color: #fff;
-    border-color: #3d3d6a;
+    color: $text-white;
+    border-color: $border-light;
 }
 
 .execution-console-content {
@@ -360,12 +363,12 @@
     margin-bottom: 4px;
 }
 
-.console-time { color: #555; }
-.console-message { color: #aaa; }
-.console-message.info { color: #6366f1; }
-.console-message.success { color: #22c55e; }
-.console-message.warning { color: #f59e0b; }
-.console-message.error { color: #ef4444; }
+.console-time { color: $text-darker; }
+.console-message { color: $text-lighter; }
+.console-message.info { color: $color-primary; }
+.console-message.success { color: $color-success; }
+.console-message.warning { color: $color-warning; }
+.console-message.error { color: $color-error; }
 
 /* ===================================================
    EDITION PANEL
@@ -375,49 +378,49 @@
     display: flex;
     width: 100%;
     height: 100%;
-    background: #0d0d1a;
+    background: $bg-dark;
 }
 
 /* Blocks Palette */
 .edition-palette {
     width: 200px;
     min-width: 200px;
-    background: #16162a;
-    border-right: 1px solid #2d2d5a;
+    background: $bg-darkest;
+    border-right: 1px solid $border-color;
     display: flex;
     flex-direction: column;
 }
 
 .edition-palette-header {
     padding: 16px;
-    border-bottom: 1px solid #2d2d5a;
+    border-bottom: 1px solid $border-color;
 }
 
 .edition-palette-header h3 {
     font-size: 13px;
     font-weight: 600;
-    color: #fff;
+    color: $text-white;
     margin: 0;
 }
 
 .edition-palette-search {
     padding: 12px;
-    border-bottom: 1px solid #2d2d5a;
+    border-bottom: 1px solid $border-color;
 }
 
 .edition-palette-search input {
     width: 100%;
     padding: 8px 10px;
-    background: #1e1e3a;
-    border: 1px solid #2d2d5a;
+    background: $bg-card;
+    border: 1px solid $border-color;
     border-radius: 6px;
-    color: #e0e0e0;
+    color: $text-primary;
     font-size: 12px;
 }
 
 .edition-palette-search input:focus {
     outline: none;
-    border-color: #6366f1;
+    border-color: $color-primary;
 }
 
 .edition-palette-blocks {
@@ -427,21 +430,24 @@
 }
 
 .palette-block {
+    position: relative;
     display: flex;
     align-items: center;
     gap: 10px;
     padding: 10px 12px;
-    background: #1e1e3a;
-    border: 1px solid #2d2d5a;
-    border-radius: 8px;
+    background: $bg-card;
+    border: 1px solid $border-color;
     margin-bottom: 8px;
     cursor: grab;
     transition: all 0.2s;
+    
+    // Squircle-like rounded corners
+    border-radius: 8px;
 }
 
 .palette-block:hover {
-    border-color: #6366f1;
-    background: #252550;
+    background: $bg-hover;
+    border-color: $color-primary;
 }
 
 .palette-block:active,
@@ -453,8 +459,12 @@
 .palette-block-icon {
     width: 28px;
     height: 28px;
-    background: var(--block-color, #6366f1);
-    border-radius: 6px;
+    background: var(--block-color, $ctp-teal);
+    // Squircle pour icône carrée - peut utiliser le mask
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M 0,50 C 0,5 5,0 50,0 S 100,5 100,50 95,100 50,100 0,95 0,50' fill='black'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M 0,50 C 0,5 5,0 50,0 S 100,5 100,50 95,100 50,100 0,95 0,50' fill='black'/%3E%3C/svg%3E");
+    -webkit-mask-size: 100% 100%;
+    mask-size: 100% 100%;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -463,18 +473,18 @@
 .palette-block-icon svg {
     width: 14px;
     height: 14px;
-    color: #fff;
+    color: $ctp-crust;
 }
 
 .palette-block-name {
     font-size: 12px;
     font-weight: 500;
-    color: #fff;
+    color: $text-white;
 }
 
 .palette-block-desc {
     font-size: 10px;
-    color: #666;
+    color: $text-dark;
     margin-top: 2px;
 }
 
@@ -492,8 +502,8 @@
     align-items: center;
     justify-content: space-between;
     padding: 12px 20px;
-    background: #16162a;
-    border-bottom: 1px solid #2d2d5a;
+    background: $bg-darkest;
+    border-bottom: 1px solid $border-color;
 }
 
 .edition-canvas-toolbar-left {
@@ -506,7 +516,7 @@
     background: transparent;
     border: none;
     border-bottom: 1px solid transparent;
-    color: #fff;
+    color: $text-white;
     font-size: 14px;
     font-weight: 500;
     padding: 4px 0;
@@ -514,30 +524,30 @@
 }
 
 .edition-script-name input:hover {
-    border-bottom-color: #3d3d6a;
+    border-bottom-color: $border-light;
 }
 
 .edition-script-name input:focus {
     outline: none;
-    border-bottom-color: #6366f1;
+    border-bottom-color: $color-primary;
 }
 
 .script-status-indicator {
     font-size: 11px;
-    color: #666;
+    color: $text-dark;
     padding: 3px 8px;
-    background: #1e1e3a;
+    background: $bg-card;
     border-radius: 4px;
 }
 
 .script-status-indicator.modified {
-    color: #f59e0b;
+    color: $color-warning;
     background: rgba(245, 158, 11, 0.1);
 }
 
 .script-status-indicator.saved {
-    color: #22c55e;
-    background: rgba(34, 197, 94, 0.1);
+    color: $color-success;
+    background: rgba($ctp-green, 0.1);
 }
 
 .edition-canvas-toolbar-right {
@@ -565,35 +575,37 @@
 
 .edition-toolbar-btn.secondary {
     background: transparent;
-    border: 1px solid #3d3d6a;
-    color: #ccc;
+    border: 1px solid $border-light;
+    color: $text-light;
 }
 
 .edition-toolbar-btn.secondary:hover {
-    border-color: #6366f1;
-    color: #fff;
+    border-color: $color-primary;
+    color: $text-white;
 }
 
 .edition-toolbar-btn.primary {
-    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    background: linear-gradient(135deg, $color-primary, $color-primary-dark);
     border: none;
-    color: #fff;
+    color: $ctp-crust;
 }
 
 .edition-toolbar-btn.primary:hover {
     transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+    box-shadow: 0 4px 12px rgba($color-primary, 0.4);
+    filter: brightness(1.05);
 }
 
 .edition-toolbar-btn.success {
-    background: linear-gradient(135deg, #22c55e, #16a34a);
+    background: linear-gradient(135deg, $color-success, $color-success-dark);
     border: none;
-    color: #fff;
+    color: $ctp-crust;
 }
 
 .edition-toolbar-btn.success:hover {
     transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(34, 197, 94, 0.4);
+    box-shadow: 0 4px 12px rgba($ctp-green, 0.4);
+    filter: brightness(1.05);
 }
 
 /* Canvas Area */
@@ -610,16 +622,16 @@
     justify-content: center;
     height: 100%;
     min-height: 300px;
-    border: 2px dashed #2d2d5a;
+    border: 2px dashed $border-color;
     border-radius: 12px;
-    color: #555;
+    color: $text-darker;
     text-align: center;
     transition: all 0.2s;
 }
 
 .edition-canvas-empty.drag-over {
-    border-color: #6366f1;
-    background: rgba(99, 102, 241, 0.05);
+    border-color: $color-primary;
+    background: rgba($color-primary, 0.05);
 }
 
 .edition-canvas-empty svg {
@@ -631,13 +643,13 @@
 
 .edition-canvas-empty h3 {
     font-size: 16px;
-    color: #888;
+    color: $text-muted;
     margin: 0 0 8px 0;
 }
 
 .edition-canvas-empty p {
     font-size: 13px;
-    color: #555;
+    color: $text-darker;
     margin: 0;
 }
 
@@ -647,8 +659,8 @@
 
 /* Base Block Styles */
 .canvas-block {
-    background: #1a1a35;
-    border: 1px solid #2d2d5a;
+    background: $ctp-surface0;
+    border: 1px solid $border-color;
     border-radius: 8px;
     margin-bottom: 8px;
     overflow: hidden;
@@ -656,23 +668,23 @@
 }
 
 .canvas-block:hover {
-    border-color: #3d3d6a;
+    border-color: $border-light;
 }
 
 .canvas-block.dragging {
     opacity: 0.5;
-    border-color: #6366f1;
+    border-color: $color-primary;
 }
 
 .canvas-block.highlighted {
-    border-color: #6366f1;
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.3);
+    border-color: $color-primary;
+    box-shadow: 0 0 0 3px rgba($color-primary, 0.3);
     animation: highlight-pulse 1.5s ease-out;
 }
 
 @keyframes highlight-pulse {
-    0% { box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.5); }
-    100% { box-shadow: 0 0 0 3px rgba(99, 102, 241, 0); }
+    0% { box-shadow: 0 0 0 3px rgba($color-primary, 0.5); }
+    100% { box-shadow: 0 0 0 3px rgba($color-primary, 0); }
 }
 
 /* Block Header */
@@ -681,13 +693,13 @@
     align-items: center;
     gap: 10px;
     padding: 10px 14px;
-    background: #222245;
+    background: $ctp-surface1;
     cursor: grab;
     transition: background 0.15s;
 }
 
 .canvas-block-header:hover {
-    background: #282855;
+    background: $ctp-surface2;
 }
 
 .canvas-block.dragging .canvas-block-header {
@@ -697,7 +709,7 @@
 .canvas-block-icon {
     width: 28px;
     height: 28px;
-    background: var(--block-color, #6366f1);
+    background: var(--block-color, $color-primary);
     border-radius: 6px;
     display: flex;
     align-items: center;
@@ -708,7 +720,7 @@
 .canvas-block-icon svg {
     width: 14px;
     height: 14px;
-    color: #fff;
+    color: $ctp-crust;
 }
 
 .canvas-block-info {
@@ -719,12 +731,12 @@
 .canvas-block-title {
     font-size: 12px;
     font-weight: 600;
-    color: #fff;
+    color: $text-white;
 }
 
 .canvas-block-subtitle {
     font-size: 11px;
-    color: #888;
+    color: $text-muted;
     margin-top: 2px;
     white-space: nowrap;
     overflow: hidden;
@@ -749,7 +761,7 @@
     background: transparent;
     border: none;
     border-radius: 4px;
-    color: #666;
+    color: $text-dark;
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -760,12 +772,12 @@
 
 .canvas-block-action:hover {
     background: rgba(255, 255, 255, 0.1);
-    color: #fff;
+    color: $text-white;
 }
 
 .canvas-block-action.delete:hover {
-    background: rgba(239, 68, 68, 0.2);
-    color: #ef4444;
+    background: rgba($ctp-red, 0.2);
+    color: $color-error;
 }
 
 .canvas-block-action svg {
@@ -781,7 +793,7 @@
 /* Block Config - Compact */
 .canvas-block-config {
     padding: 12px 14px;
-    background: #16162a;
+    background: $bg-darkest;
 }
 
 .block-config-row {
@@ -798,7 +810,7 @@
 .block-config-label {
     width: 70px;
     font-size: 11px;
-    color: #888;
+    color: $text-muted;
     padding-top: 8px;
     flex-shrink: 0;
 }
@@ -807,10 +819,10 @@
 .block-config-select {
     flex: 1;
     padding: 8px 10px;
-    background: #1e1e3a;
-    border: 1px solid #2d2d5a;
+    background: $bg-card;
+    border: 1px solid $border-color;
     border-radius: 6px;
-    color: #e0e0e0;
+    color: $text-primary;
     font-size: 12px;
     transition: border-color 0.15s;
 }
@@ -818,7 +830,7 @@
 .block-config-input:focus,
 .block-config-select:focus {
     outline: none;
-    border-color: #6366f1;
+    border-color: $color-primary;
 }
 
 .block-config-input.code-input {
@@ -826,9 +838,9 @@
     font-size: 13px;
     line-height: 1.6;
     resize: vertical;
-    background: #0a0a14;
-    color: #e0e0e0;
-    border: 1px solid #2d2d5a;
+    background: $bg-darker;
+    color: $text-primary;
+    border: 1px solid $border-color;
     border-radius: 6px;
     padding: 12px 14px;
     min-height: 120px;
@@ -844,13 +856,13 @@
     min-height: 150px;
     border-radius: 6px;
     overflow: hidden;
-    border: 1px solid #2d2d5a;
+    border: 1px solid $border-color;
     transition: border-color 0.15s, box-shadow 0.15s;
 }
 
 .code-editor-container:focus-within {
-    border-color: #6366f1;
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+    border-color: $color-primary;
+    box-shadow: 0 0 0 3px rgba($color-primary, 0.15);
 }
 
 /* CodeMirror overrides for perfect integration */
@@ -880,9 +892,9 @@
     font-family: 'Fira Code', 'SF Mono', Monaco, monospace;
     font-size: 13px;
     line-height: 1.6;
-    background: #0a0a14;
-    color: #e0e0e0;
-    border: 1px solid #2d2d5a;
+    background: $bg-darker;
+    color: $text-primary;
+    border: 1px solid $border-color;
     border-radius: 6px;
     padding: 12px 14px;
     resize: vertical;
@@ -891,23 +903,23 @@
 
 .code-editor-fallback:focus {
     outline: none;
-    border-color: #6366f1;
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+    border-color: $color-primary;
+    box-shadow: 0 0 0 3px rgba($color-primary, 0.15);
 }
 
 .block-config-color {
     width: 36px;
     height: 36px;
     padding: 2px;
-    background: #1e1e3a;
-    border: 1px solid #2d2d5a;
+    background: $bg-card;
+    border: 1px solid $border-color;
     border-radius: 6px;
     cursor: pointer;
 }
 
 /* Code Preview */
 .canvas-block-code {
-    border-top: 1px solid #2d2d5a;
+    border-top: 1px solid $border-color;
 }
 
 .canvas-block-code-header {
@@ -915,13 +927,13 @@
     align-items: center;
     justify-content: space-between;
     padding: 8px 14px;
-    background: #14142a;
+    background: $ctp-mantle;
     cursor: pointer;
     transition: background 0.15s;
 }
 
 .canvas-block-code-header:hover {
-    background: #18183a;
+    background: $ctp-mantle;
 }
 
 .canvas-block-code-header-left {
@@ -929,7 +941,7 @@
     align-items: center;
     gap: 6px;
     font-size: 11px;
-    color: #666;
+    color: $text-dark;
 }
 
 .canvas-block-code-header-left svg {
@@ -945,9 +957,9 @@
 .canvas-block-code-copy {
     padding: 4px 8px;
     font-size: 10px;
-    color: #555;
+    color: $text-darker;
     background: transparent;
-    border: 1px solid #2d2d5a;
+    border: 1px solid $border-color;
     border-radius: 4px;
     cursor: pointer;
     display: flex;
@@ -957,8 +969,8 @@
 }
 
 .canvas-block-code-copy:hover {
-    color: #fff;
-    border-color: #3d3d6a;
+    color: $text-white;
+    border-color: $border-light;
 }
 
 .canvas-block-code-copy svg {
@@ -970,7 +982,7 @@
     display: none;
     margin: 0;
     padding: 12px 14px;
-    background: #0a0a14;
+    background: $bg-darker;
     font-family: 'Fira Code', 'SF Mono', Monaco, monospace;
     font-size: 12px;
     line-height: 1.5;
@@ -993,14 +1005,14 @@
 }
 
 .canvas-block.is-section > .canvas-block-header {
-    background: #1e1e3a;
+    background: $bg-card;
     border-radius: 8px;
     border-left: 4px solid var(--block-color);
     padding-left: 10px;
 }
 
 .canvas-block.is-section:hover > .canvas-block-header {
-    background: #252550;
+    background: $bg-hover;
 }
 
 /* Section Toggle Button */
@@ -1009,7 +1021,7 @@
     height: 24px;
     background: transparent;
     border: none;
-    color: #888;
+    color: $text-muted;
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -1022,7 +1034,7 @@
 
 .section-toggle:hover {
     background: rgba(255, 255, 255, 0.1);
-    color: #fff;
+    color: $text-white;
 }
 
 .section-toggle svg {
@@ -1072,7 +1084,7 @@
 
 /* H2 Sections */
 .canvas-block.is-section.h2 > .canvas-block-header {
-    background: #1a1a35;
+    background: $ctp-surface0;
     padding: 10px 12px 10px 8px;
 }
 
@@ -1082,7 +1094,7 @@
 
 /* H3 Sections */
 .canvas-block.is-section.h3 > .canvas-block-header {
-    background: #181830;
+    background: $ctp-mantle;
     padding: 8px 10px 8px 6px;
 }
 
@@ -1114,8 +1126,8 @@
 
 .canvas-drop-zone.drag-over {
     height: 40px;
-    background: rgba(99, 102, 241, 0.1);
-    border: 2px dashed #6366f1;
+    background: rgba($color-primary, 0.1);
+    border: 2px dashed $color-primary;
     border-radius: 6px;
 }
 
@@ -1125,17 +1137,17 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    border: 2px dashed #2d2d5a;
+    border: 2px dashed $border-color;
     border-radius: 6px;
     margin: 8px 0;
-    color: #555;
+    color: $text-darker;
     font-size: 12px;
 }
 
 .canvas-drop-zone.empty-section.drag-over {
-    border-color: #6366f1;
-    background: rgba(99, 102, 241, 0.05);
-    color: #6366f1;
+    border-color: $color-primary;
+    background: rgba($color-primary, 0.05);
+    color: $color-primary;
 }
 
 /* ===================================================
@@ -1145,15 +1157,15 @@
 .edition-outline {
     width: 200px;
     min-width: 200px;
-    background: #16162a;
-    border-left: 1px solid #2d2d5a;
+    background: $bg-darkest;
+    border-left: 1px solid $border-color;
     display: flex;
     flex-direction: column;
 }
 
 .edition-outline-header {
     padding: 16px;
-    border-bottom: 1px solid #2d2d5a;
+    border-bottom: 1px solid $border-color;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -1162,7 +1174,7 @@
 .edition-outline-header h3 {
     font-size: 13px;
     font-weight: 600;
-    color: #fff;
+    color: $text-white;
     margin: 0;
     display: flex;
     align-items: center;
@@ -1172,7 +1184,7 @@
 .edition-outline-header h3 svg {
     width: 14px;
     height: 14px;
-    color: #888;
+    color: $text-muted;
 }
 
 /* Expand/Collapse All Buttons */
@@ -1185,9 +1197,9 @@
     width: 24px;
     height: 24px;
     background: transparent;
-    border: 1px solid #2d2d5a;
+    border: 1px solid $border-color;
     border-radius: 4px;
-    color: #666;
+    color: $text-dark;
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -1197,8 +1209,8 @@
 }
 
 .outline-action-btn:hover {
-    border-color: #6366f1;
-    color: #fff;
+    border-color: $color-primary;
+    color: $text-white;
 }
 
 .outline-action-btn svg {
@@ -1215,7 +1227,7 @@
 .outline-empty {
     text-align: center;
     padding: 20px 12px;
-    color: #555;
+    color: $text-darker;
 }
 
 .outline-empty p {
@@ -1234,18 +1246,18 @@
     border-radius: 6px;
     cursor: pointer;
     transition: all 0.15s;
-    color: #aaa;
+    color: $text-lighter;
     font-size: 12px;
 }
 
 .outline-item:hover {
-    background: #252550;
-    color: #fff;
+    background: $bg-hover;
+    color: $text-white;
 }
 
 .outline-item.active {
-    background: rgba(99, 102, 241, 0.15);
-    color: #fff;
+    background: rgba($color-primary, 0.15);
+    color: $text-white;
 }
 
 .outline-item-icon {
@@ -1271,41 +1283,41 @@
 /* H1 outline items */
 .outline-item.h1 {
     font-weight: 600;
-    color: #fff;
-    background: rgba(139, 92, 246, 0.1);
-    border-left: 3px solid #8b5cf6;
+    color: $text-white;
+    background: rgba($color-primary, 0.1);
+    border-left: 3px solid $color-primary-dark;
 }
 
 .outline-item.h1:hover {
-    background: rgba(139, 92, 246, 0.2);
+    background: rgba($color-primary, 0.2);
 }
 
 .outline-item.h1.active {
-    background: rgba(139, 92, 246, 0.25);
+    background: rgba($color-primary, 0.25);
 }
 
 .outline-item.h1 .outline-item-icon {
-    color: #8b5cf6;
+    color: $color-primary-dark;
 }
 
 /* H2 outline items */
 .outline-item.h2 {
     padding-left: 24px;
     font-weight: 500;
-    background: rgba(99, 102, 241, 0.08);
-    border-left: 3px solid #6366f1;
+    background: rgba($color-primary, 0.08);
+    border-left: 3px solid $color-primary;
 }
 
 .outline-item.h2:hover {
-    background: rgba(99, 102, 241, 0.15);
+    background: rgba($color-primary, 0.15);
 }
 
 .outline-item.h2.active {
-    background: rgba(99, 102, 241, 0.2);
+    background: rgba($color-primary, 0.2);
 }
 
 .outline-item.h2 .outline-item-icon {
-    color: #6366f1;
+    color: $color-primary;
 }
 
 /* H3 outline items */
@@ -1314,7 +1326,7 @@
     font-weight: 400;
     font-size: 11px;
     background: rgba(129, 140, 248, 0.05);
-    border-left: 3px solid #818cf8;
+    border-left: 3px solid $color-primary-light;
 }
 
 .outline-item.h3:hover {
@@ -1326,14 +1338,14 @@
 }
 
 .outline-item.h3 .outline-item-icon {
-    color: #818cf8;
+    color: $color-primary-light;
 }
 
 .outline-stats {
     padding: 12px;
-    border-top: 1px solid #2d2d5a;
+    border-top: 1px solid $border-color;
     font-size: 11px;
-    color: #666;
+    color: $text-dark;
     text-align: center;
 }
 
@@ -1346,7 +1358,7 @@
     flex-direction: column;
     width: 100%;
     height: 100%;
-    background: #0d0d1a;
+    background: $bg-dark;
 }
 
 .mapping-header {
@@ -1354,20 +1366,20 @@
     align-items: center;
     justify-content: space-between;
     padding: 20px 24px;
-    background: #16162a;
-    border-bottom: 1px solid #2d2d5a;
+    background: $bg-darkest;
+    border-bottom: 1px solid $border-color;
 }
 
 .mapping-header-left h2 {
     font-size: 18px;
     font-weight: 600;
-    color: #fff;
+    color: $text-white;
     margin: 0 0 4px 0;
 }
 
 .mapping-header-left p {
     font-size: 13px;
-    color: #888;
+    color: $text-muted;
     margin: 0;
 }
 
@@ -1396,24 +1408,25 @@
 
 .mapping-btn.secondary {
     background: transparent;
-    border: 1px solid #3d3d6a;
-    color: #ccc;
+    border: 1px solid $border-light;
+    color: $text-light;
 }
 
 .mapping-btn.secondary:hover {
-    border-color: #6366f1;
-    color: #fff;
+    border-color: $color-primary;
+    color: $text-white;
 }
 
 .mapping-btn.primary {
-    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    background: linear-gradient(135deg, $color-primary, $color-primary-dark);
     border: none;
-    color: #fff;
+    color: $ctp-crust;
 }
 
 .mapping-btn.primary:hover {
     transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+    box-shadow: 0 4px 12px rgba($color-primary, 0.4);
+    filter: brightness(1.05);
 }
 
 .mapping-toolbar {
@@ -1421,16 +1434,16 @@
     align-items: center;
     justify-content: space-between;
     padding: 12px 24px;
-    background: #12122a;
-    border-bottom: 1px solid #2d2d5a;
+    background: $ctp-crust;
+    border-bottom: 1px solid $border-color;
 }
 
 .mapping-search {
     display: flex;
     align-items: center;
     gap: 10px;
-    background: #1e1e3a;
-    border: 1px solid #2d2d5a;
+    background: $bg-card;
+    border: 1px solid $border-color;
     border-radius: 6px;
     padding: 8px 12px;
     width: 300px;
@@ -1439,19 +1452,19 @@
 .mapping-search svg {
     width: 16px;
     height: 16px;
-    color: #666;
+    color: $text-dark;
 }
 
 .mapping-search input {
     background: transparent;
     border: none;
-    color: #fff;
+    color: $text-white;
     font-size: 13px;
     width: 100%;
 }
 
 .mapping-search input::placeholder {
-    color: #555;
+    color: $text-darker;
 }
 
 .mapping-search input:focus {
@@ -1460,7 +1473,7 @@
 
 .mapping-stats {
     font-size: 13px;
-    color: #888;
+    color: $text-muted;
 }
 
 .mapping-list {
@@ -1477,7 +1490,7 @@
     height: 100%;
     min-height: 300px;
     text-align: center;
-    color: #555;
+    color: $text-darker;
 }
 
 .mapping-empty svg {
@@ -1489,13 +1502,13 @@
 
 .mapping-empty h3 {
     font-size: 16px;
-    color: #888;
+    color: $text-muted;
     margin: 0 0 8px 0;
 }
 
 .mapping-empty p {
     font-size: 13px;
-    color: #555;
+    color: $text-darker;
     margin: 0 0 20px 0;
 }
 
@@ -1506,14 +1519,14 @@
 }
 
 .mapping-item {
-    background: #1e1e3a;
-    border: 1px solid #2d2d5a;
+    background: $bg-card;
+    border: 1px solid $border-color;
     border-radius: 10px;
     overflow: hidden;
 }
 
 .mapping-item:hover {
-    border-color: #3d3d6a;
+    border-color: $border-light;
 }
 
 .mapping-item-header {
@@ -1521,7 +1534,7 @@
     align-items: center;
     justify-content: space-between;
     padding: 14px 16px;
-    background: #252550;
+    background: $bg-hover;
     cursor: pointer;
 }
 
@@ -1534,7 +1547,7 @@
 .mapping-item-icon {
     width: 36px;
     height: 36px;
-    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    background: linear-gradient(135deg, $color-primary, $color-primary-dark);
     border-radius: 8px;
     display: flex;
     align-items: center;
@@ -1544,14 +1557,14 @@
 .mapping-item-icon svg {
     width: 18px;
     height: 18px;
-    color: #fff;
+    color: $ctp-crust;
 }
 
 .mapping-item-name input {
     background: transparent;
     border: none;
     border-bottom: 1px solid transparent;
-    color: #fff;
+    color: $text-white;
     font-size: 14px;
     font-weight: 600;
     padding: 2px 0;
@@ -1559,23 +1572,23 @@
 }
 
 .mapping-item-name input:hover {
-    border-bottom-color: #3d3d6a;
+    border-bottom-color: $border-light;
 }
 
 .mapping-item-name input:focus {
     outline: none;
-    border-bottom-color: #6366f1;
+    border-bottom-color: $color-primary;
 }
 
 .mapping-item-meta {
     font-size: 11px;
-    color: #888;
+    color: $text-muted;
 }
 
 .mapping-item-content {
     display: none;
     padding: 16px;
-    border-top: 1px solid #2d2d5a;
+    border-top: 1px solid $border-color;
 }
 
 .mapping-item.expanded .mapping-item-content {

@@ -1,3 +1,5 @@
+@use 'abstracts/variables' as *;
+
 /* ===================================================
    REPORTS VIEW
    Fichier: css/reports.css
@@ -15,8 +17,8 @@
 .reports-sidebar {
     width: 300px;
     min-width: 300px;
-    background: #16162a;
-    border-right: 1px solid #2d2d5a;
+    background: $bg-darkest;
+    border-right: 1px solid $border-color;
     display: flex;
     flex-direction: column;
 }
@@ -28,38 +30,38 @@
     padding: 0 20px;
     height: 56px;
     min-height: 56px;
-    border-bottom: 1px solid #2d2d5a;
+    border-bottom: 1px solid $border-color;
 }
 
 .reports-sidebar-header h2 {
     font-size: 16px;
     font-weight: 600;
-    color: #fff;
+    color: $text-white;
     margin: 0;
 }
 
 .reports-search {
     padding: 12px 16px;
-    border-bottom: 1px solid #2d2d5a;
+    border-bottom: 1px solid $border-color;
 }
 
 .reports-search input {
     width: 100%;
     padding: 8px 12px;
-    background: #1e1e3a;
-    border: 1px solid #2d2d5a;
+    background: $bg-card;
+    border: 1px solid $border-color;
     border-radius: 6px;
-    color: #e0e0e0;
+    color: $text-primary;
     font-size: 13px;
 }
 
 .reports-search input:focus {
     outline: none;
-    border-color: #6366f1;
+    border-color: $color-primary;
 }
 
 .reports-search input::placeholder {
-    color: #666;
+    color: $text-dark;
 }
 
 /* === Reports List === */
@@ -74,21 +76,21 @@
 }
 
 .reports-list::-webkit-scrollbar-thumb {
-    background: #3d3d6a;
+    background: $border-light;
     border-radius: 3px;
 }
 
 .reports-loading {
     text-align: center;
     padding: 40px 20px;
-    color: #666;
+    color: $text-dark;
     font-size: 13px;
 }
 
 .reports-empty-list {
     text-align: center;
     padding: 40px 20px;
-    color: #555;
+    color: $text-darker;
 }
 
 .reports-empty-list svg {
@@ -108,7 +110,7 @@
     display: flex;
     flex-direction: column;
     padding: 14px 16px;
-    background: #1e1e3a;
+    background: $bg-card;
     border: 1px solid transparent;
     border-radius: 8px;
     margin-bottom: 8px;
@@ -118,13 +120,13 @@
 }
 
 .report-item:hover {
-    background: #252550;
-    border-color: #3d3d6a;
+    background: $bg-hover;
+    border-color: $border-light;
 }
 
 .report-item.active {
-    background: #252550;
-    border-color: #6366f1;
+    background: $bg-hover;
+    border-color: $color-primary;
 }
 
 .report-item-header {
@@ -136,7 +138,7 @@
 .report-item-icon {
     width: 36px;
     height: 36px;
-    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    background: linear-gradient(135deg, $color-primary, $color-primary-dark);
     border-radius: 8px;
     display: flex;
     align-items: center;
@@ -147,7 +149,7 @@
 .report-item-icon svg {
     width: 18px;
     height: 18px;
-    color: #fff;
+    color: $ctp-crust;
 }
 
 .report-item-info {
@@ -158,7 +160,7 @@
 .report-item-name {
     font-size: 14px;
     font-weight: 500;
-    color: #fff;
+    color: $text-white;
     margin-bottom: 4px;
     white-space: nowrap;
     overflow: hidden;
@@ -170,7 +172,7 @@
     align-items: center;
     gap: 8px;
     font-size: 11px;
-    color: #666;
+    color: $text-dark;
 }
 
 .report-item-meta span {
@@ -194,7 +196,7 @@
     background: transparent;
     border: none;
     border-radius: 4px;
-    color: #555;
+    color: $text-darker;
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -208,8 +210,8 @@
 }
 
 .report-item-delete:hover {
-    background: rgba(239, 68, 68, 0.15);
-    color: #ef4444;
+    background: rgba($ctp-red, 0.15);
+    color: $color-error;
 }
 
 .report-item-delete svg {
@@ -219,9 +221,9 @@
 
 .reports-sidebar-footer {
     padding: 12px 16px;
-    border-top: 1px solid #2d2d5a;
+    border-top: 1px solid $border-color;
     font-size: 11px;
-    color: #666;
+    color: $text-dark;
     text-align: center;
 }
 
@@ -231,7 +233,7 @@
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    background: #0d0d1a;
+    background: $bg-dark;
 }
 
 /* Empty State */
@@ -241,7 +243,7 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    color: #555;
+    color: $text-darker;
     gap: 16px;
 }
 
@@ -252,13 +254,13 @@
 .reports-empty h3 {
     font-size: 18px;
     font-weight: 600;
-    color: #888;
+    color: $text-muted;
     margin: 0;
 }
 
 .reports-empty p {
     font-size: 13px;
-    color: #666;
+    color: $text-dark;
     margin: 0;
 }
 
@@ -277,7 +279,7 @@
     padding: 0 20px;
     height: 56px;
     min-height: 56px;
-    background: #16162a;
+    background: $bg-darkest;
     border-bottom: none;
     flex-shrink: 0;
     position: relative;
@@ -290,7 +292,7 @@
     left: 0;
     right: 0;
     height: 24px;
-    background: linear-gradient(to bottom, #16162a 0%, transparent 100%);
+    background: linear-gradient(to bottom, $bg-darkest 0%, transparent 100%);
     pointer-events: none;
     transform: translateY(100%);
     z-index: 10;
@@ -299,7 +301,7 @@
 .reports-viewer-title {
     font-size: 14px;
     font-weight: 500;
-    color: #fff;
+    color: $text-white;
     display: flex;
     align-items: center;
     gap: 10px;
@@ -316,40 +318,41 @@
     gap: 6px;
     padding: 8px 14px;
     background: transparent;
-    border: 1px solid #3d3d6a;
+    border: 1px solid $border-light;
     border-radius: 6px;
-    color: #ccc;
+    color: $text-light;
     font-size: 12px;
     cursor: pointer;
     transition: all 0.2s;
 }
 
 .reports-action-btn:hover {
-    background: #252550;
-    border-color: #6366f1;
-    color: #fff;
+    background: $bg-hover;
+    border-color: $color-primary;
+    color: $text-white;
 }
 
 .reports-action-btn.primary {
-    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    background: linear-gradient(135deg, $color-primary, $color-primary-dark);
     border: none;
-    color: #fff;
+    color: $ctp-crust;
 }
 
 .reports-action-btn.primary:hover {
     transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+    box-shadow: 0 4px 12px rgba($color-primary, 0.4);
+    filter: brightness(1.05);
 }
 
 .reports-action-btn.danger {
-    color: #ef4444;
-    border-color: rgba(239, 68, 68, 0.3);
+    color: $color-error;
+    border-color: rgba($ctp-red, 0.3);
 }
 
 .reports-action-btn.danger:hover {
-    background: rgba(239, 68, 68, 0.15);
-    border-color: #ef4444;
-    color: #ef4444;
+    background: rgba($ctp-red, 0.15);
+    border-color: $color-error;
+    color: $color-error;
 }
 
 .reports-action-btn.danger:disabled {
@@ -357,8 +360,8 @@
     cursor: not-allowed;
     pointer-events: none;
     background: transparent;
-    border-color: rgba(239, 68, 68, 0.15);
-    color: #666;
+    border-color: rgba($ctp-red, 0.15);
+    color: $text-dark;
 }
 
 .reports-action-btn svg {
@@ -371,7 +374,7 @@
     flex: 1;
     width: 100%;
     border: none;
-    background: #fff;
+    background: $text-white;
 }
 
 /* === Delete Confirmation Modal === */
@@ -397,8 +400,8 @@
 }
 
 .reports-delete-modal-content {
-    background: #1e1e3a;
-    border: 1px solid #2d2d5a;
+    background: $bg-card;
+    border: 1px solid $border-color;
     border-radius: 12px;
     padding: 24px;
     max-width: 400px;
@@ -407,13 +410,13 @@
 }
 
 .reports-delete-modal h3 {
-    color: #fff;
+    color: $text-white;
     font-size: 16px;
     margin: 0 0 12px 0;
 }
 
 .reports-delete-modal p {
-    color: #888;
+    color: $text-muted;
     font-size: 13px;
     margin: 0 0 20px 0;
 }
@@ -434,23 +437,24 @@
 
 .reports-delete-modal-actions .cancel-btn {
     background: transparent;
-    border: 1px solid #3d3d6a;
-    color: #ccc;
+    border: 1px solid $border-light;
+    color: $text-light;
 }
 
 .reports-delete-modal-actions .cancel-btn:hover {
-    background: #252550;
-    border-color: #6366f1;
+    background: $bg-hover;
+    border-color: $color-primary;
 }
 
 .reports-delete-modal-actions .delete-btn {
-    background: #ef4444;
+    background: $color-error;
     border: none;
-    color: #fff;
+    color: $ctp-crust;
 }
 
 .reports-delete-modal-actions .delete-btn:hover {
-    background: #dc2626;
+    background: $color-error-dark;
+    filter: brightness(1.05);
 }
 
 /* === Responsive === */
@@ -464,6 +468,6 @@
         min-width: auto;
         max-height: 40vh;
         border-right: none;
-        border-bottom: 1px solid #2d2d5a;
+        border-bottom: 1px solid $border-color;
     }
 }
