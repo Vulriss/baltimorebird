@@ -1,3 +1,5 @@
+@use 'abstracts/variables' as *;
+
 /* =========================================================================
    Python Syntax Highlighting avec Prism.js + FiraCode
    Fichier: css/python-syntax-prism.css
@@ -11,7 +13,7 @@
    ========================================================================= */
 
 .canvas-block-code-content {
-    font-family: 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace !important;
+    font-family: $font-mono !important;
     font-size: 13px !important;
     line-height: 1.6 !important;
     font-feature-settings: "liga" 1, "calt" 1; /* Ligatures FiraCode */
@@ -19,8 +21,8 @@
     -moz-osx-font-smoothing: grayscale;
     
     /* Theme Tokyo Night */
-    background: #1a1b26 !important;
-    color: #a9b1d6 !important;
+    background: $code-bg !important;
+    color: $code-text !important;
     padding: 16px !important;
     border-radius: 8px !important;
     overflow-x: auto;
@@ -47,12 +49,12 @@
 .canvas-block-code-content .token.prolog,
 .canvas-block-code-content .token.doctype,
 .canvas-block-code-content .token.cdata {
-    color: #565f89;
+    color: $code-comment;
     font-style: italic;
 }
 
 .canvas-block-code-content .token.punctuation {
-    color: #9abdf5;
+    color: $code-punctuation;
 }
 
 .canvas-block-code-content .token.property,
@@ -60,12 +62,12 @@
 .canvas-block-code-content .token.constant,
 .canvas-block-code-content .token.symbol,
 .canvas-block-code-content .token.deleted {
-    color: #f7768e;
+    color: $code-tag;
 }
 
 .canvas-block-code-content .token.boolean,
 .canvas-block-code-content .token.number {
-    color: #ff9e64;
+    color: $code-number;
 }
 
 .canvas-block-code-content .token.selector,
@@ -74,7 +76,7 @@
 .canvas-block-code-content .token.char,
 .canvas-block-code-content .token.builtin,
 .canvas-block-code-content .token.inserted {
-    color: #9ece6a;
+    color: $code-string;
 }
 
 .canvas-block-code-content .token.operator,
@@ -82,25 +84,25 @@
 .canvas-block-code-content .token.url,
 .language-css .canvas-block-code-content .token.string,
 .style .canvas-block-code-content .token.string {
-    color: #89ddff;
+    color: $code-operator;
 }
 
 .canvas-block-code-content .token.atrule,
 .canvas-block-code-content .token.attr-value,
 .canvas-block-code-content .token.keyword {
-    color: #bb9af7;
+    color: $code-keyword;
     font-weight: 500;
 }
 
 .canvas-block-code-content .token.function,
 .canvas-block-code-content .token.class-name {
-    color: #7aa2f7;
+    color: $code-function;
 }
 
 .canvas-block-code-content .token.regex,
 .canvas-block-code-content .token.important,
 .canvas-block-code-content .token.variable {
-    color: #e0af68;
+    color: $code-variable;
 }
 
 .canvas-block-code-content .token.important,
@@ -118,19 +120,19 @@
 
 /* Python-specific: decorator */
 .canvas-block-code-content .token.decorator {
-    color: #e0af68;
+    color: $code-variable;
     font-style: italic;
 }
 
 /* Python-specific: self */
 .canvas-block-code-content .token.self {
-    color: #f7768e;
+    color: $code-tag;
     font-style: italic;
 }
 
 /* Python-specific: triple-quoted strings */
 .canvas-block-code-content .token.triple-quoted-string {
-    color: #9ece6a;
+    color: $code-string;
 }
 
 /* =========================================================================
@@ -143,17 +145,17 @@
 }
 
 .canvas-block-code-content::-webkit-scrollbar-track {
-    background: #1a1b26;
+    background: $code-bg;
     border-radius: 4px;
 }
 
 .canvas-block-code-content::-webkit-scrollbar-thumb {
-    background: #414868;
+    background: $ctp-surface2;
     border-radius: 4px;
 }
 
 .canvas-block-code-content::-webkit-scrollbar-thumb:hover {
-    background: #565f89;
+    background: $code-comment;
 }
 
 /* =========================================================================
@@ -161,9 +163,9 @@
    ========================================================================= */
 
 .canvas-block-code-header {
-    font-family: 'Fira Code', monospace;
+    font-family: $font-mono;
     font-size: 12px;
-    background: linear-gradient(135deg, #1e1e2e 0%, #24253a 100%);
+    background: linear-gradient(135deg, $ctp-base 0%, $ctp-surface0 100%);
     border-bottom: 1px solid rgba(255, 255, 255, 0.05);
     padding: 8px 12px;
     display: flex;
@@ -172,12 +174,12 @@
     cursor: pointer;
     user-select: none;
     border-radius: 8px 8px 0 0;
-    color: #7982a9;
+    color: $ctp-overlay1;
     transition: background 0.2s ease;
 }
 
 .canvas-block-code-header:hover {
-    background: linear-gradient(135deg, #252638 0%, #2d2e45 100%);
+    background: linear-gradient(135deg, $ctp-surface0 0%, $ctp-surface1 100%);
 }
 
 .canvas-block-code-header-left {
@@ -197,7 +199,7 @@
 }
 
 .canvas-block-code-copy {
-    font-family: 'Fira Code', monospace;
+    font-family: $font-mono;
     font-size: 11px;
     display: flex;
     align-items: center;
@@ -206,14 +208,14 @@
     border-radius: 4px;
     background: rgba(255, 255, 255, 0.05);
     border: none;
-    color: #7982a9;
+    color: $ctp-overlay1;
     cursor: pointer;
     transition: all 0.2s ease;
 }
 
 .canvas-block-code-copy:hover {
     background: rgba(122, 162, 247, 0.2);
-    color: #7aa2f7;
+    color: $code-function;
 }
 
 .canvas-block-code-copy svg {
@@ -228,7 +230,7 @@
 .canvas-block-code {
     border-radius: 8px;
     overflow: hidden;
-    background: #1a1b26;
+    background: $code-bg;
     margin-top: 12px;
     border: 1px solid rgba(255, 255, 255, 0.05);
 }

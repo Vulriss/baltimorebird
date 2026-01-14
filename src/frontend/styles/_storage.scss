@@ -1,3 +1,5 @@
+@use 'abstracts/variables' as *;
+
 /* =============================================================================
    Storage Section Styles
    ============================================================================= */
@@ -7,8 +9,8 @@
    ============================================================================= */
 
 .storage-quota-card {
-    background: linear-gradient(135deg, #1e1e3a, #16162a);
-    border: 1px solid #2d2d5a;
+    background: linear-gradient(135deg, $bg-card, $bg-darkest);
+    border: 1px solid $border-color;
     border-radius: 12px;
     padding: 24px;
     margin-bottom: 24px;
@@ -30,28 +32,28 @@
 .storage-quota-used {
     font-size: 28px;
     font-weight: 700;
-    color: #fff;
+    color: $text-white;
 }
 
 .storage-quota-separator {
     font-size: 20px;
-    color: #666;
+    color: $text-dark;
 }
 
 .storage-quota-total {
     font-size: 18px;
-    color: #888;
+    color: $text-muted;
 }
 
 .storage-quota-percent {
     font-size: 24px;
     font-weight: 600;
-    color: #6366f1;
+    color: $color-primary;
 }
 
 .storage-quota-bar {
     height: 8px;
-    background: #2d2d5a;
+    background: $border-color;
     border-radius: 4px;
     overflow: hidden;
     margin-bottom: 16px;
@@ -59,17 +61,17 @@
 
 .storage-quota-bar-fill {
     height: 100%;
-    background: linear-gradient(90deg, #6366f1, #8b5cf6);
+    background: linear-gradient(90deg, $color-primary, $color-primary-dark);
     border-radius: 4px;
     transition: width 0.3s ease;
 }
 
 .storage-quota-bar-fill.warning {
-    background: linear-gradient(90deg, #f59e0b, #fbbf24);
+    background: linear-gradient(90deg, $color-warning, $color-warning-light);
 }
 
 .storage-quota-bar-fill.critical {
-    background: linear-gradient(90deg, #ef4444, #f87171);
+    background: linear-gradient(90deg, $color-error, $color-error-light);
 }
 
 .storage-quota-details {
@@ -89,14 +91,14 @@
 
 .storage-quota-category-name {
     font-size: 11px;
-    color: #888;
+    color: $text-muted;
     text-transform: uppercase;
     letter-spacing: 0.5px;
 }
 
 .storage-quota-category-value {
     font-size: 13px;
-    color: #ccc;
+    color: $text-light;
     font-weight: 500;
 }
 
@@ -109,7 +111,7 @@
     gap: 8px;
     margin-bottom: 24px;
     padding-bottom: 16px;
-    border-bottom: 1px solid #2d2d5a;
+    border-bottom: 1px solid $border-color;
     overflow-x: auto;
 }
 
@@ -119,9 +121,9 @@
     gap: 8px;
     padding: 10px 16px;
     background: transparent;
-    border: 1px solid #2d2d5a;
+    border: 1px solid $border-color;
     border-radius: 8px;
-    color: #888;
+    color: $text-muted;
     font-size: 13px;
     font-weight: 500;
     cursor: pointer;
@@ -131,13 +133,13 @@
 
 .storage-tab:hover {
     background: rgba(255, 255, 255, 0.03);
-    color: #ccc;
+    color: $text-light;
 }
 
 .storage-tab.active {
-    background: rgba(99, 102, 241, 0.1);
-    border-color: rgba(99, 102, 241, 0.3);
-    color: #6366f1;
+    background: rgba($color-primary, 0.1);
+    border-color: rgba($color-primary, 0.3);
+    color: $color-primary;
 }
 
 .storage-tab svg {
@@ -154,7 +156,7 @@
 }
 
 .storage-tab.active .storage-tab-count {
-    background: rgba(99, 102, 241, 0.2);
+    background: rgba($color-primary, 0.2);
 }
 
 /* =============================================================================
@@ -162,8 +164,8 @@
    ============================================================================= */
 
 .storage-files-area {
-    background: #16162a;
-    border: 1px solid #2d2d5a;
+    background: $bg-darkest;
+    border: 1px solid $border-color;
     border-radius: 12px;
     overflow: hidden;
 }
@@ -173,7 +175,7 @@
     justify-content: space-between;
     align-items: center;
     padding: 16px 20px;
-    border-bottom: 1px solid #2d2d5a;
+    border-bottom: 1px solid $border-color;
     background: rgba(255, 255, 255, 0.02);
 }
 
@@ -187,7 +189,7 @@
     margin: 0;
     font-size: 16px;
     font-weight: 600;
-    color: #fff;
+    color: $text-white;
 }
 
 .storage-show-default {
@@ -195,12 +197,12 @@
     align-items: center;
     gap: 8px;
     font-size: 12px;
-    color: #888;
+    color: $text-muted;
     cursor: pointer;
 }
 
 .storage-show-default input {
-    accent-color: #6366f1;
+    accent-color: $color-primary;
 }
 
 .storage-files-actions {
@@ -223,7 +225,7 @@
 }
 
 .storage-files-list::-webkit-scrollbar-thumb {
-    background: #3d3d6a;
+    background: $border-light;
     border-radius: 3px;
 }
 
@@ -238,7 +240,7 @@
 .storage-files-group-title {
     font-size: 11px;
     font-weight: 600;
-    color: #666;
+    color: $text-dark;
     text-transform: uppercase;
     letter-spacing: 0.5px;
     margin-bottom: 12px;
@@ -250,8 +252,8 @@
     align-items: center;
     gap: 16px;
     padding: 14px 16px;
-    background: #1e1e3a;
-    border: 1px solid #2d2d5a;
+    background: $bg-card;
+    border: 1px solid $border-color;
     border-radius: 10px;
     margin-bottom: 8px;
     transition: all 0.15s;
@@ -262,13 +264,13 @@
 }
 
 .storage-file-item:hover {
-    border-color: #3d3d6a;
-    background: #232345;
+    border-color: $border-light;
+    background: $bg-card-hover;
 }
 
 .storage-file-item.default {
-    background: rgba(99, 102, 241, 0.03);
-    border-color: rgba(99, 102, 241, 0.15);
+    background: rgba($color-primary, 0.03);
+    border-color: rgba($color-primary, 0.15);
 }
 
 .storage-file-icon {
@@ -279,7 +281,7 @@
 .storage-file-icon svg {
     width: 36px;
     height: 36px;
-    color: #6366f1;
+    color: $color-primary;
 }
 
 .storage-file-badge {
@@ -287,11 +289,11 @@
     bottom: -4px;
     right: -8px;
     padding: 2px 6px;
-    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    background: linear-gradient(135deg, $color-primary, $color-primary-dark);
     border-radius: 4px;
     font-size: 8px;
     font-weight: 700;
-    color: #fff;
+    color: $ctp-crust;
     letter-spacing: 0.5px;
 }
 
@@ -303,7 +305,7 @@
 .storage-file-name {
     font-size: 14px;
     font-weight: 500;
-    color: #fff;
+    color: $text-white;
     margin-bottom: 4px;
     white-space: nowrap;
     overflow: hidden;
@@ -314,7 +316,7 @@
     display: flex;
     gap: 12px;
     font-size: 12px;
-    color: #888;
+    color: $text-muted;
 }
 
 .storage-file-desc {
@@ -322,7 +324,7 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    color: #666;
+    color: $text-dark;
 }
 
 .storage-file-actions {
@@ -339,9 +341,9 @@
     min-width: 32px;
     min-height: 32px;
     background: rgba(255, 255, 255, 0.05);
-    border: 1px solid #2d2d5a;
+    border: 1px solid $border-color;
     border-radius: 6px;
-    color: #888;
+    color: $text-muted;
     cursor: pointer;
     transition: all 0.15s;
     padding: 0;
@@ -349,13 +351,13 @@
 
 .storage-file-btn:hover {
     background: rgba(255, 255, 255, 0.1);
-    color: #fff;
+    color: $text-white;
 }
 
 .storage-file-btn.danger:hover {
-    background: rgba(239, 68, 68, 0.1);
-    border-color: rgba(239, 68, 68, 0.3);
-    color: #ef4444;
+    background: rgba($ctp-red, 0.1);
+    border-color: rgba($ctp-red, 0.3);
+    color: $color-error;
 }
 
 .storage-file-btn svg {
@@ -378,7 +380,7 @@
     justify-content: center;
     padding: 60px 40px;
     text-align: center;
-    color: #666;
+    color: $text-dark;
 }
 
 .storage-empty svg {
@@ -416,8 +418,8 @@
 }
 
 .storage-modal-content {
-    background: #16162a;
-    border: 1px solid #2d2d5a;
+    background: $bg-darkest;
+    border: 1px solid $border-color;
     border-radius: 16px;
     width: 100%;
     max-width: 500px;
@@ -445,14 +447,14 @@
     justify-content: space-between;
     align-items: center;
     padding: 20px 24px;
-    border-bottom: 1px solid #2d2d5a;
+    border-bottom: 1px solid $border-color;
 }
 
 .storage-modal-header h3 {
     margin: 0;
     font-size: 18px;
     font-weight: 600;
-    color: #fff;
+    color: $text-white;
 }
 
 .storage-modal-close {
@@ -464,14 +466,14 @@
     background: transparent;
     border: none;
     border-radius: 6px;
-    color: #888;
+    color: $text-muted;
     cursor: pointer;
     transition: all 0.15s;
 }
 
 .storage-modal-close:hover {
     background: rgba(255, 255, 255, 0.1);
-    color: #fff;
+    color: $text-white;
 }
 
 .storage-modal-close svg {
@@ -488,7 +490,7 @@
     justify-content: flex-end;
     gap: 12px;
     padding: 16px 24px;
-    border-top: 1px solid #2d2d5a;
+    border-top: 1px solid $border-color;
     background: rgba(255, 255, 255, 0.02);
 }
 
@@ -502,7 +504,7 @@
     align-items: center;
     justify-content: center;
     padding: 40px;
-    border: 2px dashed #3d3d6a;
+    border: 2px dashed $border-light;
     border-radius: 12px;
     background: rgba(255, 255, 255, 0.02);
     cursor: pointer;
@@ -511,14 +513,14 @@
 
 .storage-upload-zone:hover,
 .storage-upload-zone.dragover {
-    border-color: #6366f1;
-    background: rgba(99, 102, 241, 0.05);
+    border-color: $color-primary;
+    background: rgba($color-primary, 0.05);
 }
 
 .storage-upload-icon {
     width: 56px;
     height: 56px;
-    background: rgba(99, 102, 241, 0.1);
+    background: rgba($color-primary, 0.1);
     border-radius: 50%;
     display: flex;
     align-items: center;
@@ -529,17 +531,17 @@
 .storage-upload-icon svg {
     width: 28px;
     height: 28px;
-    color: #6366f1;
+    color: $color-primary;
 }
 
 .storage-upload-zone p {
     margin: 0 0 8px 0;
     font-size: 14px;
-    color: #ccc;
+    color: $text-light;
 }
 
 .storage-upload-zone p span {
-    color: #6366f1;
+    color: $color-primary;
     cursor: pointer;
     font-weight: 500;
 }
@@ -550,7 +552,7 @@
 
 .storage-upload-hint {
     font-size: 12px;
-    color: #666;
+    color: $text-dark;
 }
 
 /* =============================================================================
@@ -562,8 +564,8 @@
     align-items: center;
     justify-content: space-between;
     padding: 16px;
-    background: #1e1e3a;
-    border: 1px solid #2d2d5a;
+    background: $bg-card;
+    border: 1px solid $border-color;
     border-radius: 10px;
     margin-bottom: 16px;
 }
@@ -577,18 +579,18 @@
 .storage-upload-file-info svg {
     width: 32px;
     height: 32px;
-    color: #6366f1;
+    color: $color-primary;
 }
 
 .storage-upload-filename {
     font-size: 14px;
     font-weight: 500;
-    color: #fff;
+    color: $text-white;
 }
 
 .storage-upload-filesize {
     font-size: 12px;
-    color: #888;
+    color: $text-muted;
 }
 
 .storage-upload-remove {
@@ -600,14 +602,14 @@
     background: transparent;
     border: none;
     border-radius: 6px;
-    color: #888;
+    color: $text-muted;
     cursor: pointer;
     transition: all 0.15s;
 }
 
 .storage-upload-remove:hover {
-    background: rgba(239, 68, 68, 0.1);
-    color: #ef4444;
+    background: rgba($ctp-red, 0.1);
+    color: $color-error;
 }
 
 .storage-upload-remove svg {
@@ -627,27 +629,27 @@
     display: block;
     font-size: 13px;
     font-weight: 500;
-    color: #ccc;
+    color: $text-light;
     margin-bottom: 8px;
 }
 
 .storage-upload-description input {
     width: 100%;
     padding: 12px 16px;
-    background: #1e1e3a;
-    border: 1px solid #2d2d5a;
+    background: $bg-card;
+    border: 1px solid $border-color;
     border-radius: 8px;
-    color: #fff;
+    color: $text-white;
     font-size: 14px;
 }
 
 .storage-upload-description input:focus {
     outline: none;
-    border-color: #6366f1;
+    border-color: $color-primary;
 }
 
 .storage-upload-description input::placeholder {
-    color: #555;
+    color: $text-darker;
 }
 
 /* =============================================================================
@@ -663,14 +665,14 @@
 .storage-upload-progress-bar {
     flex: 1;
     height: 6px;
-    background: #2d2d5a;
+    background: $border-color;
     border-radius: 3px;
     overflow: hidden;
 }
 
 .storage-upload-progress-fill {
     height: 100%;
-    background: linear-gradient(90deg, #6366f1, #8b5cf6);
+    background: linear-gradient(90deg, $color-primary, $color-primary-dark);
     border-radius: 3px;
     transition: width 0.2s;
 }
@@ -678,7 +680,7 @@
 .storage-upload-progress-text {
     font-size: 13px;
     font-weight: 600;
-    color: #6366f1;
+    color: $color-primary;
     min-width: 40px;
     text-align: right;
 }
@@ -689,19 +691,19 @@
 
 .storage-delete-warning {
     font-size: 13px;
-    color: #ef4444;
+    color: $color-error;
     margin-top: 8px;
 }
 
 .storage-modal-body p {
     margin: 0;
     font-size: 14px;
-    color: #ccc;
+    color: $text-light;
     line-height: 1.5;
 }
 
 .storage-modal-body strong {
-    color: #fff;
+    color: $text-white;
 }
 
 /* =============================================================================

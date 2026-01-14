@@ -1,9 +1,11 @@
+@use 'abstracts/variables' as *;
+
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
 body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    background: #1a1a2e;
-    color: #e0e0e0;
+    font-family: $font-sans;
+    background: $bg-body;
+    color: $text-primary;
     height: 100vh;
     overflow: hidden;
 }
@@ -19,8 +21,8 @@ body {
 .nav-menu {
     width: 240px;
     min-width: 240px;
-    background: #0d0d1a;
-    border-right: 1px solid #2d2d5a;
+    background: $bg-dark;
+    border-right: 1px solid $border-color;
     display: flex;
     flex-direction: column;
     transition: all 0.3s ease;
@@ -48,14 +50,14 @@ body {
 
 .logo-icon {
     font-size: 20px;
-    color: #6366f1;
+    color: $color-primary;
     flex-shrink: 0;
 }
 
 .logo-text {
     font-size: 18px;
     font-weight: 600;
-    color: #fff;
+    color: $text-white;
     white-space: nowrap;
     transition: opacity 0.2s;
 }
@@ -68,7 +70,7 @@ body {
 .nav-toggle {
     background: transparent;
     border: none;
-    color: #666;
+    color: $text-dark;
     cursor: pointer;
     padding: 6px;
     border-radius: 6px;
@@ -80,8 +82,8 @@ body {
 }
 
 .nav-toggle:hover {
-    background: #1e1e3a;
-    color: #fff;
+    background: $bg-card;
+    color: $text-white;
 }
 
 .nav-menu.collapsed .nav-toggle svg {
@@ -102,7 +104,7 @@ body {
     align-items: center;
     gap: 12px;
     padding: 10px 12px;
-    color: #888;
+    color: $text-muted;
     text-decoration: none;
     border-radius: 8px;
     transition: all 0.15s;
@@ -112,17 +114,18 @@ body {
 }
 
 .nav-item:hover {
-    background: #1e1e3a;
-    color: #fff;
+    background: $bg-card;
+    color: $text-white;
 }
 
 .nav-item.active {
-    background: #252550;
-    color: #fff;
+    background: $ctp-teal;
+    color: $ctp-crust;
+    font-weight: $font-weight-semibold;
 }
 
 .nav-item.active .nav-icon {
-    color: #6366f1;
+    color: $ctp-crust;
 }
 
 .nav-icon {
@@ -143,7 +146,7 @@ body {
 
 .nav-footer {
     padding: 12px 8px;
-    border-top: 1px solid #2d2d5a;
+    border-top: 1px solid $border-color;
 }
 
 .nav-user {
@@ -153,14 +156,14 @@ body {
 .user-avatar {
     width: 28px;
     height: 28px;
-    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    background: linear-gradient(135deg, $color-primary, $color-primary-dark);
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
     font-size: 12px;
     font-weight: 600;
-    color: #fff;
+    color: $ctp-crust;
     flex-shrink: 0;
 }
 
@@ -174,10 +177,10 @@ body {
     gap: 12px;
     width: 100%;
     padding: 10px 12px;
-    background: rgba(99, 102, 241, 0.1);
-    border: 1px solid rgba(99, 102, 241, 0.2);
+    background: rgba($color-primary, 0.1);
+    border: 1px solid rgba($color-primary, 0.2);
     border-radius: 8px;
-    color: #6366f1;
+    color: $color-primary;
     font-size: 14px;
     font-weight: 500;
     text-decoration: none;
@@ -187,9 +190,9 @@ body {
 }
 
 .nav-support-btn:hover {
-    background: rgba(99, 102, 241, 0.2);
-    border-color: rgba(99, 102, 241, 0.3);
-    color: #818cf8;
+    background: rgba($color-primary, 0.2);
+    border-color: rgba($color-primary, 0.3);
+    color: $color-primary-light;
 }
 
 .nav-support-btn svg {
@@ -237,7 +240,7 @@ body {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    color: #555;
+    color: $text-darker;
     gap: 16px;
 }
 
@@ -248,20 +251,20 @@ body {
 .placeholder-view h2 {
     font-size: 24px;
     font-weight: 600;
-    color: #888;
+    color: $text-muted;
 }
 
 .placeholder-view p {
     font-size: 14px;
-    color: #666;
+    color: $text-dark;
 }
 
 .coming-soon {
     padding: 6px 16px;
-    background: #252550;
+    background: $bg-hover;
     border-radius: 20px;
     font-size: 12px;
-    color: #6366f1;
+    color: $color-primary;
     margin-top: 8px;
 }
 
@@ -279,13 +282,13 @@ body {
 .utilities-header h1 {
     font-size: 28px;
     font-weight: 600;
-    color: #fff;
+    color: $text-white;
     margin-bottom: 8px;
 }
 
 .utilities-header p {
     font-size: 14px;
-    color: #888;
+    color: $text-muted;
 }
 
 .utilities-grid {
@@ -296,8 +299,8 @@ body {
 }
 
 .utility-card {
-    background: #1e1e3a;
-    border: 1px solid #2d2d5a;
+    background: $bg-card;
+    border: 1px solid $border-color;
     border-radius: 12px;
     padding: 24px;
     display: flex;
@@ -308,8 +311,8 @@ body {
 }
 
 .utility-card:hover {
-    background: #252550;
-    border-color: #4444aa;
+    background: $bg-hover;
+    border-color: $border-focus;
     transform: translateY(-2px);
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
 }
@@ -317,7 +320,7 @@ body {
 .utility-icon {
     width: 48px;
     height: 48px;
-    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    background: linear-gradient(135deg, $color-primary, $color-primary-dark);
     border-radius: 12px;
     display: flex;
     align-items: center;
@@ -328,7 +331,7 @@ body {
 .utility-icon svg {
     width: 24px;
     height: 24px;
-    color: #fff;
+    color: $ctp-crust;
 }
 
 .utility-content {
@@ -339,13 +342,13 @@ body {
 .utility-content h3 {
     font-size: 16px;
     font-weight: 600;
-    color: #fff;
+    color: $text-white;
     margin-bottom: 6px;
 }
 
 .utility-content p {
     font-size: 13px;
-    color: #888;
+    color: $text-muted;
     margin-bottom: 12px;
     line-height: 1.4;
 }
@@ -358,16 +361,16 @@ body {
 
 .format-tag {
     padding: 3px 8px;
-    background: #2d2d5a;
+    background: $border-color;
     border-radius: 4px;
     font-size: 11px;
-    color: #aaa;
-    font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+    color: $text-lighter;
+    font-family: $font-mono;
 }
 
 .utility-card:hover .format-tag {
-    background: #3d3d7a;
-    color: #ccc;
+    background: $border-light;
+    color: $text-light;
 }
 
 .utility-arrow {
@@ -381,7 +384,7 @@ body {
 .utility-arrow svg {
     width: 20px;
     height: 20px;
-    color: #6366f1;
+    color: $color-primary;
 }
 
 .utility-card:hover .utility-arrow {
@@ -407,7 +410,7 @@ body {
     gap: 6px;
     background: transparent;
     border: none;
-    color: #888;
+    color: $text-muted;
     font-size: 14px;
     cursor: pointer;
     padding: 8px 12px;
@@ -418,8 +421,8 @@ body {
 }
 
 .back-button:hover {
-    background: #1e1e3a;
-    color: #fff;
+    background: $bg-card;
+    color: $text-white;
 }
 
 .back-button svg {
@@ -430,13 +433,13 @@ body {
 .converter-title h1 {
     font-size: 24px;
     font-weight: 600;
-    color: #fff;
+    color: $text-white;
     margin-bottom: 8px;
 }
 
 .converter-title p {
     font-size: 14px;
-    color: #888;
+    color: $text-muted;
 }
 
 .converter-notice {
@@ -445,8 +448,8 @@ body {
     gap: 16px;
     margin-top: 20px;
     padding: 16px;
-    background: rgba(34, 197, 94, 0.05);
-    border: 1px solid rgba(34, 197, 94, 0.2);
+    background: rgba($ctp-green, 0.05);
+    border: 1px solid rgba($ctp-green, 0.2);
     border-radius: 8px;
 }
 
@@ -461,19 +464,19 @@ body {
 .notice-item svg {
     width: 20px;
     height: 20px;
-    color: #22c55e;
+    color: $color-success;
     flex-shrink: 0;
     margin-top: 1px;
 }
 
 .notice-item span {
     font-size: 13px;
-    color: #aaa;
+    color: $text-lighter;
     line-height: 1.4;
 }
 
 .notice-item strong {
-    color: #22c55e;
+    color: $color-success;
 }
 
 .converter-content {
@@ -483,8 +486,8 @@ body {
 }
 
 .converter-card {
-    background: #1e1e3a;
-    border: 1px solid #2d2d5a;
+    background: $bg-card;
+    border: 1px solid $border-color;
     border-radius: 12px;
     padding: 24px;
 }
@@ -493,7 +496,7 @@ body {
     display: flex;
     gap: 16px;
     padding: 20px 0;
-    border-bottom: 1px solid #2d2d5a;
+    border-bottom: 1px solid $border-color;
 }
 
 .converter-step:last-child {
@@ -508,14 +511,14 @@ body {
 .step-number {
     width: 32px;
     height: 32px;
-    background: #2d2d5a;
+    background: $border-color;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
     font-size: 14px;
     font-weight: 600;
-    color: #888;
+    color: $text-muted;
     flex-shrink: 0;
 }
 
@@ -528,7 +531,7 @@ body {
     display: block;
     font-size: 14px;
     font-weight: 500;
-    color: #fff;
+    color: $text-white;
     margin-bottom: 12px;
 }
 
@@ -542,7 +545,7 @@ body {
 }
 
 .file-input-display {
-    border: 2px dashed #3d3d6a;
+    border: 2px dashed $border-light;
     border-radius: 8px;
     padding: 24px;
     text-align: center;
@@ -551,36 +554,36 @@ body {
 }
 
 .file-input-display:hover {
-    border-color: #6366f1;
-    background: rgba(99, 102, 241, 0.05);
+    border-color: $color-primary;
+    background: rgba($color-primary, 0.05);
 }
 
 .file-input-display svg {
     width: 32px;
     height: 32px;
-    color: #666;
+    color: $text-dark;
     margin-bottom: 12px;
 }
 
 .file-input-text {
     display: block;
     font-size: 14px;
-    color: #ccc;
+    color: $text-light;
     margin-bottom: 4px;
 }
 
 .file-input-formats {
     display: block;
     font-size: 12px;
-    color: #666;
+    color: $text-dark;
 }
 
 .file-selected {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    background: #252550;
-    border: 1px solid #3d3d6a;
+    background: $bg-hover;
+    border: 1px solid $border-light;
     border-radius: 8px;
     padding: 12px 16px;
 }
@@ -595,7 +598,7 @@ body {
 .file-info svg {
     width: 24px;
     height: 24px;
-    color: #6366f1;
+    color: $color-primary;
     flex-shrink: 0;
 }
 
@@ -607,7 +610,7 @@ body {
 
 .file-name {
     font-size: 14px;
-    color: #fff;
+    color: $text-white;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -615,13 +618,13 @@ body {
 
 .file-size {
     font-size: 12px;
-    color: #888;
+    color: $text-muted;
 }
 
 .file-remove {
     background: transparent;
     border: none;
-    color: #666;
+    color: $text-dark;
     cursor: pointer;
     padding: 4px;
     border-radius: 4px;
@@ -630,7 +633,7 @@ body {
 
 .file-remove:hover {
     background: rgba(255, 100, 100, 0.1);
-    color: #ff6666;
+    color: $ctp-red;
 }
 
 .file-remove svg {
@@ -642,10 +645,10 @@ body {
 .format-select {
     width: 100%;
     padding: 12px 16px;
-    background: #252550;
-    border: 1px solid #3d3d6a;
+    background: $bg-hover;
+    border: 1px solid $border-light;
     border-radius: 8px;
-    color: #fff;
+    color: $text-white;
     font-size: 14px;
     cursor: pointer;
     appearance: none;
@@ -656,12 +659,12 @@ body {
 
 .format-select:focus {
     outline: none;
-    border-color: #6366f1;
+    border-color: $color-primary;
 }
 
 .format-select option {
-    background: #1e1e3a;
-    color: #fff;
+    background: $bg-card;
+    color: $text-white;
 }
 
 .format-select.small {
@@ -673,8 +676,8 @@ body {
 .format-options {
     margin-top: 16px;
     padding: 16px;
-    background: rgba(99, 102, 241, 0.05);
-    border: 1px solid #3d3d6a;
+    background: rgba($color-primary, 0.05);
+    border: 1px solid $border-light;
     border-radius: 8px;
 }
 
@@ -682,7 +685,7 @@ body {
     display: block;
     margin-top: 8px;
     font-size: 11px;
-    color: #666;
+    color: $text-dark;
     font-style: italic;
 }
 
@@ -698,10 +701,10 @@ body {
     gap: 10px;
     width: 100%;
     padding: 14px 24px;
-    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    background: linear-gradient(135deg, $color-primary, $color-primary-dark);
     border: none;
     border-radius: 8px;
-    color: #fff;
+    color: $ctp-crust;
     font-size: 15px;
     font-weight: 500;
     cursor: pointer;
@@ -710,7 +713,8 @@ body {
 
 .convert-button:hover:not(:disabled) {
     transform: translateY(-1px);
-    box-shadow: 0 4px 16px rgba(99, 102, 241, 0.4);
+    box-shadow: 0 4px 16px rgba($color-primary, 0.4);
+    filter: brightness(1.05);
 }
 
 .convert-button:disabled {
@@ -736,24 +740,24 @@ body {
 
 .progress-info span {
     font-size: 13px;
-    color: #888;
+    color: $text-muted;
 }
 
 #progressPercent {
-    color: #6366f1;
+    color: $color-primary;
     font-weight: 500;
 }
 
 .progress-bar {
     height: 8px;
-    background: #2d2d5a;
+    background: $border-color;
     border-radius: 4px;
     overflow: hidden;
 }
 
 .progress-fill {
     height: 100%;
-    background: linear-gradient(90deg, #6366f1, #8b5cf6);
+    background: linear-gradient(90deg, $color-primary, $color-primary-dark);
     border-radius: 4px;
     transition: width 0.3s ease;
 }
@@ -770,10 +774,10 @@ body {
     align-items: center;
     gap: 10px;
     padding: 12px 16px;
-    background: rgba(34, 197, 94, 0.1);
-    border: 1px solid rgba(34, 197, 94, 0.3);
+    background: rgba($ctp-green, 0.1);
+    border: 1px solid rgba($ctp-green, 0.3);
     border-radius: 8px;
-    color: #22c55e;
+    color: $color-success;
     font-size: 14px;
 }
 
@@ -790,10 +794,10 @@ body {
     gap: 10px;
     width: 100%;
     padding: 14px 24px;
-    background: linear-gradient(135deg, #22c55e, #16a34a);
+    background: linear-gradient(135deg, $color-success, $color-success-dark);
     border: none;
     border-radius: 8px;
-    color: #fff;
+    color: $ctp-crust;
     font-size: 15px;
     font-weight: 500;
     cursor: pointer;
@@ -802,7 +806,8 @@ body {
 
 .download-button:hover {
     transform: translateY(-1px);
-    box-shadow: 0 4px 16px rgba(34, 197, 94, 0.4);
+    box-shadow: 0 4px 16px rgba($ctp-green, 0.4);
+    filter: brightness(1.05);
 }
 
 .download-button svg {
@@ -812,31 +817,31 @@ body {
 
 .reset-button {
     background: transparent;
-    border: 1px solid #3d3d6a;
+    border: 1px solid $border-light;
     border-radius: 8px;
     padding: 10px 16px;
-    color: #888;
+    color: $text-muted;
     font-size: 13px;
     cursor: pointer;
     transition: all 0.2s;
 }
 
 .reset-button:hover {
-    border-color: #6366f1;
-    color: #fff;
+    border-color: $color-primary;
+    color: $text-white;
 }
 
 /* DBC Section */
 .dbc-section {
     margin-top: 16px;
     padding-top: 16px;
-    border-top: 1px dashed #2d2d5a;
+    border-top: 1px dashed $border-color;
 }
 
 .step-label-small {
     display: block;
     font-size: 12px;
-    color: #888;
+    color: $text-muted;
     margin-bottom: 8px;
 }
 
@@ -883,10 +888,10 @@ body {
     align-items: center;
     gap: 10px;
     padding: 12px 16px;
-    background: rgba(239, 68, 68, 0.1);
-    border: 1px solid rgba(239, 68, 68, 0.3);
+    background: rgba($ctp-red, 0.1);
+    border: 1px solid rgba($ctp-red, 0.3);
     border-radius: 8px;
-    color: #ef4444;
+    color: $color-error;
     font-size: 14px;
 }
 
@@ -898,7 +903,7 @@ body {
 
 /* === CONCATENATION === */
 .concat-file-list {
-    border: 1px solid #2d2d5a;
+    border: 1px solid $border-color;
     border-radius: 8px;
     min-height: 100px;
     margin-bottom: 12px;
@@ -910,7 +915,7 @@ body {
     align-items: center;
     justify-content: center;
     height: 100px;
-    color: #555;
+    color: $text-darker;
     font-size: 13px;
 }
 
@@ -919,8 +924,8 @@ body {
     align-items: center;
     gap: 12px;
     padding: 12px 16px;
-    background: #1e1e3a;
-    border-bottom: 1px solid #2d2d5a;
+    background: $bg-card;
+    border-bottom: 1px solid $border-color;
     cursor: grab;
     transition: background 0.2s;
 }
@@ -930,34 +935,34 @@ body {
 }
 
 .concat-file-item:hover {
-    background: #252550;
+    background: $bg-hover;
 }
 
 .concat-file-item.dragging {
     opacity: 0.5;
-    background: #3d3d7a;
+    background: $border-light;
 }
 
 .concat-file-item.drag-over {
-    border-top: 2px solid #6366f1;
+    border-top: 2px solid $color-primary;
 }
 
 .concat-file-order {
     width: 24px;
     height: 24px;
-    background: #2d2d5a;
+    background: $border-color;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
     font-size: 12px;
     font-weight: 600;
-    color: #888;
+    color: $text-muted;
     flex-shrink: 0;
 }
 
 .concat-file-drag {
-    color: #555;
+    color: $text-darker;
     cursor: grab;
     flex-shrink: 0;
 }
@@ -974,7 +979,7 @@ body {
 
 .concat-file-name {
     font-size: 13px;
-    color: #fff;
+    color: $text-white;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -982,13 +987,13 @@ body {
 
 .concat-file-size {
     font-size: 11px;
-    color: #666;
+    color: $text-dark;
 }
 
 .concat-file-remove {
     background: transparent;
     border: none;
-    color: #555;
+    color: $text-darker;
     cursor: pointer;
     padding: 4px;
     border-radius: 4px;
@@ -998,7 +1003,7 @@ body {
 
 .concat-file-remove:hover {
     background: rgba(255, 100, 100, 0.1);
-    color: #ff6666;
+    color: $ctp-red;
 }
 
 .concat-file-remove svg {
@@ -1018,18 +1023,18 @@ body {
     width: 100%;
     padding: 12px;
     background: transparent;
-    border: 2px dashed #3d3d6a;
+    border: 2px dashed $border-light;
     border-radius: 8px;
-    color: #888;
+    color: $text-muted;
     font-size: 13px;
     cursor: pointer;
     transition: all 0.2s;
 }
 
 .concat-add-btn:hover {
-    border-color: #6366f1;
-    color: #fff;
-    background: rgba(99, 102, 241, 0.05);
+    border-color: $color-primary;
+    color: $text-white;
+    background: rgba($color-primary, 0.05);
 }
 
 .concat-add-btn svg {
@@ -1042,7 +1047,7 @@ body {
     align-items: center;
     gap: 8px;
     font-size: 12px;
-    color: #555;
+    color: $text-darker;
     margin: 0;
 }
 
@@ -1058,33 +1063,33 @@ body {
     justify-content: center;
     gap: 8px;
     font-size: 12px;
-    color: #888;
+    color: $text-muted;
     padding: 10px 12px;
-    background: rgba(99, 102, 241, 0.05);
-    border: 1px solid #2d2d5a;
+    background: rgba($color-primary, 0.05);
+    border: 1px solid $border-color;
     border-radius: 6px;
     margin-top: 12px;
 }
 
 .concat-info-sep {
-    color: #3d3d6a;
+    color: $border-light;
 }
 
 .concat-info-remaining {
-    color: #22c55e;
+    color: $color-success;
 }
 
 .concat-stats {
     padding: 12px 16px;
-    background: #252550;
+    background: $bg-hover;
     border-radius: 6px;
     font-size: 13px;
-    color: #aaa;
+    color: $text-lighter;
     margin-bottom: 12px;
 }
 
 .concat-stats strong {
-    color: #fff;
+    color: $text-white;
 }
 
 /* === EDA APP === */
@@ -1097,21 +1102,21 @@ body {
 /* === SIDEBAR === */
 .sidebar {
     width: 250px;
-    background: #16162a;
-    border-right: 1px solid #2d2d5a;
+    background: $bg-darkest;
+    border-right: 1px solid $border-color;
     display: flex;
     flex-direction: column;
 }
 
 .sidebar-header {
     padding: 14px;
-    border-bottom: 1px solid #2d2d5a;
+    border-bottom: 1px solid $border-color;
 }
 
 .sidebar-title {
     font-size: 11px;
     font-weight: 600;
-    color: #7777aa;
+    color: $ctp-overlay1;
     text-transform: uppercase;
     letter-spacing: 1px;
     margin-bottom: 10px;
@@ -1120,13 +1125,13 @@ body {
 .search-box {
     width: 100%;
     padding: 8px 10px;
-    background: #1e1e3a;
-    border: 1px solid #2d2d5a;
+    background: $bg-card;
+    border: 1px solid $border-color;
     border-radius: 4px;
-    color: #e0e0e0;
+    color: $text-primary;
     font-size: 12px;
 }
-.search-box:focus { outline: none; border-color: #4444aa; }
+.search-box:focus { outline: none; border-color: $border-focus; }
 
 .signal-list {
     flex: 1;
@@ -1134,38 +1139,53 @@ body {
     padding: 10px;
 }
 .signal-list::-webkit-scrollbar { width: 5px; }
-.signal-list::-webkit-scrollbar-thumb { background: #3d3d6a; border-radius: 3px; }
+.signal-list::-webkit-scrollbar-thumb { background: $border-light; border-radius: 3px; }
 
 .sidebar-footer {
     padding: 10px 14px;
-    border-top: 1px solid #2d2d5a;
+    border-top: 1px solid $border-color;
     font-size: 10px;
-    color: #666;
+    color: $text-dark;
     background: rgba(0,0,0,0.2);
 }
-.sidebar-footer span { color: #888; }
+.sidebar-footer span { color: $text-muted; }
 
 .signal-item {
+    position: relative;
     display: flex;
     align-items: center;
     gap: 8px;
     padding: 8px 10px;
     margin-bottom: 4px;
-    background: #1e1e3a;
+    background: $bg-card;
     border: 1px solid transparent;
-    border-left: 3px solid #555;
-    border-radius: 4px;
+    border-left: 3px solid $text-darker;
     cursor: grab;
     transition: all 0.15s;
     font-size: 12px;
-    min-width: 0; /* Important pour le truncate */
+    min-width: 0;
+    
+    // Squircle-like effect using continuous curvature
+    // Plus proche d'un vrai squircle que border-radius standard
+    border-radius: 8px;
+    // Smooth corners - supporté dans Safari/Chrome récents
+    -webkit-mask-image: -webkit-radial-gradient(white, black);
 }
-.signal-item:hover { background: #252550; border-color: #3d3d6a; }
+
+.signal-item:hover { 
+    background: $bg-hover;
+    border-color: $border-light;
+}
+
 .signal-item.dragging { opacity: 0.4; }
-.signal-item.active { border-left-color: var(--signal-color, #00cc66); }
+
+.signal-item.active { 
+    border-left-color: var(--signal-color, $signal-active-color); 
+}
+
 .signal-item.active .signal-dot {
-    background: var(--signal-color, #00cc66);
-    box-shadow: 0 0 6px var(--signal-color, #00cc66);
+    background: var(--signal-color, $signal-active-color);
+    box-shadow: 0 0 6px var(--signal-color, $signal-active-color);
 }
 
 .signal-dot {
@@ -1173,7 +1193,7 @@ body {
     height: 8px;
     min-width: 8px; /* Empêche le rétrécissement */
     border-radius: 50%;
-    background: #555;
+    background: $text-darker;
     transition: all 0.15s;
     flex-shrink: 0; /* Ne jamais rétrécir */
 }
@@ -1187,7 +1207,7 @@ body {
 }
 
 .signal-unit { 
-    color: #666; 
+    color: $text-dark; 
     font-size: 10px;
     flex-shrink: 0; /* Ne jamais rétrécir */
     min-width: 30px;
@@ -1204,8 +1224,8 @@ body {
 
 .toolbar {
     padding: 10px 16px;
-    background: #16162a;
-    border-bottom: 1px solid #2d2d5a;
+    background: $bg-darkest;
+    border-bottom: 1px solid $border-color;
     display: flex;
     align-items: center;
     gap: 16px;
@@ -1219,15 +1239,15 @@ body {
     align-items: center;
     gap: 8px;
 }
-.toolbar-group label { font-size: 11px; color: #888; }
+.toolbar-group label { font-size: 11px; color: $text-muted; }
 
 /* Source selector */
 #sourceSelector {
     padding: 6px 10px;
-    background: #1e1e3a;
-    border: 1px solid #2d2d5a;
+    background: $bg-card;
+    border: 1px solid $border-color;
     border-radius: 4px;
-    color: #e0e0e0;
+    color: $text-primary;
     font-size: 12px;
     cursor: pointer;
     min-width: 150px;
@@ -1236,14 +1256,14 @@ body {
     text-overflow: ellipsis;  /* Tronque les noms longs */
 }
 
-#sourceSelector:focus { outline: none; border-color: #4444aa; }
-#sourceSelector:hover { background: #252550; }
-#sourceSelector option { background: #1e1e3a; color: #e0e0e0; }
-#sourceSelector option:disabled { color: #666; }
+#sourceSelector:focus { outline: none; border-color: $border-focus; }
+#sourceSelector:hover { background: $bg-hover; }
+#sourceSelector option { background: $bg-card; color: $text-primary; }
+#sourceSelector option:disabled { color: $text-dark; }
 
 button {
-    background: #3d3d7a;
-    color: #fff;
+    background: $border-light;
+    color: $text-white;
     border: none;
     padding: 6px 14px;
     border-radius: 4px;
@@ -1258,18 +1278,18 @@ button {
     width: 32px;
     height: 32px;
     padding: 0 !important;
-    background: #2d2d5a;
-    border: 1px solid #3d3d7a;
+    background: $ctp-surface1;
+    border: 1px solid $ctp-surface2;
     border-radius: 4px;
-    color: #ccc;
+    color: $ctp-subtext1;
     cursor: pointer;
     transition: all 0.2s;
 }
 
 .toolbar-btn:hover {
-    background: #6366f1;
-    border-color: #6366f1;
-    color: #fff;
+    background: $ctp-teal;
+    border-color: $ctp-teal;
+    color: $ctp-crust;
 }
 
 .toolbar-btn.disabled {
@@ -1280,6 +1300,55 @@ button {
 .toolbar-btn svg {
     width: 16px;
     height: 16px;
+}
+
+/* === CLEAR & RESET BUTTONS (EDA toolbar) === */
+#clearBtn,
+#resetBtn {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px 14px;
+    background: $ctp-surface1;
+    border: 1px solid $ctp-surface2;
+    border-radius: 4px;
+    color: $ctp-subtext1;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    overflow: hidden;
+    transition: all 0.2s ease;
+    z-index: 1;
+}
+
+/* Clear button - wipe animation */
+#clearBtn::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 0;
+    height: 100%;
+    background: $ctp-red;
+    z-index: -1;
+    transition: width 0.35s ease;
+}
+
+#clearBtn:hover {
+    color: $ctp-crust;
+    border-color: $ctp-red;
+}
+
+#clearBtn:hover::after {
+    width: 100%;
+}
+
+/* Reset button - simple hover */
+#resetBtn:hover {
+    background: $ctp-teal;
+    border-color: $ctp-teal;
+    color: $ctp-crust;
 }
 
 /* === MODAL === */
@@ -1302,8 +1371,8 @@ button {
 }
 
 .modal-content {
-    background: #1a1a2e;
-    border: 1px solid #2d2d5a;
+    background: $bg-body;
+    border: 1px solid $border-color;
     border-radius: 12px;
     width: 100%;
     max-width: 500px;
@@ -1317,19 +1386,19 @@ button {
     align-items: center;
     justify-content: space-between;
     padding: 20px 24px;
-    border-bottom: 1px solid #2d2d5a;
+    border-bottom: 1px solid $border-color;
 }
 
 .modal-header h2 {
     font-size: 18px;
     font-weight: 600;
-    color: #fff;
+    color: $text-white;
 }
 
 .modal-close {
     background: transparent;
     border: none;
-    color: #666;
+    color: $text-dark;
     font-size: 24px;
     cursor: pointer;
     padding: 0;
@@ -1338,7 +1407,7 @@ button {
 }
 
 .modal-close:hover {
-    color: #fff;
+    color: $text-white;
 }
 
 .modal-body {
@@ -1347,7 +1416,7 @@ button {
 
 .modal-description {
     font-size: 13px;
-    color: #888;
+    color: $text-muted;
     margin-bottom: 20px;
     line-height: 1.5;
 }
@@ -1364,13 +1433,13 @@ button {
     display: block;
     font-size: 13px;
     font-weight: 500;
-    color: #ccc;
+    color: $text-light;
     margin-bottom: 8px;
 }
 
 .modal-field .optional {
     font-weight: 400;
-    color: #666;
+    color: $text-dark;
 }
 
 .modal-footer {
@@ -1378,23 +1447,23 @@ button {
     justify-content: flex-end;
     gap: 12px;
     padding: 16px 24px;
-    border-top: 1px solid #2d2d5a;
+    border-top: 1px solid $border-color;
 }
 
 .btn-secondary {
     padding: 10px 20px;
     background: transparent;
-    border: 1px solid #3d3d6a;
+    border: 1px solid $border-light;
     border-radius: 6px;
-    color: #888;
+    color: $text-muted;
     font-size: 14px;
     cursor: pointer;
     transition: all 0.2s;
 }
 
 .btn-secondary:hover {
-    border-color: #6366f1;
-    color: #fff;
+    border-color: $color-primary;
+    color: $text-white;
 }
 
 .btn-primary {
@@ -1402,10 +1471,10 @@ button {
     align-items: center;
     gap: 8px;
     padding: 10px 20px;
-    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    background: linear-gradient(135deg, $color-primary, $color-primary-dark);
     border: none;
     border-radius: 6px;
-    color: #fff;
+    color: $ctp-crust;
     font-size: 14px;
     font-weight: 500;
     cursor: pointer;
@@ -1414,7 +1483,8 @@ button {
 
 .btn-primary:hover:not(:disabled) {
     transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+    box-shadow: 0 4px 12px rgba($color-primary, 0.4);
+    filter: brightness(1.05);
 }
 
 .btn-primary:disabled {
@@ -1430,19 +1500,19 @@ button {
 .upload-progress {
     margin-top: 20px;
     padding: 16px;
-    background: #252550;
+    background: $bg-hover;
     border-radius: 8px;
 }
-button:hover { background: #4d4d9a; }
-button:disabled { background: #2d2d4a; color: #666; cursor: default; }
+button:hover { background: $ctp-surface2; }
+button:disabled { background: $ctp-surface1; color: $text-dark; cursor: default; }
 
 input[type="number"] {
     width: 60px;
     padding: 5px 8px;
-    background: #1e1e3a;
-    border: 1px solid #2d2d5a;
+    background: $bg-card;
+    border: 1px solid $border-color;
     border-radius: 4px;
-    color: #e0e0e0;
+    color: $text-primary;
     font-size: 12px;
 }
 
@@ -1471,7 +1541,7 @@ input[type="number"] {
 }
 
 .tabs-list::-webkit-scrollbar-thumb {
-    background: #3d3d6a;
+    background: $border-light;
     border-radius: 2px;
 }
 
@@ -1484,7 +1554,7 @@ input[type="number"] {
     border: 1px solid transparent;
     border-bottom: none;
     border-radius: 6px 6px 0 0;
-    color: #888;
+    color: $text-muted;
     font-size: 12px;
     cursor: pointer;
     transition: all 0.15s;
@@ -1495,13 +1565,13 @@ input[type="number"] {
 
 .tab-item:hover {
     background: rgba(255, 255, 255, 0.05);
-    color: #ccc;
+    color: $text-light;
 }
 
 .tab-item.active {
-    background: #1e1e3a;
-    border-color: #2d2d5a;
-    color: #fff;
+    background: $bg-card;
+    border-color: $border-color;
+    color: $text-white;
 }
 
 .tab-name {
@@ -1513,8 +1583,8 @@ input[type="number"] {
 .tab-name-input {
     background: transparent;
     border: none;
-    border-bottom: 1px solid #6366f1;
-    color: #fff;
+    border-bottom: 1px solid $color-primary;
+    color: $text-white;
     font-size: 12px;
     padding: 0;
     width: 100px;
@@ -1531,7 +1601,7 @@ input[type="number"] {
     background: transparent;
     border: none;
     border-radius: 3px;
-    color: #666;
+    color: $text-dark;
     font-size: 14px;
     line-height: 1;
     cursor: pointer;
@@ -1548,7 +1618,7 @@ input[type="number"] {
 
 .tab-close:hover {
     background: rgba(255, 100, 100, 0.2);
-    color: #ff6666;
+    color: $ctp-red;
 }
 
 .tab-add {
@@ -1558,9 +1628,9 @@ input[type="number"] {
     width: 24px;
     height: 24px;
     background: transparent;
-    border: 1px dashed #3d3d6a;
+    border: 1px dashed $border-light;
     border-radius: 4px;
-    color: #666;
+    color: $text-dark;
     font-size: 16px;
     cursor: pointer;
     transition: all 0.15s;
@@ -1571,9 +1641,9 @@ input[type="number"] {
 }
 
 .tab-add:hover {
-    border-color: #6366f1;
-    color: #6366f1;
-    background: rgba(99, 102, 241, 0.1);
+    border-color: $color-primary;
+    color: $color-primary;
+    background: rgba($color-primary, 0.1);
 }
 
 .tabs-actions {
@@ -1582,7 +1652,7 @@ input[type="number"] {
     gap: 6px;
     margin-left: auto;
     padding-left: 12px;
-    border-left: 1px solid #2d2d5a;
+    border-left: 1px solid $border-color;
     position: relative;
     top: 1px; /* Même décalage que les tabs */
 }
@@ -1593,18 +1663,18 @@ input[type="number"] {
     gap: 4px;
     padding: 5px 10px;
     background: transparent;
-    border: 1px solid #3d3d6a;
+    border: 1px solid $border-light;
     border-radius: 4px;
-    color: #888;
+    color: $text-muted;
     font-size: 11px;
     cursor: pointer;
     transition: all 0.15s;
 }
 
 .tab-action-btn:hover {
-    border-color: #6366f1;
-    color: #fff;
-    background: rgba(99, 102, 241, 0.1);
+    border-color: $color-primary;
+    color: $text-white;
+    background: rgba($color-primary, 0.1);
 }
 
 .tab-action-btn svg {
@@ -1642,8 +1712,8 @@ input[type="number"] {
 }
 
 .plot-container {
-    background: #1e1e3a;
-    border: 1px solid #2d2d5a;
+    background: $bg-card;
+    border: 1px solid $border-color;
     border-radius: 6px;
     display: flex;
     flex-direction: column;
@@ -1651,7 +1721,7 @@ input[type="number"] {
     overflow: hidden;
 }
 .plot-container.drop-target {
-    border-color: #5555cc;
+    border-color: rgba($text-darker, 0.5);
     box-shadow: 0 0 10px rgba(85, 85, 204, 0.3);
 }
 
@@ -1678,7 +1748,7 @@ input[type="number"] {
     width: 150px;
     flex-shrink: 0;
     background: rgba(0,0,0,0.2);
-    border-left: 1px solid #2d2d5a;
+    border-left: 1px solid $border-color;
     padding: 8px;
     overflow-y: auto;
     display: flex;
@@ -1687,7 +1757,7 @@ input[type="number"] {
 }
 
 .plot-legend::-webkit-scrollbar { width: 4px; }
-.plot-legend::-webkit-scrollbar-thumb { background: #3d3d6a; border-radius: 2px; }
+.plot-legend::-webkit-scrollbar-thumb { background: $border-light; border-radius: 2px; }
 
 .legend-item {
     background: rgba(255,255,255,0.03);
@@ -1726,7 +1796,7 @@ input[type="number"] {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    color: #ccc;
+    color: $text-light;
 }
 
 .legend-toggle {
@@ -1742,7 +1812,7 @@ input[type="number"] {
 .legend-remove {
     opacity: 0;
     cursor: pointer;
-    color: #666;
+    color: $text-dark;
     font-size: 12px;
     line-height: 1;
     transition: opacity 0.1s;
@@ -1753,14 +1823,14 @@ input[type="number"] {
 }
 
 .legend-remove:hover {
-    color: #ff6666;
+    color: $ctp-red;
 }
 
 .legend-controls {
     display: none;
     padding: 6px;
     background: rgba(0,0,0,0.2);
-    border-top: 1px solid #2d2d5a;
+    border-top: 1px solid $border-color;
 }
 
 .legend-item.expanded .legend-controls {
@@ -1776,7 +1846,7 @@ input[type="number"] {
 }
 
 .legend-control-row label {
-    color: #888;
+    color: $text-muted;
     font-size: 9px;
     min-width: 35px;
 }
@@ -1785,7 +1855,7 @@ input[type="number"] {
     flex: 1;
     height: 4px;
     -webkit-appearance: none;
-    background: #2d2d5a;
+    background: $border-color;
     border-radius: 2px;
     outline: none;
 }
@@ -1794,16 +1864,16 @@ input[type="number"] {
     -webkit-appearance: none;
     width: 10px;
     height: 10px;
-    background: #5555cc;
+    background: rgba($text-darker, 0.5);
     border-radius: 50%;
     cursor: pointer;
 }
 
 .legend-control-row select {
     flex: 1;
-    background: #1e1e3a;
-    border: 1px solid #2d2d5a;
-    color: #ccc;
+    background: $bg-card;
+    border: 1px solid $border-color;
+    color: $text-light;
     font-size: 9px;
     padding: 2px 4px;
     border-radius: 3px;
@@ -1812,11 +1882,11 @@ input[type="number"] {
 
 .legend-control-row select:focus {
     outline: none;
-    border-color: #5555cc;
+    border-color: rgba($text-darker, 0.5);
 }
 
 .legend-width-value {
-    color: #aaa;
+    color: $text-lighter;
     font-size: 9px;
     min-width: 20px;
     text-align: right;
@@ -1828,10 +1898,10 @@ input[type="number"] {
     justify-content: space-between;
     padding: 2px 10px;
     font-size: 9px;
-    color: #555;
+    color: $text-darker;
     font-family: monospace;
     flex-shrink: 0;
-    border-top: 1px solid #2d2d5a;
+    border-top: 1px solid $border-color;
     background: rgba(0,0,0,0.2);
 }
 
@@ -1846,7 +1916,7 @@ input[type="number"] {
 .plot-stats .plot-delete {
     background: transparent;
     border: none;
-    color: #b30000;
+    color: $ctp-red;
     padding: 2px 6px;
     font-size: 10px;
     cursor: pointer;
@@ -1858,7 +1928,7 @@ input[type="number"] {
 
 .plot-stats .plot-delete:hover {
     background: rgba(255, 100, 100, 0.15);
-    color: #ff6666;
+    color: $ctp-red;
 }
 
 /* Splitter */
@@ -1881,35 +1951,35 @@ input[type="number"] {
     content: '';
     width: 40px;
     height: 3px;
-    background: #3d3d6a;
+    background: $border-light;
     border-radius: 2px;
 }
 
 .splitter:hover::after, .splitter.active::after {
-    background: #5555cc;
+    background: rgba($text-darker, 0.5);
 }
 
 /* Drop zone at bottom */
 .drop-zone {
-    border: 2px dashed #3d3d6a;
+    border: 2px dashed $border-light;
     border-radius: 6px;
     padding: 12px;
     text-align: center;
-    color: #555;
+    color: $text-darker;
     font-size: 12px;
     flex-shrink: 0;
     margin-top: 8px;
 }
-.drop-zone.active { border-color: #5555cc; background: rgba(85,85,204,0.1); color: #8888cc; }
+.drop-zone.active { border-color: rgba($text-darker, 0.5); background: rgba(85,85,204,0.1); color: rgba($text-muted, 0.8); }
 
 .empty-plot {
     flex: 1;
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #555;
-    background: #1e1e3a;
-    border: 1px solid #2d2d5a;
+    color: $text-darker;
+    background: $bg-card;
+    border: 1px solid $border-color;
     border-radius: 6px;
 }
 
@@ -2003,7 +2073,7 @@ input[type="number"] {
     z-index: 70;
     white-space: nowrap;
     background: rgba(70, 70, 70, 0.95);
-    color: #ffaa44;
+    color: $cursor-delta-color;
     transform: translateX(-50%);
 }
 
@@ -2018,7 +2088,7 @@ input[type="number"] {
     --scrollbar-track: rgba(255, 255, 255, 0.03);
     --scrollbar-thumb: rgba(100, 100, 140, 0.3);
     --scrollbar-thumb-hover: rgba(100, 100, 140, 0.5);
-    --scrollbar-thumb-active: rgba(99, 102, 241, 0.6);
+    --scrollbar-thumb-active: rgba($color-primary, 0.6);
 }
 
 /* === WebKit (Chrome, Safari, Edge) - Global === */

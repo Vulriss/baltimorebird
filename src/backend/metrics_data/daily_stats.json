@@ -372,34 +372,88 @@
     }
   },
   "2026-01-12": {
-    "total_requests": 24,
+    "total_requests": 212,
     "unique_users": [
       "b2aeadbb5b4cd836"
     ],
     "endpoints": {
-      "/api/sources": 7,
-      "/api/info": 8,
-      "/api/reports": 5,
-      "/api/reports/demo": 1,
-      "/api/view": 2,
-      "/api/source/synthetic": 1
+      "/api/sources": 39,
+      "/api/info": 45,
+      "/api/reports": 33,
+      "/api/reports/demo": 4,
+      "/api/view": 27,
+      "/api/source/synthetic": 1,
+      "/api/auth/login": 4,
+      "/api/source/user_mf4_df08fab3-2347-4271-9dec-bc0605e79d6b": 10,
+      "/api/eda/preload-signal/df08fab3-2347-4271-9dec-bc0605e79d6b/1": 1,
+      "/api/eda/view/df08fab3-2347-4271-9dec-bc0605e79d6b": 16,
+      "/api/eda/preload-signal/df08fab3-2347-4271-9dec-bc0605e79d6b/2": 1,
+      "/api/eda/preload-signal/df08fab3-2347-4271-9dec-bc0605e79d6b/16": 1,
+      "/api/eda/preload-signal/df08fab3-2347-4271-9dec-bc0605e79d6b/0": 1,
+      "/api/eda/preload-signal/df08fab3-2347-4271-9dec-bc0605e79d6b/427": 1,
+      "/api/eda/preload-signal/df08fab3-2347-4271-9dec-bc0605e79d6b/59": 1,
+      "/api/eda/preload-signal/df08fab3-2347-4271-9dec-bc0605e79d6b/924": 1,
+      "/api/eda/preload-signal/df08fab3-2347-4271-9dec-bc0605e79d6b/860": 1,
+      "/api/eda/preload-signal/df08fab3-2347-4271-9dec-bc0605e79d6b/123": 1,
+      "/api/scripts": 13,
+      "/api/auth/me": 8,
+      "/api/scripts/script_example_obd2": 1,
+      "/api/auth/logout": 2
     },
     "status_codes": {
-      "200": 24
+      "200": 208,
+      "304": 3,
+      "401": 1
     },
     "sessions": {
-      "count": 0,
-      "total_duration": 0,
-      "max_duration": 0
+      "count": 2,
+      "total_duration": 6198.755650043488,
+      "max_duration": 4712.441880941391
     },
     "latency": {
-      "count": 24,
+      "count": 212,
       "min": 0.0,
-      "max": 221.71,
-      "avg": 13.14,
-      "p50": 0.0,
-      "p95": 67.56,
-      "p99": 221.71
+      "max": 4311.7,
+      "avg": 41.1,
+      "p50": 1.0,
+      "p95": 33.0,
+      "p99": 2218.77
+    }
+  },
+  "2026-01-13": {
+    "total_requests": 110,
+    "unique_users": [
+      "b2aeadbb5b4cd836"
+    ],
+    "endpoints": {
+      "/api/sources": 16,
+      "/api/info": 22,
+      "/api/view": 24,
+      "/api/reports": 14,
+      "/api/auth/login": 1,
+      "/api/auth/me": 10,
+      "/api/scripts": 15,
+      "/api/storage/info": 2,
+      "/api/storage/files": 2,
+      "/api/scripts/script_example_obd2": 3,
+      "/api/source/user_mf4_df08fab3-2347-4271-9dec-bc0605e79d6b": 1
+    },
+    "status_codes": {
+      "200": 110
+    },
+    "sessions": {
+      "count": 2,
+      "total_duration": 3410.3937287330627,
+      "max_duration": 2813.370973110199
+    },
+    "latency": {
+      "count": 110,
+      "min": 0.0,
+      "max": 216.31,
+      "avg": 3.53,
+      "p50": 1.0,
+      "p95": 4.01,
+      "p99": 14.03
     }
   }
 }

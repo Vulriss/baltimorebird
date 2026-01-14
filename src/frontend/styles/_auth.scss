@@ -1,3 +1,5 @@
+@use 'abstracts/variables' as *;
+
 /* =============================================================================
    Auth Styles - Authentification et gestion utilisateur
    ============================================================================= */
@@ -18,10 +20,10 @@
     align-items: center;
     gap: 8px;
     padding: 8px 16px;
-    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    background: linear-gradient(135deg, $color-primary, $color-primary-dark);
     border: none;
     border-radius: 8px;
-    color: #fff;
+    color: $ctp-crust;
     font-size: 13px;
     font-weight: 500;
     cursor: pointer;
@@ -30,7 +32,8 @@
 
 .login-btn:hover {
     transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+    box-shadow: 0 4px 12px rgba($color-primary, 0.4);
+    filter: brightness(1.05);
 }
 
 .login-btn svg {
@@ -41,20 +44,20 @@
 /* Nav Login Button */
 .nav-login {
     cursor: pointer;
-    background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(139, 92, 246, 0.2));
-    border: 1px solid rgba(99, 102, 241, 0.3);
+    background: linear-gradient(135deg, rgba($color-primary, 0.2), rgba($color-primary, 0.2));
+    border: 1px solid rgba($color-primary, 0.3);
     border-radius: 10px;
     margin: 0 12px;
     transition: all 0.2s;
 }
 
 .nav-login:hover {
-    background: linear-gradient(135deg, rgba(99, 102, 241, 0.3), rgba(139, 92, 246, 0.3));
-    border-color: rgba(99, 102, 241, 0.5);
+    background: linear-gradient(135deg, rgba($color-primary, 0.3), rgba($color-primary, 0.3));
+    border-color: rgba($color-primary, 0.5);
 }
 
 .nav-login .nav-icon {
-    color: #6366f1;
+    color: $color-primary;
 }
 
 /* Nav User (connecté) */
@@ -81,8 +84,8 @@
     left: 12px;
     right: 12px;
     margin-bottom: 8px;
-    background: #1e1e3a;
-    border: 1px solid #2d2d5a;
+    background: $bg-card;
+    border: 1px solid $border-color;
     border-radius: 12px;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
     opacity: 0;
@@ -101,26 +104,26 @@
 
 .nav-user-dropdown-header {
     padding: 16px;
-    background: rgba(99, 102, 241, 0.1);
+    background: rgba($color-primary, 0.1);
 }
 
 .nav-user-dropdown-header .user-name {
     display: block;
     font-size: 14px;
     font-weight: 600;
-    color: #fff;
+    color: $text-white;
     margin-bottom: 2px;
 }
 
 .nav-user-dropdown-header .user-email {
     display: block;
     font-size: 12px;
-    color: #888;
+    color: $text-muted;
 }
 
 .nav-user-dropdown-divider {
     height: 1px;
-    background: #2d2d5a;
+    background: $border-color;
 }
 
 .nav-user-dropdown-item {
@@ -131,7 +134,7 @@
     padding: 12px 16px;
     background: none;
     border: none;
-    color: #ccc;
+    color: $text-light;
     font-size: 13px;
     text-align: left;
     cursor: pointer;
@@ -140,7 +143,7 @@
 
 .nav-user-dropdown-item:hover {
     background: rgba(255, 255, 255, 0.05);
-    color: #fff;
+    color: $text-white;
 }
 
 .nav-user-dropdown-item svg {
@@ -150,11 +153,11 @@
 }
 
 .nav-user-dropdown-item.logout {
-    color: #ef4444;
+    color: $color-error;
 }
 
 .nav-user-dropdown-item.logout:hover {
-    background: rgba(239, 68, 68, 0.1);
+    background: rgba($ctp-red, 0.1);
 }
 
 /* Collapsed nav state */
@@ -205,29 +208,29 @@
     align-items: center;
     gap: 10px;
     padding: 6px 12px;
-    background: #1e1e3a;
-    border: 1px solid #2d2d5a;
+    background: $bg-card;
+    border: 1px solid $border-color;
     border-radius: 8px;
     cursor: pointer;
     transition: all 0.2s;
 }
 
 .user-info:hover {
-    border-color: #3d3d6a;
-    background: #252550;
+    border-color: $border-light;
+    background: $bg-hover;
 }
 
 .user-avatar {
     width: 32px;
     height: 32px;
-    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    background: linear-gradient(135deg, $color-primary, $color-primary-dark);
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
     font-size: 14px;
     font-weight: 600;
-    color: #fff;
+    color: $ctp-crust;
 }
 
 .user-details {
@@ -238,12 +241,12 @@
 .user-name {
     font-size: 13px;
     font-weight: 500;
-    color: #fff;
+    color: $text-white;
 }
 
 .user-email {
     font-size: 11px;
-    color: #888;
+    color: $text-muted;
 }
 
 /* User Dropdown */
@@ -253,8 +256,8 @@
     right: 0;
     margin-top: 8px;
     min-width: 200px;
-    background: #1e1e3a;
-    border: 1px solid #2d2d5a;
+    background: $bg-card;
+    border: 1px solid $border-color;
     border-radius: 10px;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
     opacity: 0;
@@ -280,7 +283,7 @@
     align-items: center;
     gap: 10px;
     padding: 12px 16px;
-    color: #ccc;
+    color: $text-light;
     font-size: 13px;
     cursor: pointer;
     transition: all 0.15s;
@@ -299,8 +302,8 @@
 }
 
 .user-dropdown-item:hover {
-    background: #252550;
-    color: #fff;
+    background: $bg-hover;
+    color: $text-white;
 }
 
 .user-dropdown-item svg {
@@ -310,16 +313,16 @@
 
 .user-dropdown-divider {
     height: 1px;
-    background: #2d2d5a;
+    background: $border-color;
     margin: 4px 0;
 }
 
 .user-dropdown-item.logout {
-    color: #ef4444;
+    color: $color-error;
 }
 
 .user-dropdown-item.logout:hover {
-    background: rgba(239, 68, 68, 0.1);
+    background: rgba($ctp-red, 0.1);
 }
 
 /* =============================================================================
@@ -351,8 +354,8 @@
 .auth-modal-content {
     width: 100%;
     max-width: 420px;
-    background: #16162a;
-    border: 1px solid #2d2d5a;
+    background: $bg-darkest;
+    border: 1px solid $border-color;
     border-radius: 16px;
     padding: 32px;
     transform: scale(0.95);
@@ -373,7 +376,7 @@
 .auth-modal-header h2 {
     font-size: 24px;
     font-weight: 600;
-    color: #fff;
+    color: $text-white;
     margin: 0;
 }
 
@@ -381,9 +384,9 @@
     width: 40px;
     height: 40px;
     background: transparent;
-    border: 1px solid #2d2d5a;
+    border: 1px solid $border-color;
     border-radius: 10px;
-    color: #888;
+    color: $text-muted;
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -393,9 +396,9 @@
 }
 
 .auth-modal-close:hover {
-    background: #252550;
-    border-color: #3d3d6a;
-    color: #fff;
+    background: $bg-hover;
+    border-color: $border-light;
+    color: $text-white;
 }
 
 .auth-modal-close svg {
@@ -419,32 +422,32 @@
 .auth-field label {
     font-size: 13px;
     font-weight: 500;
-    color: #ccc;
+    color: $text-light;
 }
 
 .auth-field input {
     padding: 12px 16px;
-    background: #1e1e3a;
-    border: 1px solid #2d2d5a;
+    background: $bg-card;
+    border: 1px solid $border-color;
     border-radius: 8px;
-    color: #fff;
+    color: $text-white;
     font-size: 14px;
     transition: all 0.2s;
 }
 
 .auth-field input:focus {
     outline: none;
-    border-color: #6366f1;
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+    border-color: $color-primary;
+    box-shadow: 0 0 0 3px rgba($color-primary, 0.1);
 }
 
 .auth-field input::placeholder {
-    color: #555;
+    color: $text-darker;
 }
 
 .auth-hint {
     font-size: 11px;
-    color: #666;
+    color: $text-dark;
 }
 
 /* Password validation indicators */
@@ -460,7 +463,7 @@
     align-items: center;
     gap: 4px;
     font-size: 11px;
-    color: #666;
+    color: $text-dark;
     transition: color 0.2s;
 }
 
@@ -471,15 +474,15 @@
 }
 
 .auth-rule.valid {
-    color: #22c55e;
+    color: $color-success;
 }
 
 .auth-rule.valid svg {
-    stroke: #22c55e;
+    stroke: $color-success;
 }
 
 .auth-rule.invalid {
-    color: #666;
+    color: $text-dark;
 }
 
 /* Password match indicator */
@@ -492,11 +495,11 @@
 }
 
 .auth-password-match.match {
-    color: #22c55e;
+    color: $color-success;
 }
 
 .auth-password-match.no-match {
-    color: #ef4444;
+    color: $color-error;
 }
 
 .auth-password-match svg {
@@ -505,17 +508,17 @@
 }
 
 .auth-error {
-    color: #ef4444;
+    color: $color-error;
     font-size: 13px;
     min-height: 20px;
 }
 
 .auth-submit-btn {
     padding: 14px 24px;
-    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    background: linear-gradient(135deg, $ctp-peach, $ctp-maroon);
     border: none;
     border-radius: 8px;
-    color: #fff;
+    color: $ctp-crust;
     font-size: 15px;
     font-weight: 600;
     cursor: pointer;
@@ -524,7 +527,8 @@
 
 .auth-submit-btn:hover {
     transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+    box-shadow: 0 4px 12px rgba($ctp-peach, 0.4);
+    filter: brightness(1.05);
 }
 
 .auth-submit-btn:disabled {
@@ -537,11 +541,11 @@
     margin-top: 24px;
     text-align: center;
     font-size: 13px;
-    color: #888;
+    color: $text-muted;
 }
 
 .auth-footer a {
-    color: #6366f1;
+    color: $color-primary;
     text-decoration: none;
 }
 
@@ -569,10 +573,10 @@
     justify-content: space-between;
     gap: 12px;
     padding: 14px 18px;
-    background: #1e1e3a;
-    border: 1px solid #2d2d5a;
+    background: $bg-card;
+    border: 1px solid $border-color;
     border-radius: 10px;
-    color: #fff;
+    color: $text-white;
     font-size: 13px;
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
     animation: slideIn 0.3s ease;
@@ -594,7 +598,7 @@
 .notification button {
     background: none;
     border: none;
-    color: #888;
+    color: $text-muted;
     font-size: 18px;
     cursor: pointer;
     padding: 0;
@@ -602,23 +606,23 @@
 }
 
 .notification button:hover {
-    color: #fff;
+    color: $text-white;
 }
 
 .notification-success {
-    border-left: 3px solid #22c55e;
+    border-left: 3px solid $color-success;
 }
 
 .notification-error {
-    border-left: 3px solid #ef4444;
+    border-left: 3px solid $color-error;
 }
 
 .notification-warning {
-    border-left: 3px solid #f59e0b;
+    border-left: 3px solid $color-warning;
 }
 
 .notification-info {
-    border-left: 3px solid #6366f1;
+    border-left: 3px solid $color-primary;
 }
 
 /* =============================================================================
@@ -652,7 +656,7 @@
     justify-content: center;
     padding: 40px 20px;
     text-align: center;
-    color: #888;
+    color: $text-muted;
 }
 
 .login-prompt svg {
@@ -664,7 +668,7 @@
 
 .login-prompt h3 {
     font-size: 16px;
-    color: #ccc;
+    color: $text-light;
     margin: 0 0 8px 0;
 }
 

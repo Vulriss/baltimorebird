@@ -1,35 +1,779 @@
-// =========================================================================
-// VARIABLES - Design tokens
-// =========================================================================
+// ============================================================================
+// BALTIMORE BIRD - Design Tokens
+// ============================================================================
+// Thème: Catppuccin Mocha (variante sombre)
+// Accent: Peach (chaleureux, unique, non-generic)
+// 
+// Catppuccin est une palette pastel communautaire qui vise l'équilibre
+// entre thèmes à faible et fort contraste. Mocha est la variante la plus
+// sombre, offrant une atmosphère cozy avec des accents riches en couleurs.
+//
+// Documentation officielle: https://catppuccin.com/palette
+// Style Guide: https://github.com/catppuccin/catppuccin/blob/main/docs/style-guide.md
+// ============================================================================
 
-// Colors
-$color-primary: #6366f1;
-$color-primary-dark: #8b5cf6;
-$color-primary-light: #818cf8;
-$color-success: #22c55e;
-$color-success-dark: #16a34a;
-$color-error: #ef4444;
-$color-warning: #f59e0b;
 
-// Backgrounds
-$bg-body: #1a1a2e;
-$bg-dark: #0d0d1a;
-$bg-card: #1e1e3a;
-$bg-card-alt: #16162a;
-$bg-hover: #252550;
+// ============================================================================
+// SECTION 1: PALETTE CATPPUCCIN MOCHA - Couleurs brutes
+// ============================================================================
+// Ces couleurs sont les définitions officielles. Ne pas modifier.
+// Utiliser les variables sémantiques (Section 2+) dans le code.
 
-// Borders
-$border-color: #2d2d5a;
-$border-light: #3d3d6a;
-$border-focus: #4444aa;
+// --- Accent Colors (couleurs vives pour éléments interactifs) ---
+$ctp-rosewater: #f5e0dc;  // HSL: 10°, 56%, 91%  - Rose très pâle, curseur
+$ctp-flamingo:  #f2cdcd;  // HSL: 0°, 59%, 88%   - Rose saumon
+$ctp-pink:      #f5c2e7;  // HSL: 316°, 72%, 86% - Rose vif
+$ctp-mauve:     #cba6f7;  // HSL: 267°, 84%, 81% - Violet pastel, keywords
+$ctp-red:       #f38ba8;  // HSL: 343°, 81%, 75% - Rouge doux, erreurs
+$ctp-maroon:    #eba0ac;  // HSL: 350°, 65%, 77% - Rouge-brun
+$ctp-peach:     #fab387;  // HSL: 23°, 92%, 75%  - Orange chaud, ACCENT PRINCIPAL
+$ctp-yellow:    #f9e2af;  // HSL: 41°, 86%, 83%  - Jaune doux, warnings
+$ctp-green:     #a6e3a1;  // HSL: 115°, 54%, 76% - Vert pastel, succès
+$ctp-teal:      #94e2d5;  // HSL: 170°, 57%, 73% - Turquoise
+$ctp-sky:       #89dceb;  // HSL: 189°, 71%, 73% - Bleu ciel
+$ctp-sapphire:  #74c7ec;  // HSL: 199°, 76%, 69% - Bleu cyan
+$ctp-blue:      #89b4fa;  // HSL: 217°, 92%, 76% - Bleu, liens
+$ctp-lavender:  #b4befe;  // HSL: 232°, 97%, 85% - Lavande
 
-// Text
-$text-primary: #e0e0e0;
-$text-white: #fff;
-$text-muted: #888;
-$text-dark: #666;
-$text-darker: #555;
+// --- Text Colors (du plus visible au plus subtil) ---
+$ctp-text:      #cdd6f4;  // HSL: 226°, 64%, 88% - Texte principal
+$ctp-subtext1:  #bac2de;  // HSL: 227°, 35%, 80% - Sous-titres, labels
+$ctp-subtext0:  #a6adc8;  // HSL: 228°, 24%, 72% - Texte secondaire
 
-// Fonts
-$font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-$font-mono: 'SF Mono', Monaco, 'Courier New', monospace;
+// --- Overlay Colors (pour éléments flottants, hovers) ---
+$ctp-overlay2:  #9399b2;  // HSL: 228°, 17%, 64% - Overlay le plus visible
+$ctp-overlay1:  #7f849c;  // HSL: 230°, 13%, 55% - Texte subtil, placeholders
+$ctp-overlay0:  #6c7086;  // HSL: 231°, 11%, 47% - Bordures légères
+
+// --- Surface Colors (fonds de composants, du plus clair au plus sombre) ---
+$ctp-surface2:  #585b70;  // HSL: 233°, 12%, 39% - Surface la plus claire
+$ctp-surface1:  #45475a;  // HSL: 234°, 13%, 31% - Cards, panels
+$ctp-surface0:  #313244;  // HSL: 237°, 16%, 23% - Inputs, surfaces élevées
+
+// --- Base Colors (fonds principaux, du plus clair au plus sombre) ---
+$ctp-base:      #1e1e2e;  // HSL: 240°, 21%, 15% - Fond standard
+$ctp-mantle:    #181825;  // HSL: 240°, 21%, 12% - Sidebars, panels secondaires
+$ctp-crust:     #11111b;  // HSL: 240°, 23%, 9%  - Fond le plus sombre
+
+
+// ============================================================================
+// SECTION 2: COULEUR D'ACCENT PRINCIPALE
+// ============================================================================
+// Peach comme accent principal = look chaleureux et unique
+// Évite le bleu/violet generic "AI dashboard"
+
+$color-accent: $ctp-peach;
+$color-accent-hover: #fcbf9a;      // Peach plus clair au hover
+$color-accent-active: #f8a66e;     // Peach plus saturé au clic
+$color-accent-muted: rgba($ctp-peach, 0.15);
+$color-accent-subtle: rgba($ctp-peach, 0.08);
+
+// Alias pour compatibilité
+$color-primary: $color-accent;
+$color-primary-hover: $color-accent-hover;
+$color-primary-active: $color-accent-active;
+$color-primary-light: $ctp-yellow;
+$color-primary-dark: $ctp-maroon;
+
+
+// ============================================================================
+// SECTION 3: COULEURS SÉMANTIQUES
+// ============================================================================
+// Selon le style guide officiel Catppuccin
+
+// --- Success (vert) ---
+$color-success: $ctp-green;
+$color-success-dark: $ctp-teal;
+$color-success-light: #b8ebb5;
+$color-success-hover: #b8ebb5;
+$color-success-muted: rgba($ctp-green, 0.15);
+$color-success-subtle: rgba($ctp-green, 0.08);
+
+// --- Error (rouge) ---
+$color-error: $ctp-red;
+$color-error-dark: $ctp-maroon;
+$color-error-light: #f6a0b8;
+$color-error-hover: #f6a0b8;
+$color-error-muted: rgba($ctp-red, 0.15);
+$color-error-subtle: rgba($ctp-red, 0.08);
+
+// --- Warning (jaune) ---
+$color-warning: $ctp-yellow;
+$color-warning-dark: $ctp-peach;
+$color-warning-light: #fbecc5;
+$color-warning-hover: #fbecc5;
+$color-warning-muted: rgba($ctp-yellow, 0.15);
+$color-warning-subtle: rgba($ctp-yellow, 0.08);
+
+// --- Info (bleu) - selon style guide, liens = blue ---
+$color-info: $ctp-blue;
+$color-info-hover: #a4c5fb;
+$color-info-muted: rgba($ctp-blue, 0.15);
+$color-info-subtle: rgba($ctp-blue, 0.08);
+
+// --- Liens (toujours bleu selon style guide) ---
+$color-link: $ctp-blue;
+$color-link-hover: $ctp-sapphire;
+$color-link-visited: $ctp-lavender;
+
+
+// ============================================================================
+// SECTION 4: BACKGROUNDS
+// ============================================================================
+// Hiérarchie: Plus un élément est "élevé", plus il est clair
+// Crust (plus sombre) → Mantle → Base → Surface0 → Surface1 → Surface2 (plus clair)
+
+// --- Application backgrounds (sombres) ---
+$bg-app: $ctp-crust;              // Fond global de l'app (le plus sombre)
+$bg-body: $ctp-mantle;            // Body principal
+$bg-sidebar: $ctp-crust;          // Sidebar navigation
+$bg-toolbar: $ctp-mantle;         // Toolbars
+
+// --- Component backgrounds ---
+$bg-card: $ctp-base;              // Cards, panels principaux
+$bg-card-elevated: $ctp-surface0; // Cards surélevées, modales
+$bg-input: $ctp-surface0;         // Champs de saisie
+$bg-input-focus: $ctp-surface1;   // Input au focus
+
+// --- Interactive states ---
+$bg-hover: $ctp-surface0;         // Hover sur éléments
+$bg-hover-subtle: rgba($ctp-text, 0.04);
+$bg-active: $ctp-surface1;        // État actif/sélectionné
+$bg-selected: rgba($ctp-peach, 0.12);
+
+// --- Overlays ---
+$bg-overlay: rgba($ctp-crust, 0.90);
+$bg-modal: $ctp-base;
+$bg-dropdown: $ctp-surface0;
+$bg-tooltip: $ctp-surface1;
+
+// --- Selection (selon style guide: overlay2 à 20-30%) ---
+$bg-selection: rgba($ctp-overlay2, 0.25);
+
+// --- Legacy aliases (compatibilité) ---
+$bg-dark: $ctp-crust;
+$bg-darker: $ctp-crust;
+$bg-darkest: $ctp-crust;
+$bg-card-alt: $ctp-mantle;
+$bg-card-hover: $ctp-surface0;
+$bg-hover-light: rgba($ctp-text, 0.03);
+$bg-hover-medium: rgba($ctp-text, 0.05);
+$bg-hover-strong: rgba($ctp-text, 0.08);
+$bg-input-dark: $ctp-mantle;
+
+
+// ============================================================================
+// SECTION 5: BORDURES
+// ============================================================================
+
+$border-default: $ctp-surface0;   // Bordure standard (plus subtile)
+$border-subtle: $ctp-mantle;      // Bordure très discrète
+$border-strong: $ctp-surface1;    // Bordure visible
+$border-focus: $ctp-peach;        // Bordure au focus
+$border-error: $ctp-red;
+$border-success: $ctp-green;
+
+// Legacy aliases
+$border-color: $border-default;
+$border-light: $border-strong;
+$border-lighter: $ctp-overlay0;
+$border-primary: rgba($ctp-peach, 0.4);
+
+
+// ============================================================================
+// SECTION 6: TEXTE
+// ============================================================================
+// Selon style guide: Text pour body/headlines, Subtext pour labels, Overlay pour subtil
+
+$text-primary: $ctp-text;         // Texte principal, headlines
+$text-secondary: $ctp-subtext1;   // Labels, sous-titres
+$text-tertiary: $ctp-subtext0;    // Texte moins important
+$text-muted: $ctp-overlay1;       // Placeholders, texte désactivé
+$text-disabled: $ctp-overlay0;    // Texte complètement désactivé
+
+// Texte sur fonds colorés (selon style guide: Base)
+$text-on-accent: $ctp-crust;      // Texte sur boutons accent
+$text-on-success: $ctp-crust;
+$text-on-error: $ctp-crust;
+$text-on-warning: $ctp-crust;
+
+// Legacy aliases
+$text-white: $ctp-text;
+$text-light: $ctp-subtext1;
+$text-lighter: $ctp-overlay2;
+$text-dark: $ctp-overlay1;
+$text-darker: $ctp-overlay0;
+
+
+// ============================================================================
+// SECTION 7: TYPOGRAPHIE
+// ============================================================================
+
+// --- Familles de polices ---
+$font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 
+            'Helvetica Neue', Arial, sans-serif;
+$font-mono: 'JetBrains Mono', 'Fira Code', 'SF Mono', Monaco, 
+            'Cascadia Code', 'Roboto Mono', Consolas, monospace;
+
+// --- Échelle de tailles (modular scale ~1.2) ---
+$font-size-2xs: 0.625rem;   // 10px
+$font-size-xs:  0.6875rem;  // 11px
+$font-size-sm:  0.75rem;    // 12px
+$font-size-base: 0.8125rem; // 13px - Taille de base
+$font-size-md:  0.875rem;   // 14px
+$font-size-lg:  1rem;       // 16px
+$font-size-xl:  1.125rem;   // 18px
+$font-size-2xl: 1.25rem;    // 20px
+$font-size-3xl: 1.5rem;     // 24px
+$font-size-4xl: 1.875rem;   // 30px
+$font-size-5xl: 2.25rem;    // 36px
+
+// --- Poids ---
+$font-weight-normal: 400;
+$font-weight-medium: 500;
+$font-weight-semibold: 600;
+$font-weight-bold: 700;
+
+// --- Hauteurs de ligne ---
+$line-height-none: 1;
+$line-height-tight: 1.25;
+$line-height-snug: 1.375;
+$line-height-normal: 1.5;
+$line-height-relaxed: 1.625;
+$line-height-loose: 2;
+
+// --- Letter spacing ---
+$letter-spacing-tighter: -0.05em;
+$letter-spacing-tight: -0.025em;
+$letter-spacing-normal: 0;
+$letter-spacing-wide: 0.025em;
+$letter-spacing-wider: 0.05em;
+
+
+// ============================================================================
+// SECTION 8: ESPACEMENTS
+// ============================================================================
+// Échelle cohérente basée sur 4px
+
+$spacing-0:  0;
+$spacing-px: 1px;
+$spacing-0-5: 0.125rem;  // 2px
+$spacing-1:  0.25rem;    // 4px
+$spacing-1-5: 0.375rem;  // 6px
+$spacing-2:  0.5rem;     // 8px
+$spacing-2-5: 0.625rem;  // 10px
+$spacing-3:  0.75rem;    // 12px
+$spacing-3-5: 0.875rem;  // 14px
+$spacing-4:  1rem;       // 16px
+$spacing-5:  1.25rem;    // 20px
+$spacing-6:  1.5rem;     // 24px
+$spacing-7:  1.75rem;    // 28px
+$spacing-8:  2rem;       // 32px
+$spacing-9:  2.25rem;    // 36px
+$spacing-10: 2.5rem;     // 40px
+$spacing-12: 3rem;       // 48px
+$spacing-14: 3.5rem;     // 56px
+$spacing-16: 4rem;       // 64px
+
+// Legacy aliases
+$spacing-xs: $spacing-0-5;
+$spacing-sm: $spacing-1;
+$spacing-md: $spacing-1-5;
+$spacing-base: $spacing-2;
+$spacing-lg: $spacing-2-5;
+$spacing-xl: $spacing-3;
+$spacing-2xl: $spacing-3-5;
+$spacing-3xl: $spacing-4;
+$spacing-4xl: $spacing-5;
+$spacing-5xl: $spacing-6;
+$spacing-6xl: $spacing-8;
+$spacing-7xl: $spacing-10;
+$spacing-8xl: $spacing-12;
+
+
+// ============================================================================
+// SECTION 9: RAYONS DE BORDURE
+// ============================================================================
+
+$radius-none: 0;
+$radius-sm:   0.25rem;   // 4px
+$radius-base: 0.375rem;  // 6px
+$radius-md:   0.5rem;    // 8px
+$radius-lg:   0.625rem;  // 10px
+$radius-xl:   0.75rem;   // 12px
+$radius-2xl:  1rem;      // 16px
+$radius-3xl:  1.5rem;    // 24px
+$radius-full: 9999px;    // Cercle/pill
+
+
+// ============================================================================
+// SECTION 10: OMBRES
+// ============================================================================
+// Ombres sombres pour thème dark, basées sur $ctp-crust
+
+$shadow-xs:  0 1px 2px rgba($ctp-crust, 0.5);
+$shadow-sm:  0 1px 3px rgba($ctp-crust, 0.5), 0 1px 2px rgba($ctp-crust, 0.4);
+$shadow-md:  0 4px 6px rgba($ctp-crust, 0.4), 0 2px 4px rgba($ctp-crust, 0.3);
+$shadow-lg:  0 10px 15px rgba($ctp-crust, 0.4), 0 4px 6px rgba($ctp-crust, 0.3);
+$shadow-xl:  0 20px 25px rgba($ctp-crust, 0.4), 0 10px 10px rgba($ctp-crust, 0.3);
+$shadow-2xl: 0 25px 50px rgba($ctp-crust, 0.5);
+$shadow-inner: inset 0 2px 4px rgba($ctp-crust, 0.4);
+$shadow-none: none;
+
+// Ombres colorées (glow effects)
+$shadow-accent: 0 0 20px rgba($ctp-peach, 0.2), 0 0 40px rgba($ctp-peach, 0.1);
+$shadow-success: 0 0 20px rgba($ctp-green, 0.2);
+$shadow-error: 0 0 20px rgba($ctp-red, 0.2);
+$shadow-info: 0 0 20px rgba($ctp-blue, 0.2);
+
+// Legacy aliases
+$shadow-base: $shadow-sm;
+$shadow-primary: $shadow-accent;
+$shadow-inset: $shadow-inner;
+
+
+// ============================================================================
+// SECTION 11: TRANSITIONS & ANIMATIONS
+// ============================================================================
+
+// --- Durées ---
+$duration-75:  75ms;
+$duration-100: 100ms;
+$duration-150: 150ms;
+$duration-200: 200ms;
+$duration-300: 300ms;
+$duration-500: 500ms;
+$duration-700: 700ms;
+$duration-1000: 1000ms;
+
+// Aliases sémantiques
+$transition-fast: $duration-100;
+$transition-base: $duration-150;
+$transition-slow: $duration-300;
+$transition-slower: $duration-500;
+
+// --- Easing functions ---
+$ease-linear: linear;
+$ease-in: cubic-bezier(0.4, 0, 1, 1);
+$ease-out: cubic-bezier(0, 0, 0.2, 1);
+$ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+$ease-bounce: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+$ease-smooth: cubic-bezier(0.25, 0.1, 0.25, 1);
+
+// Alias
+$ease-default: $ease-out;
+
+
+// ============================================================================
+// SECTION 12: Z-INDEX
+// ============================================================================
+// Échelle organisée pour éviter les conflits
+
+$z-deep:      -1;      // Éléments en arrière-plan
+$z-base:       0;      // Niveau de base
+$z-raised:     1;      // Légèrement élevé
+$z-dropdown:   10;     // Menus déroulants
+$z-sticky:     20;     // Headers sticky
+$z-fixed:      30;     // Éléments fixes
+$z-overlay:    40;     // Overlays, backdrops
+$z-modal:      50;     // Modales
+$z-popover:    60;     // Popovers, tooltips
+$z-toast:      70;     // Notifications toast
+$z-max:        9999;   // Maximum absolu
+
+// Legacy
+$z-modal-backdrop: $z-overlay;
+$z-tooltip: $z-popover;
+$z-notification: $z-toast;
+
+
+// ============================================================================
+// SECTION 13: DIMENSIONS & LAYOUT
+// ============================================================================
+
+// --- Navigation ---
+$nav-width: 240px;
+$nav-width-collapsed: 60px;
+$nav-transition: $transition-slow $ease-out;
+
+// --- Sidebars ---
+$sidebar-width-sm: 200px;
+$sidebar-width: 260px;
+$sidebar-width-lg: 320px;
+$settings-sidebar-width: 260px;
+
+// --- Toolbar ---
+$toolbar-height: 56px;
+$toolbar-height-sm: 48px;
+
+// --- Breakpoints responsive ---
+$breakpoint-xs:  480px;
+$breakpoint-sm:  640px;
+$breakpoint-md:  768px;
+$breakpoint-lg:  1024px;
+$breakpoint-xl:  1280px;
+$breakpoint-2xl: 1536px;
+
+// --- Container widths ---
+$container-sm:  640px;
+$container-md:  768px;
+$container-lg:  1024px;
+$container-xl:  1280px;
+
+// --- Icons ---
+$icon-size-xs:  12px;
+$icon-size-sm:  14px;
+$icon-size-base: 16px;
+$icon-size-md:  18px;
+$icon-size-lg:  20px;
+$icon-size-xl:  24px;
+$icon-size-2xl: 32px;
+$icon-size-3xl: 40px;
+$icon-size-4xl: 48px;
+
+// --- Avatars ---
+$avatar-size-xs: 24px;
+$avatar-size-sm: 32px;
+$avatar-size-base: 40px;
+$avatar-size-lg: 48px;
+$avatar-size-xl: 64px;
+
+// --- Buttons ---
+$button-height-xs: 24px;
+$button-height-sm: 32px;
+$button-height-base: 40px;
+$button-height-lg: 48px;
+
+
+// ============================================================================
+// SECTION 14: SCROLLBARS
+// ============================================================================
+
+$scrollbar-width: 8px;
+$scrollbar-width-thin: 6px;
+$scrollbar-track: rgba($ctp-surface0, 0.5);
+$scrollbar-thumb: $ctp-surface2;
+$scrollbar-thumb-hover: $ctp-overlay0;
+$scrollbar-thumb-active: $ctp-overlay1;
+
+// Legacy aliases
+$scrollbar-size: $scrollbar-width;
+$scrollbar-size-thin: $scrollbar-width-thin;
+
+
+// ============================================================================
+// SECTION 15: COMPOSANTS SPÉCIFIQUES
+// ============================================================================
+
+// --- Curseurs EDA (couleurs distinctes) ---
+$cursor-1-color: $ctp-green;
+$cursor-2-color: $ctp-pink;
+$cursor-delta-color: $ctp-yellow;
+
+// --- Statuts ---
+$status-online: $ctp-green;
+$status-offline: $ctp-overlay0;
+$status-busy: $ctp-red;
+$status-away: $ctp-yellow;
+$status-warning: $ctp-yellow;
+$status-error: $ctp-red;
+
+// --- Signaux (EDA plots) ---
+$signal-default-color: $ctp-overlay1;
+$signal-active-color: $ctp-green;
+$signal-highlight-color: $ctp-peach;
+
+// --- Tags/Pills (selon style guide: blue) ---
+$tag-bg: rgba($ctp-blue, 0.15);
+$tag-color: $ctp-blue;
+$tag-border: rgba($ctp-blue, 0.3);
+
+// --- Progress bars ---
+$progress-bg: $ctp-surface0;
+$progress-fill: $ctp-peach;
+$progress-fill-success: $ctp-green;
+
+// --- Badges ---
+$badge-bg: $ctp-surface1;
+$badge-color: $ctp-subtext1;
+
+
+// ============================================================================
+// SECTION 16: SYNTAX HIGHLIGHTING (Catppuccin Mocha)
+// ============================================================================
+// Couleurs officielles selon le style guide Catppuccin
+
+$syntax-bg: $ctp-mantle;
+$syntax-text: $ctp-text;
+$syntax-comment: $ctp-overlay1;       // Commentaires
+$syntax-punctuation: $ctp-overlay2;   // Ponctuation
+$syntax-keyword: $ctp-mauve;          // Keywords (if, else, function...)
+$syntax-string: $ctp-green;           // Strings
+$syntax-number: $ctp-peach;           // Numbers
+$syntax-function: $ctp-blue;          // Function names
+$syntax-variable: $ctp-text;          // Variables
+$syntax-constant: $ctp-peach;         // Constants
+$syntax-class: $ctp-yellow;           // Class names
+$syntax-type: $ctp-yellow;            // Types
+$syntax-tag: $ctp-mauve;              // HTML/XML tags
+$syntax-attribute: $ctp-blue;         // Attributes
+$syntax-property: $ctp-blue;          // Properties (JSON keys)
+$syntax-operator: $ctp-sky;           // Operators
+$syntax-regex: $ctp-peach;            // Regex
+$syntax-important: $ctp-red;          // Important, errors
+$syntax-inserted: $ctp-green;         // Git inserted
+$syntax-deleted: $ctp-red;            // Git deleted
+$syntax-changed: $ctp-yellow;         // Git changed
+
+// Legacy aliases
+$code-bg: $syntax-bg;
+$code-text: $syntax-text;
+$code-comment: $syntax-comment;
+$code-punctuation: $syntax-punctuation;
+$code-keyword: $syntax-keyword;
+$code-string: $syntax-string;
+$code-number: $syntax-number;
+$code-function: $syntax-function;
+$code-variable: $syntax-variable;
+$code-tag: $syntax-tag;
+$code-operator: $syntax-operator;
+$code-class: $syntax-class;
+$code-constant: $syntax-constant;
+
+
+// ============================================================================
+// SECTION 17: OPACITÉS
+// ============================================================================
+
+$opacity-0:   0;
+$opacity-5:   0.05;
+$opacity-10:  0.1;
+$opacity-20:  0.2;
+$opacity-25:  0.25;
+$opacity-30:  0.3;
+$opacity-40:  0.4;
+$opacity-50:  0.5;
+$opacity-60:  0.6;
+$opacity-70:  0.7;
+$opacity-75:  0.75;
+$opacity-80:  0.8;
+$opacity-90:  0.9;
+$opacity-95:  0.95;
+$opacity-100: 1;
+
+// Sémantique
+$opacity-disabled: 0.5;
+$opacity-muted: 0.6;
+$opacity-hover: 0.08;
+$opacity-active: 0.12;
+$opacity-focus: 0.15;
+
+
+// ============================================================================
+// SECTION 18: GRADIENTS
+// ============================================================================
+
+// --- Gradients d'accent ---
+$gradient-accent: linear-gradient(135deg, $ctp-peach, $ctp-yellow);
+$gradient-accent-hover: linear-gradient(135deg, #fcbf9a, #fbecc5);
+
+// --- Gradients sémantiques ---
+$gradient-success: linear-gradient(135deg, $ctp-green, $ctp-teal);
+$gradient-error: linear-gradient(135deg, $ctp-red, $ctp-maroon);
+$gradient-warning: linear-gradient(135deg, $ctp-yellow, $ctp-peach);
+$gradient-info: linear-gradient(135deg, $ctp-blue, $ctp-sapphire);
+
+// --- Gradients de fond (très subtils) ---
+$gradient-surface: linear-gradient(180deg, $ctp-base, $ctp-mantle);
+$gradient-card: linear-gradient(180deg, $ctp-surface0, rgba($ctp-base, 0.8));
+$gradient-toolbar: linear-gradient(180deg, $ctp-mantle, rgba($ctp-crust, 0.5));
+
+// --- Gradient radial pour effets de lumière ---
+$gradient-glow: radial-gradient(ellipse at center, rgba($ctp-peach, 0.1) 0%, transparent 70%);
+
+// Legacy
+$gradient-primary: $gradient-accent;
+$gradient-progress: linear-gradient(90deg, $ctp-peach, $ctp-yellow);
+$gradient-progress-success: linear-gradient(90deg, $ctp-green, $ctp-teal);
+$gradient-accent-warm: $gradient-accent;
+
+
+// ============================================================================
+// SECTION 19: MIXINS UTILITAIRES
+// ============================================================================
+
+/// Transition standard avec easing smooth
+/// @param {String} $property [all] - Propriété à animer
+@mixin transition($property: all) {
+  transition: $property $transition-base $ease-out;
+}
+
+/// Transition personnalisée
+/// @param {String} $property - Propriété
+/// @param {Time} $duration - Durée
+/// @param {String} $easing - Fonction d'easing
+@mixin transition-custom($property: all, $duration: $transition-base, $easing: $ease-out) {
+  transition: $property $duration $easing;
+}
+
+/// Focus ring accessible (style Catppuccin)
+@mixin focus-ring {
+  outline: none;
+  box-shadow: 0 0 0 2px $bg-app, 0 0 0 4px $color-accent;
+}
+
+/// Focus ring subtil pour inputs
+@mixin focus-ring-subtle {
+  outline: none;
+  border-color: $border-focus;
+  box-shadow: 0 0 0 3px rgba($color-accent, 0.15);
+}
+
+/// Style de carte standard
+@mixin card {
+  background: $bg-card;
+  border: 1px solid $border-default;
+  border-radius: $radius-xl;
+}
+
+/// Carte élevée (modales, dropdowns)
+@mixin card-elevated {
+  background: $bg-card-elevated;
+  border: 1px solid $border-subtle;
+  border-radius: $radius-xl;
+  box-shadow: $shadow-lg;
+}
+
+/// Bouton avec gradient
+/// @param {Color} $start - Couleur de départ
+/// @param {Color} $end - Couleur de fin
+@mixin btn-gradient($start: $ctp-peach, $end: $ctp-yellow) {
+  background: linear-gradient(135deg, $start, $end);
+  border: none;
+  color: $text-on-accent;
+  font-weight: $font-weight-semibold;
+  
+  &:hover {
+    filter: brightness(1.05);
+  }
+  
+  &:active {
+    filter: brightness(0.95);
+  }
+}
+
+/// Scrollbar personnalisée
+/// @param {Length} $width [$scrollbar-width] - Largeur
+@mixin custom-scrollbar($width: $scrollbar-width) {
+  &::-webkit-scrollbar {
+    width: $width;
+    height: $width;
+  }
+  
+  &::-webkit-scrollbar-track {
+    background: $scrollbar-track;
+    border-radius: $radius-full;
+  }
+  
+  &::-webkit-scrollbar-thumb {
+    background: $scrollbar-thumb;
+    border-radius: $radius-full;
+    
+    &:hover {
+      background: $scrollbar-thumb-hover;
+    }
+    
+    &:active {
+      background: $scrollbar-thumb-active;
+    }
+  }
+}
+
+/// Effet glassmorphism
+@mixin glass {
+  background: rgba($ctp-base, 0.75);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba($ctp-text, 0.06);
+}
+
+/// Effet de glow/lueur
+/// @param {Color} $color - Couleur du glow
+/// @param {Number} $intensity [0.15] - Intensité
+@mixin glow($color: $color-accent, $intensity: 0.15) {
+  box-shadow: 0 0 20px rgba($color, $intensity), 
+              0 0 40px rgba($color, $intensity * 0.5);
+}
+
+/// Truncate text avec ellipsis
+@mixin truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/// Truncate multiline
+/// @param {Number} $lines - Nombre de lignes
+@mixin line-clamp($lines: 2) {
+  display: -webkit-box;
+  -webkit-line-clamp: $lines;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/// Visually hidden (accessible)
+@mixin visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/// Media query helper
+/// @param {String} $breakpoint - Nom du breakpoint
+@mixin respond-to($breakpoint) {
+  @if $breakpoint == 'xs' {
+    @media (min-width: $breakpoint-xs) { @content; }
+  } @else if $breakpoint == 'sm' {
+    @media (min-width: $breakpoint-sm) { @content; }
+  } @else if $breakpoint == 'md' {
+    @media (min-width: $breakpoint-md) { @content; }
+  } @else if $breakpoint == 'lg' {
+    @media (min-width: $breakpoint-lg) { @content; }
+  } @else if $breakpoint == 'xl' {
+    @media (min-width: $breakpoint-xl) { @content; }
+  } @else if $breakpoint == '2xl' {
+    @media (min-width: $breakpoint-2xl) { @content; }
+  }
+}
+
+/// True Squircle effect (iOS-style superellipse)
+/// Utilise un mask SVG pour créer une vraie superellipse
+/// Contrairement à border-radius, les coins sont des courbes continues
+/// @param {String} $curvature ['soft'] - 'soft' (léger), 'medium', 'hard' (plus carré)
+@mixin squircle($curvature: 'medium') {
+  // Soft: coins plus arrondis (C 0,5 5,0)
+  // Medium: équilibre iOS-style (C 0,4 4,0)  
+  // Hard: plus carré mais toujours squircle (C 0,8 8,0)
+  
+  @if $curvature == 'soft' {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M 0,50 C 0,5 5,0 50,0 S 100,5 100,50 95,100 50,100 0,95 0,50' fill='black'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M 0,50 C 0,5 5,0 50,0 S 100,5 100,50 95,100 50,100 0,95 0,50' fill='black'/%3E%3C/svg%3E");
+  } @else if $curvature == 'hard' {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M 0,50 C 0,8 8,0 50,0 S 100,8 100,50 92,100 50,100 0,92 0,50' fill='black'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M 0,50 C 0,8 8,0 50,0 S 100,8 100,50 92,100 50,100 0,92 0,50' fill='black'/%3E%3C/svg%3E");
+  } @else {
+    // Medium (default) - style iOS
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M 0,50 C 0,4 4,0 50,0 S 100,4 100,50 96,100 50,100 0,96 0,50' fill='black'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M 0,50 C 0,4 4,0 50,0 S 100,4 100,50 96,100 50,100 0,96 0,50' fill='black'/%3E%3C/svg%3E");
+  }
+  
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+}
