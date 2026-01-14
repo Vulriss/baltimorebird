@@ -20,7 +20,6 @@ from flask.wrappers import Response
 if TYPE_CHECKING:
     from numpy.typing import NDArray
 
-
 computed_vars_bp = Blueprint("computed_vars", __name__)
 
 # Référence au datastore (initialisée par init_computed_vars)
@@ -549,7 +548,7 @@ def update_computed_variable(index: int) -> Tuple[Response, int] | Response:
         })
         
         name = meta["name"]
-        print(f"Updated computed variable: {name} = {formula}")
+        print(f"  ✓ Updated computed variable: {name} = {formula}")
         
         return jsonify({
             "success": True,

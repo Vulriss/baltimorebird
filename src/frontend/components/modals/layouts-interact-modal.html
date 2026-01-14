@@ -1,0 +1,74 @@
+<div class="layouts-drawer" id="layoutsDrawer">
+    <div class="drawer-header">
+        <h2>
+            <span class="header-list">Layouts</span>
+            <span class="header-save">Sauvegarder le layout</span>
+        </h2>
+        <button class="drawer-close" onclick="closeLayoutsDrawer()" title="Fermer">&times;</button>
+    </div>
+    
+    <!-- Mode Liste -->
+    <div class="drawer-body layouts-list-mode">
+        <div class="drawer-description">
+            Les layouts permettent de sauvegarder et réutiliser vos configurations de visualisation avec d'autres fichiers.
+        </div>
+        
+        <!-- Liste des layouts -->
+        <div class="layouts-list" id="layoutsList">
+            <div class="layouts-loading">Chargement...</div>
+        </div>
+        
+        <!-- Bouton sauvegarder -->
+        <div class="layouts-save-trigger">
+            <button class="btn-primary" onclick="openSaveLayoutDialog()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                    <polyline points="17 21 17 13 7 13 7 21"/>
+                    <polyline points="7 3 7 8 15 8"/>
+                </svg>
+                Sauvegarder le layout actuel
+            </button>
+        </div>
+    </div>
+    
+    <!-- Mode Sauvegarde -->
+    <div class="drawer-body layouts-save-mode">
+        <button class="layouts-back-btn" onclick="closeSaveMode()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="15 18 9 12 15 6"/>
+            </svg>
+            Retour à la liste
+        </button>
+        
+        <div class="drawer-field">
+            <label>Nom du layout <span class="required">*</span></label>
+            <input type="text" id="saveLayoutName" placeholder="ex: Analyse moteur">
+        </div>
+        
+        <div class="drawer-field">
+            <label>Description <span class="optional">(optionnel)</span></label>
+            <textarea id="saveLayoutDesc" placeholder="Description du layout..." rows="3"></textarea>
+        </div>
+        
+        <div class="layout-preview">
+            <div class="layout-preview-title">Ce qui sera sauvegardé :</div>
+            <ul class="layout-preview-list">
+                <li>Configuration des onglets</li>
+                <li>Signaux affichés (par nom)</li>
+                <li>Couleurs et styles des courbes</li>
+                <li>Proportions des graphiques</li>
+                <li>Variables calculées</li>
+            </ul>
+        </div>
+    </div>
+    
+    <div class="drawer-footer">
+        <button class="btn-secondary footer-list" onclick="closeLayoutsDrawer()">Fermer</button>
+        <button class="btn-primary footer-save" onclick="saveCurrentLayout()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+            Sauvegarder
+        </button>
+    </div>
+</div>

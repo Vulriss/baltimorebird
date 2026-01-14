@@ -72,18 +72,18 @@ dmypy.json
 # Backend - Données
 # -----------------------------------------------------------------------------
 # Base de données
-backend/data/auth/*.db
-backend/data/users.db
+src/backend/data/auth/*.db
+src/backend/data/users.db
 users.db
 
 # User data (private uploads, scripts, etc.)
-backend/data/users/
+src/backend/data/users/
 
 # Métriques (données générées)
-backend/metrics_data/
+src/backend/metrics_data/
 
 # Fichiers temporaires
-backend/TEMP/
+src/backend/TEMP/
 
 # Logs
 *.log
@@ -98,10 +98,10 @@ logs/
 *.DBC
 
 # Sauf les exemples
-!backend/examples/*.mf4
-!backend/examples/*.dbc
-!backend/examples/*.MF4
-!backend/examples/*.DBC
+!src/backend/examples/*.mf4
+!src/backend/examples/*.dbc
+!src/backend/examples/*.MF4
+!src/backend/examples/*.DBC
 
 # -----------------------------------------------------------------------------
 # Frontend - Node.js & Vite

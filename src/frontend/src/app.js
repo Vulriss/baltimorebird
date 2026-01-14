@@ -711,18 +711,516 @@ function setupEmptyPlotDropZone(tabId) {
 }
 
 // =========================================================================
-// Layout Save/Load (placeholder)
+// Layout Save/Load System
 // =========================================================================
-function saveLayout() {
-    // TODO: Implement
-    console.log('Save layout - TODO');
-    alert('Save layout - Coming soon!');
+
+/**
+ * Exporte l'état actuel en format layout JSON.
+ * Les signaux sont référencés par nom (pas index) pour la portabilité.
+ */
+function exportCurrentLayout() {
+    const layoutTabs = tabs.map(tab => {
+        const tabPlots = (tab.plots || []).map(plot => {
+            const plotSignals = plot.signals.map(sigIdx => {
+                const sig = signalsInfo[sigIdx];
+                const style = plot.signalStyles?.[sigIdx] || { color: sig?.color || '#fff', width: 1.5, dash: '' };
+                return {
+                    name: sig?.name || `Signal_${sigIdx}`,
+                    style: {
+                        color: style.color,
+                        width: style.width,
+                        dash: style.dash || ''
+                    }
+                };
+            });
+            
+            // Récupérer le ratio flex du plot
+            const flex = plot.element?.style?.flex || '1';
+            
+            return {
+                flex: parseFloat(flex) || 1,
+                signals: plotSignals
+            };
+        });
+        
+        return {
+            name: tab.name,
+            plots: tabPlots
+        };
+    });
+    
+    // Récupérer les variables calculées
+    const computedVars = signalsInfo
+        .filter(sig => sig.computed)
+        .map(sig => ({
+            name: sig.name,
+            unit: sig.unit || '',
+            description: sig.description || '',
+            formula: sig.formula || '',
+            source_signals: sig.source_signals || []
+        }));
+    
+    return {
+        tabs: layoutTabs,
+        computed_variables: computedVars
+    };
 }
 
+/**
+ * Applique un layout au système.
+ * Résout les noms de signaux vers les index actuels.
+ */
+async function applyLayout(layout) {
+    if (!layout || !layout.tabs) {
+        console.error('Layout invalide');
+        return false;
+    }
+    
+    // Créer un map nom -> index pour les signaux actuels
+    const signalNameToIndex = {};
+    signalsInfo.forEach(sig => {
+        signalNameToIndex[sig.name] = sig.index;
+    });
+    
+    // 1. D'abord créer les variables calculées si nécessaire
+    if (layout.computed_variables && layout.computed_variables.length > 0) {
+        for (const cv of layout.computed_variables) {
+            // Vérifier si elle existe déjà
+            const existing = signalsInfo.find(s => s.name === cv.name && s.computed);
+            if (!existing) {
+                // Reconstruire le mapping A, B, C... -> signal names
+                const mapping = {};
+                const formulaVars = [...new Set((cv.formula.match(/\b([A-Z])\b/g) || []))].sort();
+                
+                formulaVars.forEach((varLetter, idx) => {
+                    if (idx < (cv.source_signals || []).length) {
+                        const sourceName = cv.source_signals[idx];
+                        if (signalNameToIndex[sourceName] !== undefined) {
+                            mapping[varLetter] = sourceName;
+                        }
+                    }
+                });
+                
+                // Créer la variable si tous les signaux sources existent
+                if (Object.keys(mapping).length === formulaVars.length) {
+                    try {
+                        const response = await fetch(`${API}/create-variable`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                name: cv.name,
+                                unit: cv.unit || '',
+                                description: cv.description || '',
+                                formula: cv.formula,
+                                mapping: mapping
+                            })
+                        });
+                        
+                        if (response.ok) {
+                            console.log(`Created computed variable: ${cv.name}`);
+                        }
+                    } catch (e) {
+                        console.warn(`Failed to create computed variable ${cv.name}:`, e);
+                    }
+                } else {
+                    console.warn(`Cannot create ${cv.name}: missing source signals`);
+                }
+            }
+        }
+        
+        // Recharger signalsInfo après création des variables
+        const infoRes = await fetch(`${API}/info`);
+        const info = await infoRes.json();
+        signalsInfo = info.signals;
+        signalsInfo.forEach(sig => {
+            signalNameToIndex[sig.name] = sig.index;
+        });
+        renderSignalList();
+    }
+    
+    // 2. Effacer les tabs existants
+    const tabIds = tabs.map(t => t.id);
+    tabIds.forEach(id => {
+        const tab = tabs.find(t => t.id === id);
+        if (tab && tab.plots) {
+            tab.plots.forEach(p => {
+                if (p.chart) p.chart.destroy();
+            });
+        }
+        // Supprimer le contenu DOM de ce tab
+        const tabContent = document.getElementById(`content-${id}`);
+        if (tabContent) tabContent.remove();
+    });
+    tabs = [];
+    plots = [];
+    activeTabId = null;
+    
+    // Rafraîchir la liste des tabs (vide maintenant)
+    renderTabs();
+    
+    // 3. Recréer les tabs et plots
+    for (let tabIdx = 0; tabIdx < layout.tabs.length; tabIdx++) {
+        const layoutTab = layout.tabs[tabIdx];
+        const tabId = createTab(layoutTab.name);
+        
+        if (tabIdx === 0) {
+            switchTab(tabId);
+        }
+        
+        // Créer les plots dans ce tab
+        for (const layoutPlot of layoutTab.plots) {
+            // Trouver le premier signal valide pour créer le plot
+            let firstSignalIdx = null;
+            for (const sig of layoutPlot.signals) {
+                if (signalNameToIndex[sig.name] !== undefined) {
+                    firstSignalIdx = signalNameToIndex[sig.name];
+                    break;
+                }
+            }
+            
+            if (firstSignalIdx === null) continue;
+            
+            // Créer le plot avec le premier signal
+            const plotId = createPlotInTab(tabId, firstSignalIdx);
+            const plot = plots.find(p => p.id === plotId);
+            
+            if (plot) {
+                // Appliquer le style du premier signal
+                const firstSig = layoutPlot.signals.find(s => signalNameToIndex[s.name] !== undefined);
+                if (firstSig && firstSig.style) {
+                    if (!plot.signalStyles) plot.signalStyles = {};
+                    plot.signalStyles[firstSignalIdx] = {
+                        color: firstSig.style.color,
+                        width: firstSig.style.width || 1.5,
+                        dash: firstSig.style.dash || ''
+                    };
+                }
+                
+                // Ajouter les autres signaux
+                for (const sig of layoutPlot.signals.slice(1)) {
+                    const sigIdx = signalNameToIndex[sig.name];
+                    if (sigIdx !== undefined) {
+                        addSignalToPlot(plotId, sigIdx);
+                        if (sig.style) {
+                            plot.signalStyles[sigIdx] = {
+                                color: sig.style.color,
+                                width: sig.style.width || 1.5,
+                                dash: sig.style.dash || ''
+                            };
+                        }
+                    }
+                }
+                
+                // Appliquer le ratio flex
+                if (plot.element && layoutPlot.flex) {
+                    plot.element.style.flex = layoutPlot.flex.toString();
+                }
+            }
+        }
+    }
+    
+    // Activer le premier tab
+    if (tabs.length > 0) {
+        switchTab(tabs[0].id);
+    }
+    
+    // Rafraîchir l'affichage
+    renderTabs();
+    refreshAllPlots();
+    
+    return true;
+}
+
+/**
+ * Ouvre le drawer de gestion des layouts
+ */
+function openLayoutsDrawer() {
+    const drawer = document.getElementById('layoutsDrawer');
+    if (drawer) {
+        loadLayoutsList();
+        drawer.classList.add('active');
+    }
+}
+
+function closeLayoutsDrawer() {
+    const drawer = document.getElementById('layoutsDrawer');
+    if (drawer) {
+        drawer.classList.remove('active');
+    }
+}
+
+/**
+ * Charge la liste des layouts depuis le serveur
+ */
+async function loadLayoutsList() {
+    const listContainer = document.getElementById('layoutsList');
+    if (!listContainer) return;
+    
+    listContainer.innerHTML = '<div class="layouts-loading">Chargement...</div>';
+    
+    try {
+        // Utilise authFetch si dispo pour avoir les layouts utilisateur
+        const response = typeof authFetch === 'function' 
+            ? await authFetch(`${API}/layouts`).catch(() => fetch(`${API}/layouts`))
+            : await fetch(`${API}/layouts`);
+        const data = await response.json();
+        
+        if (!data.layouts || data.layouts.length === 0) {
+            listContainer.innerHTML = '<div class="layouts-empty">Aucun layout disponible</div>';
+            return;
+        }
+        
+        listContainer.innerHTML = '';
+        
+        // Séparer démo et utilisateur
+        const demoLayouts = data.layouts.filter(l => l.is_demo);
+        const userLayouts = data.layouts.filter(l => !l.is_demo);
+        
+        if (demoLayouts.length > 0) {
+            const demoSection = document.createElement('div');
+            demoSection.className = 'layouts-section';
+            demoSection.innerHTML = '<div class="layouts-section-title">Layouts de démonstration</div>';
+            
+            demoLayouts.forEach(layout => {
+                demoSection.appendChild(createLayoutItem(layout));
+            });
+            
+            listContainer.appendChild(demoSection);
+        }
+        
+        if (userLayouts.length > 0) {
+            const userSection = document.createElement('div');
+            userSection.className = 'layouts-section';
+            userSection.innerHTML = '<div class="layouts-section-title">Mes layouts</div>';
+            
+            userLayouts.forEach(layout => {
+                userSection.appendChild(createLayoutItem(layout));
+            });
+            
+            listContainer.appendChild(userSection);
+        }
+        
+    } catch (e) {
+        console.error('Failed to load layouts:', e);
+        listContainer.innerHTML = '<div class="layouts-error">Erreur de chargement</div>';
+    }
+}
+
+function createLayoutItem(layout) {
+    const item = document.createElement('div');
+    item.className = 'layout-item' + (layout.is_demo ? ' demo' : '');
+    
+    const info = document.createElement('div');
+    info.className = 'layout-info';
+    
+    const name = document.createElement('div');
+    name.className = 'layout-name';
+    name.textContent = layout.name;
+    if (layout.is_demo) {
+        const badge = document.createElement('span');
+        badge.className = 'layout-badge';
+        badge.textContent = 'DEMO';
+        name.appendChild(badge);
+    }
+    
+    const meta = document.createElement('div');
+    meta.className = 'layout-meta';
+    meta.textContent = `${layout.tabs_count} onglet${layout.tabs_count > 1 ? 's' : ''}`;
+    if (layout.description) {
+        meta.textContent += ` • ${layout.description.substring(0, 50)}`;
+    }
+    
+    info.appendChild(name);
+    info.appendChild(meta);
+    
+    const actions = document.createElement('div');
+    actions.className = 'layout-actions';
+    
+    const loadBtn = document.createElement('button');
+    loadBtn.className = 'btn-small btn-primary';
+    loadBtn.textContent = 'Charger';
+    loadBtn.onclick = () => loadLayoutById(layout.id);
+    actions.appendChild(loadBtn);
+    
+    if (!layout.is_demo) {
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'btn-small btn-danger';
+        deleteBtn.textContent = '✕';
+        deleteBtn.title = 'Supprimer';
+        deleteBtn.onclick = (e) => {
+            e.stopPropagation();
+            deleteLayout(layout.id, layout.name);
+        };
+        actions.appendChild(deleteBtn);
+    }
+    
+    item.appendChild(info);
+    item.appendChild(actions);
+    
+    return item;
+}
+
+/**
+ * Charge un layout par son ID
+ */
+async function loadLayoutById(layoutId) {
+    try {
+        // Utilise authFetch pour les layouts utilisateur, fallback sur fetch pour les layouts démo
+        const response = typeof authFetch === 'function'
+            ? await authFetch(`${API}/layouts/${layoutId}`).catch(() => fetch(`${API}/layouts/${layoutId}`))
+            : await fetch(`${API}/layouts/${layoutId}`);
+        
+        if (!response.ok) {
+            throw new Error('Layout introuvable');
+        }
+        
+        const layout = await response.json();
+        
+        closeLayoutsDrawer();
+        
+        if (typeof showNotification === 'function') {
+            showNotification(`Chargement du layout "${layout.name}"...`, 'info');
+        }
+        
+        const success = await applyLayout(layout);
+        
+        if (success && typeof showNotification === 'function') {
+            showNotification(`Layout "${layout.name}" appliqué`, 'success');
+        }
+        
+    } catch (e) {
+        console.error('Failed to load layout:', e);
+        if (typeof showNotification === 'function') {
+            showNotification('Erreur lors du chargement du layout', 'error');
+        }
+    }
+}
+
+/**
+ * Supprime un layout
+ */
+async function deleteLayout(layoutId, layoutName) {
+    if (!confirm(`Supprimer le layout "${layoutName}" ?`)) {
+        return;
+    }
+    
+    try {
+        const response = await authFetch(`${API}/layouts/${layoutId}`, {
+            method: 'DELETE'
+        });
+        
+        if (response.ok) {
+            if (typeof showNotification === 'function') {
+                showNotification('Layout supprimé', 'success');
+            }
+            loadLayoutsList();
+        } else {
+            throw new Error('Erreur de suppression');
+        }
+    } catch (e) {
+        console.error('Failed to delete layout:', e);
+        if (typeof showNotification === 'function') {
+            showNotification('Erreur lors de la suppression', 'error');
+        }
+    }
+}
+
+/**
+ * Sauvegarde le layout actuel (ancienne fonction renommée)
+ */
+function saveLayout() {
+    openSaveLayoutDialog();
+}
+
+/**
+ * Charge un layout (ancienne fonction renommée)
+ */
 function loadLayout() {
-    // TODO: Implement
-    console.log('Load layout - TODO');
-    alert('Load layout - Coming soon!');
+    openLayoutsDrawer();
+}
+
+/**
+ * Ouvre le dialog pour sauvegarder le layout actuel
+ */
+function openSaveLayoutDialog() {
+    const drawer = document.getElementById('layoutsDrawer');
+    if (!drawer) return;
+    
+    // Vérifier qu'il y a quelque chose à sauvegarder
+    if (tabs.length === 0 || tabs.every(t => !t.plots || t.plots.length === 0)) {
+        if (typeof showNotification === 'function') {
+            showNotification('Rien à sauvegarder - ajoutez des signaux aux plots', 'warning');
+        }
+        return;
+    }
+    
+    drawer.classList.add('active');
+    drawer.classList.add('save-mode');
+    
+    // Focus sur le champ nom
+    setTimeout(() => {
+        const nameInput = document.getElementById('saveLayoutName');
+        if (nameInput) nameInput.focus();
+    }, 100);
+}
+
+function closeSaveMode() {
+    const drawer = document.getElementById('layoutsDrawer');
+    if (drawer) {
+        drawer.classList.remove('save-mode');
+    }
+}
+
+/**
+ * Sauvegarde le layout actuel avec le nom donné
+ */
+async function saveCurrentLayout() {
+    const nameInput = document.getElementById('saveLayoutName');
+    const descInput = document.getElementById('saveLayoutDesc');
+    
+    const name = nameInput?.value?.trim();
+    const description = descInput?.value?.trim() || '';
+    
+    if (!name) {
+        if (typeof showNotification === 'function') {
+            showNotification('Veuillez entrer un nom pour le layout', 'warning');
+        }
+        return;
+    }
+    
+    const layoutData = exportCurrentLayout();
+    layoutData.name = name;
+    layoutData.description = description;
+    
+    try {
+        const response = await authFetch(`${API}/layouts`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(layoutData)
+        });
+        
+        const result = await response.json();
+        
+        if (!response.ok) {
+            throw new Error(result.error || 'Erreur de sauvegarde');
+        }
+        
+        if (typeof showNotification === 'function') {
+            showNotification(`Layout "${name}" sauvegardé`, 'success');
+        }
+        
+        // Reset form et retour à la liste
+        if (nameInput) nameInput.value = '';
+        if (descInput) descInput.value = '';
+        closeSaveMode();
+        loadLayoutsList();
+        
+    } catch (e) {
+        console.error('Failed to save layout:', e);
+        if (typeof showNotification === 'function') {
+            showNotification(e.message || 'Erreur lors de la sauvegarde', 'error');
+        }
+    }
 }
 
 // =========================================================================
@@ -2091,7 +2589,7 @@ function updateDrawerHeader(isEditMode) {
     if (isEditMode) {
         if (header) header.textContent = 'Variable calculée';
         if (description) {
-            description.innerHTML = 'Vous pouvez modifier cette variable et cliquer sur "Mettre à jour" pour appliquer les changements.';
+            description.innerHTML = '<strong>📊 Mode visualisation</strong> — Vous pouvez modifier cette variable et cliquer sur "Mettre à jour" pour appliquer les changements.';
         }
         if (submitBtn) {
             submitBtn.innerHTML = `
@@ -2429,3 +2927,10 @@ window.setupCreateVariableListeners = setupCreateVariableListeners;
 window.addMappingSlot = addMappingSlot;
 window.removeMappingSlot = removeMappingSlot;
 window.submitCreateVariable = submitCreateVariable;
+window.openLayoutsDrawer = openLayoutsDrawer;
+window.closeLayoutsDrawer = closeLayoutsDrawer;
+window.loadLayoutById = loadLayoutById;
+window.saveCurrentLayout = saveCurrentLayout;
+window.closeSaveMode = closeSaveMode;
+window.exportCurrentLayout = exportCurrentLayout;
+window.applyLayout = applyLayout;

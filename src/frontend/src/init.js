@@ -19,6 +19,7 @@
         await window.ViewLoader.loadModal('upload', 'modalsContainer');
         await window.ViewLoader.loadModal('auth', 'modalsContainer');
         await window.ViewLoader.loadModal('var-creation', 'modalsContainer');
+        await window.ViewLoader.loadModal('layouts', 'modalsContainer');
         
         console.log('[Init] App bootstrapped');
     }

@@ -28,6 +28,7 @@ from lazy_eda import lazy_eda
 from metrics_api import metrics_bp
 from scripts_api import scripts_bp
 from user_storage import storage, storage_bp
+from layouts_api import layouts_bp, init_layouts
 from computed_variables import computed_vars_bp, init_computed_vars
 
 
@@ -74,6 +75,7 @@ app.register_blueprint(scripts_bp)
 app.register_blueprint(auth_bp)
 app.register_blueprint(metrics_bp)
 app.register_blueprint(storage_bp)
+app.register_blueprint(layouts_bp)
 app.register_blueprint(computed_vars_bp)
 
 # CORS configuré avec origines spécifiques
@@ -765,6 +767,7 @@ class MultiSourceDataStore:
 
 datastore = MultiSourceDataStore()
 init_computed_vars(datastore)
+init_layouts(BASE_DIR)
 
 # --- Utility Functions ---
 

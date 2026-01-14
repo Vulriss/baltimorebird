@@ -1,0 +1,134 @@
+{
+  "id": "demo_obd2",
+  "name": "OBD2 Overview",
+  "description": "Vue d'ensemble des données OBD2 avec vitesse, RPM et températures",
+  "version": 1,
+  "created_at": "2026-01-14T18:43:06.084155Z",
+  "updated_at": "2026-01-14T18:43:06.084155Z",
+  "is_demo": true,
+  "tabs": [
+    {
+      "name": "Moteur",
+      "plots": [
+        {
+          "flex": 1.5,
+          "signals": [
+            {
+              "name": "VehicleSpeed",
+              "style": {
+                "color": "#fab387",
+                "width": 2,
+                "dash": ""
+              }
+            }
+          ]
+        },
+        {
+          "flex": 1,
+          "signals": [
+            {
+              "name": "EngineRPM",
+              "style": {
+                "color": "#89b4fa",
+                "width": 1.5,
+                "dash": ""
+              }
+            }
+          ]
+        },
+        {
+          "flex": 1,
+          "signals": [
+            {
+              "name": "ThrottlePosition",
+              "style": {
+                "color": "#a6e3a1",
+                "width": 1.5,
+                "dash": ""
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Températures",
+      "plots": [
+        {
+          "flex": 1,
+          "signals": [
+            {
+              "name": "CoolantTemp",
+              "style": {
+                "color": "#f38ba8",
+                "width": 2,
+                "dash": ""
+              }
+            },
+            {
+              "name": "IntakeAirTemp",
+              "style": {
+                "color": "#94e2d5",
+                "width": 1.5,
+                "dash": ""
+              }
+            }
+          ]
+        },
+        {
+          "flex": 1,
+          "signals": [
+            {
+              "name": "OilTemp",
+              "style": {
+                "color": "#f9e2af",
+                "width": 1.5,
+                "dash": ""
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Carburant",
+      "plots": [
+        {
+          "flex": 1,
+          "signals": [
+            {
+              "name": "MAF",
+              "style": {
+                "color": "#cba6f7",
+                "width": 1.5,
+                "dash": ""
+              }
+            },
+            {
+              "name": "FuelPressure",
+              "style": {
+                "color": "#74c7ec",
+                "width": 1.5,
+                "dash": ""
+              }
+            }
+          ]
+        },
+        {
+          "flex": 1,
+          "signals": [
+            {
+              "name": "O2Voltage",
+              "style": {
+                "color": "#f5c2e7",
+                "width": 1.5,
+                "dash": ""
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "computed_variables": []
+}

@@ -1598,6 +1598,251 @@ body {
     cursor: grabbing;
 }
 
+/* === LAYOUTS DRAWER === */
+.layouts-drawer {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 420px;
+    max-width: 90vw;
+    background: $bg-body;
+    border-left: 1px solid $border-color;
+    box-shadow: -8px 0 32px rgba(0, 0, 0, 0.4);
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    transform: translateX(100%);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.layouts-drawer.active {
+    transform: translateX(0);
+}
+
+/* Header toggle between modes */
+.layouts-drawer .header-save,
+.layouts-drawer .footer-save {
+    display: none;
+}
+
+.layouts-drawer.save-mode .header-list,
+.layouts-drawer.save-mode .footer-list,
+.layouts-drawer.save-mode .layouts-list-mode {
+    display: none;
+}
+
+.layouts-drawer.save-mode .header-save,
+.layouts-drawer.save-mode .footer-save,
+.layouts-drawer.save-mode .layouts-save-mode {
+    display: block;
+}
+
+.layouts-drawer .layouts-save-mode {
+    display: none;
+}
+
+/* Liste des layouts */
+.layouts-list {
+    flex: 1;
+    overflow-y: auto;
+    margin: 0 -20px;
+    padding: 0 20px;
+}
+
+.layouts-loading,
+.layouts-empty,
+.layouts-error {
+    padding: 40px 20px;
+    text-align: center;
+    color: $text-muted;
+    font-size: 13px;
+}
+
+.layouts-error {
+    color: $ctp-red;
+}
+
+.layouts-section {
+    margin-bottom: 24px;
+}
+
+.layouts-section-title {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: $text-darker;
+    margin-bottom: 12px;
+    padding-left: 4px;
+}
+
+.layout-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 14px;
+    background: $bg-card;
+    border: 1px solid $border-color;
+    border-radius: 8px;
+    margin-bottom: 8px;
+    transition: all 0.15s;
+}
+
+.layout-item:hover {
+    background: $bg-hover;
+    border-color: $border-light;
+}
+
+.layout-item.demo {
+    border-left: 3px solid $ctp-sapphire;
+}
+
+.layout-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.layout-name {
+    font-size: 13px;
+    font-weight: 500;
+    color: $text-primary;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.layout-badge {
+    font-size: 9px;
+    font-weight: 600;
+    padding: 2px 6px;
+    background: rgba($ctp-sapphire, 0.2);
+    color: $ctp-sapphire;
+    border-radius: 4px;
+    text-transform: uppercase;
+}
+
+.layout-meta {
+    font-size: 11px;
+    color: $text-muted;
+    margin-top: 4px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.layout-actions {
+    display: flex;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+.btn-small {
+    padding: 6px 12px;
+    font-size: 11px;
+    border-radius: 6px;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.btn-small.btn-primary {
+    background: $color-primary;
+    color: $ctp-crust;
+    font-weight: 500;
+}
+
+.btn-small.btn-primary:hover {
+    background: $color-primary-hover;
+}
+
+.btn-small.btn-danger {
+    background: transparent;
+    border-color: $border-color;
+    color: $text-muted;
+}
+
+.btn-small.btn-danger:hover {
+    background: rgba($ctp-red, 0.1);
+    border-color: $ctp-red;
+    color: $ctp-red;
+}
+
+/* Save trigger button */
+.layouts-save-trigger {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid $border-color;
+}
+
+.layouts-save-trigger .btn-primary {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.layouts-save-trigger .btn-primary svg {
+    width: 16px;
+    height: 16px;
+}
+
+/* Save mode */
+.layouts-back-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 12px;
+    margin-bottom: 20px;
+    background: transparent;
+    border: 1px solid $border-color;
+    border-radius: 6px;
+    color: $text-muted;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.layouts-back-btn:hover {
+    background: $bg-hover;
+    border-color: $border-light;
+    color: $text-primary;
+}
+
+.layouts-back-btn svg {
+    width: 16px;
+    height: 16px;
+}
+
+.layout-preview {
+    margin-top: 20px;
+    padding: 16px;
+    background: rgba($ctp-sapphire, 0.08);
+    border: 1px solid rgba($ctp-sapphire, 0.2);
+    border-radius: 8px;
+}
+
+.layout-preview-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: $ctp-sapphire;
+    margin-bottom: 12px;
+}
+
+.layout-preview-list {
+    margin: 0;
+    padding-left: 20px;
+    font-size: 12px;
+    color: $text-light;
+    line-height: 1.8;
+}
+
+.layout-preview-list li::marker {
+    color: $ctp-sapphire;
+}
+
 .signal-item {
     position: relative;
     display: flex;
