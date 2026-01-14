@@ -415,9 +415,9 @@
       "min": 0.0,
       "max": 4311.7,
       "avg": 41.1,
-      "p50": 1.0,
-      "p95": 33.0,
-      "p99": 2218.77
+      "p50": 0,
+      "p95": 0,
+      "p99": 0
     }
   },
   "2026-01-13": {
@@ -451,9 +451,43 @@
       "min": 0.0,
       "max": 216.31,
       "avg": 3.53,
-      "p50": 1.0,
-      "p95": 4.01,
-      "p99": 14.03
+      "p50": 0,
+      "p95": 0,
+      "p99": 0
+    }
+  },
+  "2026-01-14": {
+    "total_requests": 87,
+    "unique_users": [
+      "b2aeadbb5b4cd836"
+    ],
+    "endpoints": {
+      "/api/auth/me": 16,
+      "/api/sources": 16,
+      "/api/info": 21,
+      "/api/source/user_mf4_df08fab3-2347-4271-9dec-bc0605e79d6b": 1,
+      "/api/create-variable": 6,
+      "/api/view": 26,
+      "/api/source/synthetic": 1
+    },
+    "status_codes": {
+      "200": 83,
+      "404": 1,
+      "400": 3
+    },
+    "sessions": {
+      "count": 2,
+      "total_duration": 3749.3487598896027,
+      "max_duration": 3014.997478723526
+    },
+    "latency": {
+      "count": 87,
+      "min": 0.0,
+      "max": 223.51,
+      "avg": 5.93,
+      "p50": 4.0,
+      "p95": 20.05,
+      "p99": 223.51
     }
   }
 }

@@ -13,7 +13,6 @@ let lodPoints = 2000;
 let cursor1 = null, cursor2 = null;
 let draggedSignal = null;
 let currentSource = null;
-let isLazySource = false;
 
 // Tabs system
 let tabs = [];
@@ -54,6 +53,7 @@ async function init() {
         const info = await res.json();
         
         signalsInfo = info.signals;
+        window.signalsInfo = signalsInfo;
         globalView = { min: info.time_range.min, max: info.time_range.max };
         currentSource = info.source;
         
@@ -62,6 +62,9 @@ async function init() {
         
         renderSignalList();
         updateSourceSelector();
+        
+        // Initialize create variable modal
+        setupCreateVariableListeners();
         
         // Create first tab
         createTab('Main');
@@ -327,57 +330,21 @@ async function changeSource() {
             throw new Error(data.error);
         }
         
-        // =====================================================
-        // Handle lazy vs non-lazy sources differently
-        // =====================================================
-        if (data.lazy) {
-            // LAZY SOURCE (user files) - use data directly from response
-            console.log('[EDA] Lazy source loaded:', data.session_id);
-            
-            currentSessionId = data.session_id;
-            isLazySource = true;
-            signalsInfo = data.signals;
-            globalView = { min: data.time_range.min, max: data.time_range.max };
-            currentSource = data.source;
-            
-            // Update LazyEDA module state
-            LazyEDA.setSessionId(data.session_id);
-            
-            // Initialize signal states for lazy loading
-            data.signals.forEach(sig => {
-                LazyEDA.signalStates.set(sig.index, sig.loaded ? 'ready' : 'pending');
-            });
-            
-            document.getElementById('statSignals').textContent = data.n_signals;
-            document.getElementById('statDuration').textContent = data.duration.toFixed(0) + 's';
-            
-            // Render signal list with lazy loading indicators
-            renderSignalListLazy();
-            
-            // Setup hover listeners for preloading
-            setupLazyHoverListeners();
-            
-        } else {
-            // NON-LAZY SOURCE (demo files) - call /api/info as before
-            console.log('[EDA] Standard source loaded');
-            
-            currentSessionId = null;
-            isLazySource = false;
-            
-            const infoRes = await fetch(`${API}/info`, { headers });
-            const info = await infoRes.json();
-            
-            signalsInfo = info.signals;
-            globalView = { min: info.time_range.min, max: info.time_range.max };
-            currentSource = info.source;
-            
-            document.getElementById('statSignals').textContent = info.n_signals;
-            document.getElementById('statDuration').textContent = info.duration.toFixed(0) + 's';
-            
-            renderSignalList();
-        }
+        // Recharge les infos
+        const infoRes = await fetch(`${API}/info`);
+        const info = await infoRes.json();
         
+        signalsInfo = info.signals;
+        window.signalsInfo = signalsInfo;
+        globalView = { min: info.time_range.min, max: info.time_range.max };
+        currentSource = info.source;
+        
+        document.getElementById('statSignals').textContent = info.n_signals;
+        document.getElementById('statDuration').textContent = info.duration.toFixed(0) + 's';
+        
+        renderSignalList();
         updateSourceSelector();
+        
         console.log(`Switched to source: ${currentSource}`);
         
     } catch (e) {
@@ -403,6 +370,16 @@ function renderSignalList() {
         item.draggable = true;
         item.dataset.index = sig.index;
         item.id = `signal-item-${sig.index}`;
+        
+        // Marquer les variables calculées
+        const isComputed = sig.computed === true;
+        if (isComputed) {
+            item.classList.add('computed');
+            item.dataset.formula = sig.formula || '';
+            item.dataset.description = sig.description || '';
+            item.dataset.sourceSignals = JSON.stringify(sig.source_signals || []);
+            item.title = `Variable calculée: ${sig.formula}\nDouble-clic pour éditer`;
+        }
         
         const dot = document.createElement('div');
         dot.className = 'signal-dot';
@@ -434,6 +411,13 @@ function renderSignalList() {
             if (dropZone) dropZone.classList.remove('active');
             document.querySelectorAll('.plot-container').forEach(p => p.classList.remove('drop-target'));
         });
+        
+        // Double-clic pour éditer les variables calculées
+        if (isComputed) {
+            item.addEventListener('dblclick', () => {
+                openComputedVariableForEdit(sig);
+            });
+        }
         
         container.appendChild(item);
     });
@@ -1397,41 +1381,19 @@ function renderPlotFromCacheFiltered(plot) {
 async function fetchAndRenderPlot(plot) {
     if (plot.signals.length === 0) return;
 
-    // Check cache first
     if (canRenderFromCache(plot, globalView.min, globalView.max)) {
         renderPlotFromCacheFiltered(plot);
         return;
     }
 
     const signalIndices = plot.signals.join(',');
-    
-    // Choose endpoint based on source type
-    let url;
-    if (isLazySource && currentSessionId) {
-        url = `${API}/eda/view/${currentSessionId}?signals=${signalIndices}&start=${globalView.min}&end=${globalView.max}&max_points=${lodPoints}`;
-    } else {
-        url = `${API}/view?signals=${signalIndices}&start=${globalView.min}&end=${globalView.max}&max_points=${lodPoints}`;
-    }
+    const url = `${API}/view?signals=${signalIndices}&start=${globalView.min}&end=${globalView.max}&max_points=${lodPoints}`;
 
     const startTime = performance.now();
-    
-    // Add auth header for lazy endpoint
-    const headers = {};
-    if (isLazySource) {
-        const token = sessionStorage.getItem('auth_token');
-        if (token) {
-            headers['Authorization'] = 'Bearer ' + token;
-        }
-    }
 
     try {
-        const res = await fetch(url, { headers });
+        const res = await fetch(url);
         const data = await res.json();
-        
-        if (data.error) {
-            console.error('View error:', data.error);
-            return;
-        }
         
         const fetchTime = performance.now() - startTime;
         const statServer = document.getElementById('statServer');
@@ -1972,6 +1934,7 @@ async function uploadEdaFile() {
                 const info = await infoRes.json();
                 
                 signalsInfo = info.signals;
+        window.signalsInfo = signalsInfo;
                 globalView = { min: info.time_range.min, max: info.time_range.max };
                 
                 document.getElementById('statSignals').textContent = info.n_signals;
@@ -2014,362 +1977,428 @@ async function uploadEdaFile() {
     }
 }
 
-const LazyEDA = (() => {
-    // Current session state
-    let currentSessionId = null;
-    let signalStates = new Map(); // signal_index -> 'pending' | 'loading' | 'ready' | 'error'
-    let hoverDebounceTimer = null;
-    const HOVER_DELAY_MS = 150; // Delay before triggering preload on hover
-
-    /**
-     * Upload file and get session ID (does NOT load data)
-     */
-    async function uploadFile(file, dbcFile = null) {
-        const formData = new FormData();
-        formData.append('file', file);
-        if (dbcFile) {
-            formData.append('dbc', dbcFile);
-        }
-
-        const response = await authFetch('/api/eda/upload', {
-            method: 'POST',
-            body: formData
-        });
-
-        if (!response.ok) {
-            const err = await response.json();
-            throw new Error(err.error || 'Upload failed');
-        }
-
-        const data = await response.json();
-        currentSessionId = data.session_id;
-        
-        console.log(`[LazyEDA] File uploaded, session: ${currentSessionId}`);
-        return data;
-    }
-
-    /**
-     * List signals (fast - metadata only)
-     */
-    async function listSignals(sessionId = null) {
-        const sid = sessionId || currentSessionId;
-        if (!sid) {
-            throw new Error('No session ID');
-        }
-
-        const response = await authFetch(`/api/eda/list-signals/${sid}`);
-        
-        if (!response.ok) {
-            const err = await response.json();
-            throw new Error(err.error || 'Failed to list signals');
-        }
-
-        const data = await response.json();
-        
-        // Initialize signal states
-        signalStates.clear();
-        data.signals.forEach(sig => {
-            signalStates.set(sig.index, sig.loaded ? 'ready' : 'pending');
-        });
-
-        console.log(`[LazyEDA] Listed ${data.signals.length} signals`);
-        return data;
-    }
-
-    /**
-     * Preload a signal (called on hover)
-     */
-    async function preloadSignal(signalIndex, sessionId = null) {
-        const sid = sessionId || currentSessionId;
-        if (!sid) return null;
-
-        const currentState = signalStates.get(signalIndex);
-        if (currentState === 'ready' || currentState === 'loading') {
-            return null; // Already loaded or loading
-        }
-
-        signalStates.set(signalIndex, 'loading');
-        updateSignalUI(signalIndex, 'loading');
-
-        try {
-            const response = await authFetch(`/api/eda/preload-signal/${sid}/${signalIndex}`, {
-                method: 'POST'
-            });
-
-            if (!response.ok) {
-                throw new Error('Preload failed');
-            }
-
-            const data = await response.json();
-            
-            if (data.status === 'ready') {
-                signalStates.set(signalIndex, 'ready');
-                updateSignalUI(signalIndex, 'ready');
-                console.log(`[LazyEDA] Preloaded signal ${signalIndex} in ${data.load_time_ms}ms`);
-            } else {
-                signalStates.set(signalIndex, 'error');
-                updateSignalUI(signalIndex, 'error');
-            }
-
-            return data;
-
-        } catch (e) {
-            signalStates.set(signalIndex, 'error');
-            updateSignalUI(signalIndex, 'error');
-            console.error(`[LazyEDA] Preload error for signal ${signalIndex}:`, e);
-            return null;
-        }
-    }
-
-    /**
-     * Get signal data view (for plotting)
-     */
-    async function getView(signalIndices, start, end, maxPoints = 2000, sessionId = null) {
-        const sid = sessionId || currentSessionId;
-        if (!sid) {
-            throw new Error('No session ID');
-        }
-
-        const signals = signalIndices.join(',');
-        const url = `/api/eda/view/${sid}?signals=${signals}&start=${start}&end=${end}&max_points=${maxPoints}`;
-        
-        const response = await authFetch(url);
-        
-        if (!response.ok) {
-            const err = await response.json();
-            throw new Error(err.error || 'Failed to get view');
-        }
-
-        return await response.json();
-    }
-
-    /**
-     * Handle hover on signal list item
-     */
-    function handleSignalHover(signalIndex) {
-        // Debounce to avoid too many requests on fast mouse movements
-        clearTimeout(hoverDebounceTimer);
-        
-        hoverDebounceTimer = setTimeout(() => {
-            const state = signalStates.get(signalIndex);
-            if (state === 'pending') {
-                preloadSignal(signalIndex);
-            }
-        }, HOVER_DELAY_MS);
-    }
-
-    /**
-     * Cancel hover preload (mouse left before delay)
-     */
-    function cancelHover() {
-        clearTimeout(hoverDebounceTimer);
-    }
-
-    /**
-     * Update UI to show signal loading state
-     */
-    function updateSignalUI(signalIndex, state) {
-        const element = document.querySelector(`[data-signal-index="${signalIndex}"]`);
-        if (!element) return;
-
-        // Remove all state classes
-        element.classList.remove('signal-pending', 'signal-loading', 'signal-ready', 'signal-error');
-        
-        // Add current state class
-        element.classList.add(`signal-${state}`);
-
-        // Update indicator
-        const indicator = element.querySelector('.signal-status');
-    }
-
-    /**
-     * Check if signal is ready for drag
-     */
-    function isSignalReady(signalIndex) {
-        return signalStates.get(signalIndex) === 'ready';
-    }
-
-    /**
-     * Get current session ID
-     */
-    function getSessionId() {
-        return currentSessionId;
-    }
-
-    /**
-     * Set session ID (for existing sessions)
-     */
-    function setSessionId(sessionId) {
-        currentSessionId = sessionId;
-    }
-
-    /**
-     * Close current session
-     */
-    async function closeSession(sessionId = null) {
-        const sid = sessionId || currentSessionId;
-        if (!sid) return;
-
-        try {
-            await authFetch(`/api/eda/session/${sid}`, { method: 'DELETE' });
-            console.log(`[LazyEDA] Session ${sid} closed`);
-        } catch (e) {
-            console.error('[LazyEDA] Error closing session:', e);
-        }
-
-        if (sid === currentSessionId) {
-            currentSessionId = null;
-            signalStates.clear();
-        }
-    }
-
-    /**
-     * Setup hover listeners for signal list
-     * Call this after rendering the signal list
-     */
-    function setupHoverListeners(containerSelector = '#signalList') {
-        const container = document.querySelector(containerSelector);
-        if (!container) return;
-
-        // Use event delegation for efficiency
-        container.addEventListener('mouseenter', (e) => {
-            const item = e.target.closest('[data-signal-index]');
-            if (item) {
-                const index = parseInt(item.dataset.signalIndex, 10);
-                handleSignalHover(index);
-            }
-        }, true);
-
-        container.addEventListener('mouseleave', (e) => {
-            const item = e.target.closest('[data-signal-index]');
-            if (item) {
-                cancelHover();
-            }
-        }, true);
-    }
-
-    return {
-        uploadFile,
-        listSignals,
-        preloadSignal,
-        getView,
-        handleSignalHover,
-        cancelHover,
-        isSignalReady,
-        getSessionId,
-        setSessionId,
-        closeSession,
-        setupHoverListeners,
-        updateSignalUI,
-        get signalStates() { return signalStates; }
-    };
-})();
-
-function renderSignalListLazy() {
-    const container = document.getElementById('signalList');
-    if (!container) return;
-    
-    container.innerHTML = '';
-    
-    signalsInfo.forEach(sig => {
-        const item = document.createElement('div');
-        item.className = 'signal-item';
-        item.draggable = true;
-        item.dataset.index = sig.index;
-        item.dataset.signalIndex = sig.index; // For LazyEDA hover detection
-        item.id = `signal-item-${sig.index}`;
-        
-        // Add lazy state class
-        const state = LazyEDA.signalStates.get(sig.index) || 'pending';
-        item.classList.add(`signal-${state}`);
-        
-        const dot = document.createElement('div');
-        dot.className = 'signal-dot';
-        
-        const nameSpan = document.createElement('span');
-        nameSpan.className = 'signal-name';
-        nameSpan.textContent = sig.name;
-        
-        const unitSpan = document.createElement('span');
-        unitSpan.className = 'signal-unit';
-        unitSpan.textContent = sig.unit;
-        
-        // Status indicator for lazy loading
-        const statusSpan = document.createElement('span');
-        statusSpan.className = 'signal-status';
-        if (state === 'pending') {
-            statusSpan.innerHTML = '<span class="status-dot pending"></span>';
-            statusSpan.title = 'Non chargé - survolez pour précharger';
-        } else if (state === 'ready') {
-            statusSpan.innerHTML = '<span class="status-dot ready"></span>';
-            statusSpan.title = 'Prêt';
-        }
-        
-        item.appendChild(dot);
-        item.appendChild(nameSpan);
-        item.appendChild(unitSpan);
-        item.appendChild(statusSpan);
-        
-        // Drag events - check if signal is loaded before allowing drag
-        item.addEventListener('dragstart', e => {
-            const sigState = LazyEDA.signalStates.get(sig.index);
-            if (sigState !== 'ready') {
-                // Prevent drag if not loaded
-                e.preventDefault();
-                showNotification('Signal en cours de chargement...', 'info');
-                return;
-            }
-            draggedSignal = parseInt(item.dataset.index);
-            item.classList.add('dragging');
-            const dropZone = document.getElementById(`dropZone-${activeTabId}`);
-            if (dropZone) dropZone.classList.add('active');
-        });
-        
-        item.addEventListener('dragend', () => {
-            item.classList.remove('dragging');
-            draggedSignal = null;
-            const dropZone = document.getElementById(`dropZone-${activeTabId}`);
-            if (dropZone) dropZone.classList.remove('active');
-            document.querySelectorAll('.plot-container').forEach(p => p.classList.remove('drop-target'));
-        });
-        
-        container.appendChild(item);
-    });
-}
-
-function setupLazyHoverListeners() {
-    const container = document.getElementById('signalList');
-    if (!container || container._lazyListenersAdded) return;
-    
-    container.addEventListener('mouseenter', (e) => {
-        const item = e.target.closest('.signal-item');
-        if (item && isLazySource) {
-            const index = parseInt(item.dataset.index, 10);
-            LazyEDA.handleSignalHover(index);
-        }
-    }, true);
-    
-    container.addEventListener('mouseleave', (e) => {
-        const item = e.target.closest('.signal-item');
-        if (item && isLazySource) {
-            LazyEDA.cancelHover();
-        }
-    }, true);
-    
-    container._lazyListenersAdded = true;
-}
-
 // Fermer la modale avec Escape
 document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
         closeUploadModal();
+        closeCreateVariableModal();
     }
 });
 
 // =========================================================================
+// Create Computed Variable (Drawer)
+// =========================================================================
+let variableMappings = {}; // { A: { index: 0, name: 'signal_name', color: '#fff' }, B: ... }
+let currentMappingLabels = ['A', 'B']; // Current visible mapping slots
+let editingVariableIndex = null; // Index de la variable en cours d'édition (null = création)
+
+function openCreateVariableDrawer() {
+    const drawer = document.getElementById('createVariableDrawer');
+    if (drawer) {
+        editingVariableIndex = null;
+        resetCreateVariableForm();
+        updateDrawerHeader(false);
+        drawer.classList.add('active');
+    }
+}
+
+// Alias pour compatibilité
+function openCreateVariableModal() {
+    openCreateVariableDrawer();
+}
+
+function closeCreateVariableDrawer() {
+    const drawer = document.getElementById('createVariableDrawer');
+    if (drawer) {
+        drawer.classList.remove('active');
+        drawer.classList.remove('creating');
+        editingVariableIndex = null;
+    }
+}
+
+// Alias pour compatibilité
+function closeCreateVariableModal(event) {
+    closeCreateVariableDrawer();
+}
+
+/**
+ * Ouvre le drawer en mode édition/visualisation pour une variable calculée existante
+ */
+function openComputedVariableForEdit(signal) {
+    const drawer = document.getElementById('createVariableDrawer');
+    if (!drawer) return;
+    
+    editingVariableIndex = signal.index;
+    
+    // Reset d'abord
+    resetCreateVariableForm();
+    
+    // Pré-remplir les champs
+    const nameInput = document.getElementById('newVarName');
+    const unitInput = document.getElementById('newVarUnit');
+    const descInput = document.getElementById('newVarDescription');
+    const formulaInput = document.getElementById('newVarFormula');
+    
+    if (nameInput) nameInput.value = signal.name || '';
+    if (unitInput) unitInput.value = signal.unit || '';
+    if (descInput) descInput.value = signal.description || '';
+    if (formulaInput) formulaInput.value = signal.formula || '';
+    
+    // Reconstruire les mappings depuis source_signals et la formule
+    const sourceSignals = signal.source_signals || [];
+    const formula = signal.formula || '';
+    
+    // Extraire les variables utilisées dans la formule (A, B, C...)
+    const usedVars = [...new Set((formula.match(/\b([A-Z])\b/g) || []))].sort();
+    
+    // Créer les slots nécessaires
+    currentMappingLabels = usedVars.length > 0 ? usedVars : ['A', 'B'];
+    variableMappings = {};
+    
+    // Mapper les variables aux signaux sources
+    usedVars.forEach((varLetter, idx) => {
+        if (idx < sourceSignals.length) {
+            const signalName = sourceSignals[idx];
+            // Trouver le signal dans signalsInfo
+            const foundSignal = signalsInfo.find(s => s.name === signalName);
+            if (foundSignal) {
+                variableMappings[varLetter] = {
+                    index: foundSignal.index,
+                    name: foundSignal.name,
+                    color: foundSignal.color
+                };
+            }
+        }
+    });
+    
+    renderVariableMappings();
+    updateDrawerHeader(true);
+    drawer.classList.add('active');
+}
+
+/**
+ * Met à jour le header du drawer selon le mode (création/édition)
+ */
+function updateDrawerHeader(isEditMode) {
+    const drawer = document.getElementById('createVariableDrawer');
+    if (!drawer) return;
+    
+    const header = drawer.querySelector('.drawer-header h2');
+    const description = drawer.querySelector('.drawer-description');
+    const submitBtn = document.getElementById('submitCreateVar');
+    const nameInput = document.getElementById('newVarName');
+    
+    if (isEditMode) {
+        if (header) header.textContent = 'Variable calculée';
+        if (description) {
+            description.innerHTML = 'Vous pouvez modifier cette variable et cliquer sur "Mettre à jour" pour appliquer les changements.';
+        }
+        if (submitBtn) {
+            submitBtn.innerHTML = `
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                    <polyline points="17 21 17 13 7 13 7 21"/>
+                    <polyline points="7 3 7 8 15 8"/>
+                </svg>
+                Mettre à jour`;
+        }
+        // Désactiver le changement de nom en mode édition
+        if (nameInput) {
+            nameInput.disabled = true;
+            nameInput.title = 'Le nom ne peut pas être modifié';
+        }
+    } else {
+        if (header) header.textContent = 'Créer une variable';
+        if (description) {
+            description.innerHTML = '<strong>↶ Glissez des signaux</strong> depuis la liste à gauche vers les slots ci-dessous, puis définissez votre formule.';
+        }
+        if (submitBtn) {
+            submitBtn.innerHTML = `
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+                Créer`;
+        }
+        if (nameInput) {
+            nameInput.disabled = false;
+            nameInput.title = '';
+        }
+    }
+}
+
+function resetCreateVariableForm() {
+    // Reset inputs
+    const nameInput = document.getElementById('newVarName');
+    const unitInput = document.getElementById('newVarUnit');
+    const descInput = document.getElementById('newVarDescription');
+    const formulaInput = document.getElementById('newVarFormula');
+    
+    if (nameInput) nameInput.value = '';
+    if (unitInput) unitInput.value = '';
+    if (descInput) descInput.value = '';
+    if (formulaInput) formulaInput.value = '';
+    
+    // Reset mappings
+    variableMappings = {};
+    currentMappingLabels = ['A', 'B'];
+    renderVariableMappings();
+    
+    // Clear errors
+    document.querySelectorAll('.drawer-field.error').forEach(f => f.classList.remove('error'));
+    document.querySelectorAll('.error-message').forEach(e => e.remove());
+}
+
+function renderVariableMappings() {
+    const container = document.getElementById('varMappingList');
+    if (!container) return;
+    
+    container.innerHTML = '';
+    
+    currentMappingLabels.forEach(label => {
+        const item = document.createElement('div');
+        item.className = 'var-mapping-item';
+        item.dataset.label = label;
+        
+        const labelEl = document.createElement('div');
+        labelEl.className = 'var-mapping-label';
+        labelEl.textContent = label;
+        
+        const dropzone = document.createElement('div');
+        dropzone.className = 'var-mapping-dropzone' + (variableMappings[label] ? '' : ' empty');
+        dropzone.dataset.label = label;
+        
+        if (variableMappings[label]) {
+            const mapping = variableMappings[label];
+            dropzone.innerHTML = `
+                <div class="mapped-signal">
+                    <span class="signal-color-dot" style="background: ${mapping.color || '#888'}"></span>
+                    <span class="signal-name">${escapeHtml(mapping.name)}</span>
+                    <button class="remove-mapped" title="Retirer">&times;</button>
+                </div>
+            `;
+            // Event listener for remove button
+            dropzone.querySelector('.remove-mapped').addEventListener('click', (e) => {
+                e.stopPropagation();
+                delete variableMappings[label];
+                renderVariableMappings();
+            });
+        } else {
+            dropzone.textContent = 'Glissez un signal ici...';
+        }
+        
+        // Drag & drop events
+        dropzone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropzone.classList.add('dragover');
+        });
+        
+        dropzone.addEventListener('dragleave', () => {
+            dropzone.classList.remove('dragover');
+        });
+        
+        dropzone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropzone.classList.remove('dragover');
+            
+            if (draggedSignal !== null) {
+                const signal = signalsInfo[draggedSignal];
+                if (signal) {
+                    variableMappings[label] = {
+                        index: signal.index,
+                        name: signal.name,
+                        unit: signal.unit,
+                        color: signal.color || '#888'
+                    };
+                    renderVariableMappings();
+                }
+            }
+        });
+        
+        item.appendChild(labelEl);
+        item.appendChild(dropzone);
+        container.appendChild(item);
+    });
+    
+    updateMappingButtons();
+}
+
+function updateMappingButtons() {
+    const removeBtn = document.getElementById('removeMappingBtn');
+    if (removeBtn) {
+        removeBtn.disabled = currentMappingLabels.length <= 1;
+    }
+}
+
+function addMappingSlot() {
+    // Get next letter
+    const lastLabel = currentMappingLabels[currentMappingLabels.length - 1];
+    const nextCharCode = lastLabel.charCodeAt(0) + 1;
+    
+    if (nextCharCode <= 90) { // 'Z'
+        const nextLabel = String.fromCharCode(nextCharCode);
+        currentMappingLabels.push(nextLabel);
+        renderVariableMappings();
+    }
+}
+
+function removeMappingSlot() {
+    if (currentMappingLabels.length > 1) {
+        const removedLabel = currentMappingLabels.pop();
+        delete variableMappings[removedLabel];
+        renderVariableMappings();
+    }
+}
+
+async function submitCreateVariable() {
+    const drawer = document.getElementById('createVariableDrawer');
+    const nameInput = document.getElementById('newVarName');
+    const unitInput = document.getElementById('newVarUnit');
+    const descInput = document.getElementById('newVarDescription');
+    const formulaInput = document.getElementById('newVarFormula');
+    
+    const isUpdateMode = editingVariableIndex !== null;
+    
+    // Clear previous errors
+    document.querySelectorAll('.drawer-field.error').forEach(f => f.classList.remove('error'));
+    document.querySelectorAll('.error-message').forEach(e => e.remove());
+    
+    let hasError = false;
+    
+    // Validate name (seulement en mode création)
+    if (!isUpdateMode && !nameInput.value.trim()) {
+        showFieldError(nameInput, 'Le nom est requis');
+        hasError = true;
+    }
+    
+    // Validate formula
+    if (!formulaInput.value.trim()) {
+        showFieldError(formulaInput, 'La formule est requise');
+        hasError = true;
+    }
+    
+    // Validate that formula uses defined variables
+    const formula = formulaInput.value.trim();
+    const usedVars = formula.match(/[A-Z]/g) || [];
+    const uniqueVars = [...new Set(usedVars)];
+    
+    for (const v of uniqueVars) {
+        if (!variableMappings[v]) {
+            showFieldError(formulaInput, `La variable "${v}" n'est pas définie. Glissez un signal sur le slot ${v}.`);
+            hasError = true;
+            break;
+        }
+    }
+    
+    if (hasError) return;
+    
+    // Build mapping for backend
+    const mapping = {};
+    for (const [label, info] of Object.entries(variableMappings)) {
+        mapping[label] = info.name; // Send signal name to backend
+    }
+    
+    // Show creating state
+    drawer.classList.add('creating');
+    
+    try {
+        const headers = { 'Content-Type': 'application/json' };
+        const token = sessionStorage.getItem('auth_token');
+        if (token) {
+            headers['Authorization'] = 'Bearer ' + token;
+        }
+        
+        let response;
+        let successMessage;
+        
+        if (isUpdateMode) {
+            // Mode mise à jour
+            response = await fetch(`${API}/computed-variables/${editingVariableIndex}`, {
+                method: 'PUT',
+                headers,
+                body: JSON.stringify({
+                    unit: unitInput.value.trim() || '',
+                    description: descInput.value.trim() || '',
+                    formula: formula,
+                    mapping: mapping
+                })
+            });
+            successMessage = `Variable "${nameInput.value.trim()}" mise à jour avec succès`;
+        } else {
+            // Mode création
+            response = await fetch(`${API}/create-variable`, {
+                method: 'POST',
+                headers,
+                body: JSON.stringify({
+                    name: nameInput.value.trim(),
+                    unit: unitInput.value.trim() || '',
+                    description: descInput.value.trim() || '',
+                    formula: formula,
+                    mapping: mapping
+                })
+            });
+            successMessage = `Variable "${nameInput.value.trim()}" créée avec succès`;
+        }
+        
+        const data = await response.json();
+        
+        if (!response.ok) {
+            throw new Error(data.error || 'Erreur lors de l\'opération');
+        }
+        
+        // Success - reload signals
+        if (typeof showNotification === 'function') {
+            showNotification(successMessage, 'success');
+        }
+        
+        // Reload info to get updated signals
+        const infoRes = await fetch(`${API}/info`);
+        const info = await infoRes.json();
+        
+        signalsInfo = info.signals;
+        document.getElementById('statSignals').textContent = info.n_signals;
+        
+        renderSignalList();
+        closeCreateVariableDrawer();
+        
+    } catch (error) {
+        console.error('Create/Update variable error:', error);
+        showFieldError(formulaInput, error.message);
+        drawer.classList.remove('creating');
+    }
+}
+
+function showFieldError(input, message) {
+    const field = input.closest('.drawer-field') || input.closest('.formula-field');
+    if (field) {
+        field.classList.add('error');
+        
+        // Remove existing error message
+        const existing = field.querySelector('.error-message');
+        if (existing) existing.remove();
+        
+        const errorEl = document.createElement('div');
+        errorEl.className = 'error-message';
+        errorEl.textContent = message;
+        field.appendChild(errorEl);
+    }
+}
+
+// Setup create variable event listeners
+function setupCreateVariableListeners() {
+    // Le bouton dans la sidebar
+    const createBtn = document.getElementById('createVariableBtn');
+    if (createBtn && !createBtn._listenerAdded) {
+        createBtn.addEventListener('click', openCreateVariableDrawer);
+        createBtn._listenerAdded = true;
+    }
+    
+    // Initialize mappings display
+    renderVariableMappings();
+}
+
+// =========================================================================
 // NE PAS appeler init() directement - ViewLoader s'en charge
 // =========================================================================
-
 // =========================================================================
 // Expose globals for other modules (Vite compatibility)
 // =========================================================================
@@ -2389,4 +2418,14 @@ window.removeEdaFile = removeEdaFile;
 window.removeEdaDbc = removeEdaDbc;
 window.uploadEdaFile = uploadEdaFile;
 window.loadSources = loadSources;
-window.LazyEDA = LazyEDA;
+window.renderSignalList = renderSignalList;
+window.signalsInfo = signalsInfo;
+window.openCreateVariableModal = openCreateVariableModal;
+window.closeCreateVariableModal = closeCreateVariableModal;
+window.openCreateVariableDrawer = openCreateVariableDrawer;
+window.closeCreateVariableDrawer = closeCreateVariableDrawer;
+window.openComputedVariableForEdit = openComputedVariableForEdit;
+window.setupCreateVariableListeners = setupCreateVariableListeners;
+window.addMappingSlot = addMappingSlot;
+window.removeMappingSlot = removeMappingSlot;
+window.submitCreateVariable = submitCreateVariable;

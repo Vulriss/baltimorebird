@@ -22,7 +22,8 @@ const ViewLoader = (() => {
 
     const modalPaths = Object.freeze({
         upload: '/components/modals/upload-modal.html',
-        auth: '/components/modals/auth-modal.html'
+        auth: '/components/modals/auth-modal.html',
+        'var-creation': '/components/modals/var-creation-modal.html'
     });
 
     const viewInitializers = Object.freeze({

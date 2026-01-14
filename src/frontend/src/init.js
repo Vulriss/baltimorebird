@@ -18,6 +18,7 @@
         // Charge les modals (légers, nécessaires rapidement)
         await window.ViewLoader.loadModal('upload', 'modalsContainer');
         await window.ViewLoader.loadModal('auth', 'modalsContainer');
+        await window.ViewLoader.loadModal('var-creation', 'modalsContainer');
         
         console.log('[Init] App bootstrapped');
     }

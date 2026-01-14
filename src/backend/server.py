@@ -28,6 +28,7 @@ from lazy_eda import lazy_eda
 from metrics_api import metrics_bp
 from scripts_api import scripts_bp
 from user_storage import storage, storage_bp
+from computed_variables import computed_vars_bp, init_computed_vars
 
 
 # --- Configuration ---
@@ -73,6 +74,7 @@ app.register_blueprint(scripts_bp)
 app.register_blueprint(auth_bp)
 app.register_blueprint(metrics_bp)
 app.register_blueprint(storage_bp)
+app.register_blueprint(computed_vars_bp)
 
 # CORS configuré avec origines spécifiques
 CORS(app, origins=ALLOWED_ORIGINS, supports_credentials=True)
@@ -762,7 +764,7 @@ class MultiSourceDataStore:
 
 
 datastore = MultiSourceDataStore()
-
+init_computed_vars(datastore)
 
 # --- Utility Functions ---
 
@@ -906,15 +908,30 @@ def get_info():
         app.logger.error(f"Error loading datastore: {e}")
         return jsonify({"error": "Erreur de chargement des données"}), 500
 
+    # Build signals list with computed variable metadata
+    signals_list = []
+    for i, m in enumerate(datastore.metadata):
+        signal_info = {
+            "index": i,
+            "name": m["name"],
+            "unit": m["unit"],
+            "color": m["color"]
+        }
+        # Add computed variable fields if present
+        if m.get("computed"):
+            signal_info["computed"] = True
+            signal_info["formula"] = m.get("formula", "")
+            signal_info["description"] = m.get("description", "")
+            signal_info["source_signals"] = m.get("source_signals", [])
+        
+        signals_list.append(signal_info)
+
     return jsonify({
         "source": datastore.current_source,
         "n_signals": len(datastore.signals),
         "duration": datastore.t_max - datastore.t_min,
         "time_range": {"min": datastore.t_min, "max": datastore.t_max},
-        "signals": [
-            {"index": i, "name": m["name"], "unit": m["unit"], "color": m["color"]}
-            for i, m in enumerate(datastore.metadata)
-        ],
+        "signals": signals_list,
     })
 
 

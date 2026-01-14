@@ -1,0 +1,68 @@
+<div class="create-var-drawer" id="createVariableDrawer">
+    <div class="drawer-header">
+        <h2>Créer une variable</h2>
+        <button class="drawer-close" onclick="closeCreateVariableDrawer()" title="Fermer">&times;</button>
+    </div>
+    <div class="drawer-body">
+        <div class="drawer-description">
+            <strong>↶ Glissez des signaux</strong> depuis la liste à gauche vers les slots ci-dessous, puis définissez votre formule.
+        </div>
+        
+        <!-- Name & Unit row -->
+        <div class="create-var-row">
+            <div class="drawer-field">
+                <label>Nom <span class="required">*</span></label>
+                <input type="text" id="newVarName" placeholder="ex: Puissance_totale">
+            </div>
+            <div class="drawer-field unit-field">
+                <label>Unité</label>
+                <input type="text" id="newVarUnit" placeholder="kW">
+            </div>
+        </div>
+        
+        <!-- Description -->
+        <div class="drawer-field">
+            <label>Description <span class="optional">(optionnel)</span></label>
+            <textarea id="newVarDescription" placeholder="Décrivez cette variable..." rows="2"></textarea>
+        </div>
+        
+        <!-- Variable mapping section -->
+        <div class="var-mapping-section">
+            <div class="var-mapping-header">
+                <label>Variables</label>
+                <div class="var-mapping-actions">
+                    <button class="var-mapping-btn remove" id="removeMappingBtn" onclick="removeMappingSlot()" title="Supprimer">−</button>
+                    <button class="var-mapping-btn add" id="addMappingBtn" onclick="addMappingSlot()" title="Ajouter">+</button>
+                </div>
+            </div>
+            <div class="var-mapping-list" id="varMappingList">
+                <!-- Slots A, B, C... générés par renderVariableMappings() -->
+            </div>
+        </div>
+        
+        <!-- Formula -->
+        <div class="drawer-field formula-field">
+            <label>Formule <span class="required">*</span></label>
+            <input type="text" class="formula-input" id="newVarFormula" placeholder="ex: A + B * 2.5">
+            <div class="formula-hint">
+                Opérateurs: <code>+</code> <code>-</code> <code>*</code> <code>/</code> <code>**</code><br>
+                Fonctions: <code>abs()</code> <code>sqrt()</code> <code>sin()</code> <code>cos()</code> <code>log()</code> <code>exp()</code>
+            </div>
+        </div>
+        
+        <!-- Creating indicator -->
+        <div class="creating-indicator">
+            <div class="spinner"></div>
+            <span>Création en cours...</span>
+        </div>
+    </div>
+    <div class="drawer-footer">
+        <button class="btn-secondary" onclick="closeCreateVariableDrawer()">Annuler</button>
+        <button class="btn-primary" id="submitCreateVar" onclick="submitCreateVariable()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+            Créer
+        </button>
+    </div>
+</div>
