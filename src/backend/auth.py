@@ -658,6 +658,14 @@ def login():
     # Login réussi - reset le rate limiter
     rate_limiter.reset(rate_key)
 
+    # Nettoyage des fichiers orphelins pour cet utilisateur
+    try:
+        from user_storage import storage
+        storage.cleanup_orphans(user.id)
+    except Exception as e:
+        # Ne pas bloquer le login si le nettoyage échoue
+        print(f"  ⚠ Storage cleanup failed for user {user.id}: {e}")
+
     user_agent = request.headers.get('User-Agent', '')[:200]
     session = user_store.create_session(user, client_ip, user_agent)
 

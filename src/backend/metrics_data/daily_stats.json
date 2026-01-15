@@ -487,8 +487,8 @@
       "401": 5
     },
     "sessions": {
-      "count": 3,
-      "total_duration": 5450.2399995327,
+      "count": 4,
+      "total_duration": 7829.19087600708,
       "max_duration": 3014.997478723526
     },
     "latency": {
@@ -496,9 +496,51 @@
       "min": 0.0,
       "max": 225.68,
       "avg": 5.63,
-      "p50": 1.03,
-      "p95": 4.84,
-      "p99": 19.45
+      "p50": 0,
+      "p95": 0,
+      "p99": 0
+    }
+  },
+  "2026-01-15": {
+    "total_requests": 115,
+    "unique_users": [
+      "b2aeadbb5b4cd836"
+    ],
+    "endpoints": {
+      "/api/auth/me": 8,
+      "/api/sources": 16,
+      "/api/info": 22,
+      "/api/storage/files": 23,
+      "/api/layouts": 8,
+      "/api/layouts/demo_obd2": 2,
+      "/api/storage/files/9edcf5b7-0223-4381-bb2f-80bc616bf7ae/content": 1,
+      "/api/view": 12,
+      "/api/storage/json/layouts": 1,
+      "/api/storage/files/46dc77ce-2754-4ff4-adba-be3cfea6c565/content": 2,
+      "/api/storage/info": 6,
+      "/api/auth/login": 2,
+      "/api/auth/logout": 1,
+      "/api/source/user_mf4_df08fab3-2347-4271-9dec-bc0605e79d6b": 9,
+      "/api/source/synthetic": 1,
+      "/api/source/mf4": 1
+    },
+    "status_codes": {
+      "200": 114,
+      "201": 1
+    },
+    "sessions": {
+      "count": 0,
+      "total_duration": 0,
+      "max_duration": 0
+    },
+    "latency": {
+      "count": 115,
+      "min": 0.0,
+      "max": 232.48,
+      "avg": 9.04,
+      "p50": 1.0,
+      "p95": 127.58,
+      "p99": 221.4
     }
   }
 }

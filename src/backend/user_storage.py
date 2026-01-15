@@ -318,6 +318,83 @@ class StorageManager:
                     )
                     print(f"      Registered default file: {category}/{file_path.name}")
 
+    # --- Orphan Cleanup ---
+
+    def cleanup_orphans(self, user_id: Optional[str] = None) -> int:
+        """
+        Supprime les entrées orphelines (fichiers en DB mais pas sur disque).
+        
+        Args:
+            user_id: Si fourni, nettoie uniquement pour cet utilisateur.
+                     Si None, nettoie les fichiers de démo (user_id IS NULL).
+        
+        Returns:
+            Nombre d'entrées supprimées.
+        """
+        deleted_count = 0
+        
+        with self.db.get_cursor() as cursor:
+            # Récupère les fichiers à vérifier
+            if user_id:
+                if not is_valid_uuid(user_id):
+                    return 0
+                cursor.execute(
+                    "SELECT id, category, filename FROM stored_files WHERE user_id = ?",
+                    (user_id,)
+                )
+            else:
+                cursor.execute(
+                    "SELECT id, category, filename FROM stored_files WHERE user_id IS NULL"
+                )
+            
+            files = cursor.fetchall()
+            orphan_ids = []
+            
+            for f in files:
+                # Détermine le chemin du fichier
+                if user_id:
+                    file_path = USERS_ROOT / user_id / f["category"] / f["filename"]
+                else:
+                    file_path = DEFAULT_ROOT / f["category"] / f["filename"]
+                
+                # Vérifie si le fichier existe sur le disque
+                if not file_path.exists():
+                    orphan_ids.append(f["id"])
+            
+            # Supprime les entrées orphelines
+            for orphan_id in orphan_ids:
+                cursor.execute("DELETE FROM stored_files WHERE id = ?", (orphan_id,))
+                deleted_count += 1
+        
+        if deleted_count > 0:
+            print(f"  🧹 Cleaned up {deleted_count} orphan file(s) for user {user_id or 'DEMO'}")
+        
+        return deleted_count
+
+    def cleanup_all_orphans(self) -> int:
+        """
+        Nettoie toutes les entrées orphelines (démo + tous les utilisateurs).
+        À appeler au démarrage du serveur.
+        
+        Returns:
+            Nombre total d'entrées supprimées.
+        """
+        total_deleted = 0
+        
+        # Nettoie les fichiers de démo
+        total_deleted += self.cleanup_orphans(user_id=None)
+        
+        # Récupère la liste des user_ids uniques
+        with self.db.get_cursor() as cursor:
+            cursor.execute("SELECT DISTINCT user_id FROM stored_files WHERE user_id IS NOT NULL")
+            user_ids = [row["user_id"] for row in cursor.fetchall()]
+        
+        # Nettoie pour chaque utilisateur
+        for uid in user_ids:
+            total_deleted += self.cleanup_orphans(user_id=uid)
+        
+        return total_deleted
+
     # --- Quota Management ---
 
     def get_quota(self, user_id: str) -> int:

@@ -311,41 +311,53 @@ async function changeSource() {
     // Efface les plots existants
     plots.slice().forEach(p => deletePlot(p.id));
     
-    // Prépare les headers avec auth si disponible
-    const headers = { 'Content-Type': 'application/json' };
-    const token = sessionStorage.getItem('auth_token');
-    if (token) {
-        headers['Authorization'] = 'Bearer ' + token;
-    }
-    
     try {
-        // Change la source côté serveur
-        const res = await fetch(`${API}/source/${newSource}`, { 
-            method: 'POST',
-            headers 
-        });
+        // Change la source côté serveur (utilise authFetch si disponible)
+        const res = typeof authFetch === 'function'
+            ? await authFetch(`${API}/source/${newSource}`, { method: 'POST' })
+            : await fetch(`${API}/source/${newSource}`, { method: 'POST' });
+        
         const data = await res.json();
         
         if (data.error) {
             throw new Error(data.error);
         }
         
-        // Recharge les infos
-        const infoRes = await fetch(`${API}/info`);
-        const info = await infoRes.json();
-        
-        signalsInfo = info.signals;
-        window.signalsInfo = signalsInfo;
-        globalView = { min: info.time_range.min, max: info.time_range.max };
-        currentSource = info.source;
-        
-        document.getElementById('statSignals').textContent = info.n_signals;
-        document.getElementById('statDuration').textContent = info.duration.toFixed(0) + 's';
-        
-        renderSignalList();
-        updateSourceSelector();
-        
-        console.log(`Switched to source: ${currentSource}`);
+        // Pour les sources lazy (fichiers utilisateur), les infos sont déjà dans la réponse
+        if (data.lazy && data.signals) {
+            signalsInfo = data.signals;
+            window.signalsInfo = signalsInfo;
+            globalView = { min: data.time_range.min, max: data.time_range.max };
+            currentSource = data.source;
+            
+            document.getElementById('statSignals').textContent = data.n_signals;
+            document.getElementById('statDuration').textContent = data.duration.toFixed(0) + 's';
+            
+            renderSignalList();
+            updateSourceSelector();
+            
+            console.log(`Switched to lazy source: ${currentSource}`);
+        } else {
+            // Pour les sources classiques, recharge les infos via /api/info
+            const infoRes = typeof authFetch === 'function'
+                ? await authFetch(`${API}/info`)
+                : await fetch(`${API}/info`);
+            
+            const info = await infoRes.json();
+            
+            signalsInfo = info.signals;
+            window.signalsInfo = signalsInfo;
+            globalView = { min: info.time_range.min, max: info.time_range.max };
+            currentSource = info.source;
+            
+            document.getElementById('statSignals').textContent = info.n_signals;
+            document.getElementById('statDuration').textContent = info.duration.toFixed(0) + 's';
+            
+            renderSignalList();
+            updateSourceSelector();
+            
+            console.log(`Switched to source: ${currentSource}`);
+        }
         
     } catch (e) {
         console.error('Failed to change source:', e);
@@ -959,22 +971,60 @@ async function loadLayoutsList() {
     listContainer.innerHTML = '<div class="layouts-loading">Chargement...</div>';
     
     try {
-        // Utilise authFetch si dispo pour avoir les layouts utilisateur
-        const response = typeof authFetch === 'function' 
-            ? await authFetch(`${API}/layouts`).catch(() => fetch(`${API}/layouts`))
-            : await fetch(`${API}/layouts`);
-        const data = await response.json();
+        const userLayouts = [];
+        const demoLayouts = [];
         
-        if (!data.layouts || data.layouts.length === 0) {
+        // Si connecté, utilise uniquement l'API storage
+        if (typeof authFetch === 'function') {
+            const response = await authFetch(`${API}/storage/files?category=layouts&include_default=true`).catch(() => null);
+            
+            if (response && response.ok) {
+                const data = await response.json();
+                if (data.files) {
+                    data.files.forEach(file => {
+                        const layout = {
+                            id: file.id,
+                            name: file.filename?.replace('.json', '') || file.original_name?.replace('.json', '') || 'Layout',
+                            description: file.description || '',
+                            is_demo: file.is_default,
+                            tabs_count: '?',
+                            _storageFile: true
+                        };
+                        
+                        if (file.is_default) {
+                            demoLayouts.push(layout);
+                        } else {
+                            userLayouts.push(layout);
+                        }
+                    });
+                }
+            }
+        }
+        
+        // Si non connecté ou pas de résultats, utilise layouts API pour les démos
+        if (demoLayouts.length === 0) {
+            const response = await fetch(`${API}/layouts`).catch(() => null);
+            if (response && response.ok) {
+                const data = await response.json();
+                if (data.layouts) {
+                    data.layouts.forEach(layout => {
+                        if (layout.is_demo) {
+                            demoLayouts.push({
+                                ...layout,
+                                _layoutsApi: true
+                            });
+                        }
+                    });
+                }
+            }
+        }
+        
+        if (userLayouts.length === 0 && demoLayouts.length === 0) {
             listContainer.innerHTML = '<div class="layouts-empty">Aucun layout disponible</div>';
             return;
         }
         
         listContainer.innerHTML = '';
-        
-        // Séparer démo et utilisateur
-        const demoLayouts = data.layouts.filter(l => l.is_demo);
-        const userLayouts = data.layouts.filter(l => !l.is_demo);
         
         if (demoLayouts.length > 0) {
             const demoSection = document.createElement('div');
@@ -1025,9 +1075,10 @@ function createLayoutItem(layout) {
     
     const meta = document.createElement('div');
     meta.className = 'layout-meta';
-    meta.textContent = `${layout.tabs_count} onglet${layout.tabs_count > 1 ? 's' : ''}`;
+    const tabsText = layout.tabs_count !== '?' ? `${layout.tabs_count} onglet${layout.tabs_count > 1 ? 's' : ''}` : '';
+    meta.textContent = tabsText;
     if (layout.description) {
-        meta.textContent += ` • ${layout.description.substring(0, 50)}`;
+        meta.textContent += (tabsText ? ' • ' : '') + layout.description.substring(0, 50);
     }
     
     info.appendChild(name);
@@ -1039,7 +1090,8 @@ function createLayoutItem(layout) {
     const loadBtn = document.createElement('button');
     loadBtn.className = 'btn-small btn-primary';
     loadBtn.textContent = 'Charger';
-    loadBtn.onclick = () => loadLayoutById(layout.id);
+    // Passe les infos de source pour savoir quel endpoint utiliser
+    loadBtn.onclick = () => loadLayoutById(layout.id, layout._storageFile, layout._layoutsApi);
     actions.appendChild(loadBtn);
     
     if (!layout.is_demo) {
@@ -1049,7 +1101,7 @@ function createLayoutItem(layout) {
         deleteBtn.title = 'Supprimer';
         deleteBtn.onclick = (e) => {
             e.stopPropagation();
-            deleteLayout(layout.id, layout.name);
+            deleteLayout(layout.id, layout.name, layout._storageFile);
         };
         actions.appendChild(deleteBtn);
     }
@@ -1062,30 +1114,40 @@ function createLayoutItem(layout) {
 
 /**
  * Charge un layout par son ID
+ * @param {string} layoutId - ID du layout
+ * @param {boolean} isStorageFile - true si le layout vient de /api/storage
+ * @param {boolean} isLayoutsApi - true si le layout vient de /api/layouts
  */
-async function loadLayoutById(layoutId) {
+async function loadLayoutById(layoutId, isStorageFile = false, isLayoutsApi = false) {
     try {
-        // Utilise authFetch pour les layouts utilisateur, fallback sur fetch pour les layouts démo
-        const response = typeof authFetch === 'function'
-            ? await authFetch(`${API}/layouts/${layoutId}`).catch(() => fetch(`${API}/layouts/${layoutId}`))
-            : await fetch(`${API}/layouts/${layoutId}`);
+        let layoutData;
         
-        if (!response.ok) {
-            throw new Error('Layout introuvable');
+        if (isStorageFile) {
+            // Charge depuis storage API (layouts utilisateur)
+            const response = await authFetch(`${API}/storage/files/${layoutId}/content`);
+            if (!response.ok) throw new Error('Layout introuvable');
+            const result = await response.json();
+            layoutData = result.content || result;
+        } else {
+            // Charge depuis layouts API (layouts de démo ou anciens layouts)
+            const response = typeof authFetch === 'function'
+                ? await authFetch(`${API}/layouts/${layoutId}`).catch(() => fetch(`${API}/layouts/${layoutId}`))
+                : await fetch(`${API}/layouts/${layoutId}`);
+            if (!response.ok) throw new Error('Layout introuvable');
+            layoutData = await response.json();
         }
-        
-        const layout = await response.json();
         
         closeLayoutsDrawer();
         
+        const layoutName = layoutData.name || 'Layout';
         if (typeof showNotification === 'function') {
-            showNotification(`Chargement du layout "${layout.name}"...`, 'info');
+            showNotification(`Chargement du layout "${layoutName}"...`, 'info');
         }
         
-        const success = await applyLayout(layout);
+        const success = await applyLayout(layoutData);
         
         if (success && typeof showNotification === 'function') {
-            showNotification(`Layout "${layout.name}" appliqué`, 'success');
+            showNotification(`Layout "${layoutName}" appliqué`, 'success');
         }
         
     } catch (e) {
@@ -1098,14 +1160,21 @@ async function loadLayoutById(layoutId) {
 
 /**
  * Supprime un layout
+ * @param {string} layoutId - ID du layout
+ * @param {string} layoutName - Nom pour l'affichage
+ * @param {boolean} isStorageFile - true si le layout vient de /api/storage
  */
-async function deleteLayout(layoutId, layoutName) {
+async function deleteLayout(layoutId, layoutName, isStorageFile = false) {
     if (!confirm(`Supprimer le layout "${layoutName}" ?`)) {
         return;
     }
     
     try {
-        const response = await authFetch(`${API}/layouts/${layoutId}`, {
+        const endpoint = isStorageFile 
+            ? `${API}/storage/files/${layoutId}`
+            : `${API}/layouts/${layoutId}`;
+        
+        const response = await authFetch(endpoint, {
             method: 'DELETE'
         });
         
@@ -1189,14 +1258,17 @@ async function saveCurrentLayout() {
     }
     
     const layoutData = exportCurrentLayout();
-    layoutData.name = name;
-    layoutData.description = description;
     
     try {
-        const response = await authFetch(`${API}/layouts`, {
+        // Utilise l'API storage pour les layouts (compatible avec Settings > Stockage)
+        const response = await authFetch(`${API}/storage/json/layouts`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(layoutData)
+            body: JSON.stringify({
+                name: name,
+                description: description,
+                content: layoutData
+            })
         });
         
         const result = await response.json();

@@ -769,6 +769,14 @@ datastore = MultiSourceDataStore()
 init_computed_vars(datastore)
 init_layouts(BASE_DIR)
 
+# Nettoyage des fichiers orphelins au démarrage
+try:
+    orphans_cleaned = storage.cleanup_all_orphans()
+    if orphans_cleaned > 0:
+        print(f"  ✓ Startup cleanup: removed {orphans_cleaned} orphan file entries")
+except Exception as e:
+    print(f"  ⚠ Startup cleanup failed: {e}")
+
 # --- Utility Functions ---
 
 def allowed_file(filename):

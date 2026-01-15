@@ -37,10 +37,6 @@ except ImportError:
     def optional_auth(f):
         return f
 
-# =============================================================================
-# Blueprint & Module State
-# =============================================================================
-
 layouts_bp = Blueprint("layouts", __name__)
 
 _base_dir: Optional[Path] = None
@@ -157,9 +153,9 @@ def _create_demo_layout_if_missing() -> None:
     try:
         with open(demo_file, "w", encoding="utf-8") as f:
             json.dump(demo_layout, f, indent=2, ensure_ascii=False)
-        print(f"  ✓ Created demo layout: {demo_file.name}")
+        print(f"Created demo layout: {demo_file.name}")
     except Exception as e:
-        print(f"  ⚠ Failed to create demo layout: {e}")
+        print(f"Failed to create demo layout: {e}")
 
 
 def _get_user_layouts_dir(user_id: str) -> Path:
@@ -238,10 +234,6 @@ def _sanitize_filename(name: str) -> str:
     # Évite les noms trop longs
     return safe[:50].strip("_") or "layout"
 
-
-# =============================================================================
-# API Endpoints
-# =============================================================================
 
 @layouts_bp.route("/api/layouts", methods=["GET"])
 @optional_auth
