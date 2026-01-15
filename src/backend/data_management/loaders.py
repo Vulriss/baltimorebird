@@ -7,12 +7,14 @@ Fonctions pour charger les differents formats de donnees automobiles:
 - Donnees syntheiques pour tests
 """
 
+import logging
 from pathlib import Path
 from typing import Optional, Tuple
 
 import numpy as np
 from numpy.typing import NDArray
 
+logger = logging.getLogger(__name__)
 
 SignalData = dict[str, NDArray]
 SignalMetadata = dict[str, str]
@@ -20,7 +22,7 @@ LoadResult = Tuple[list[SignalData], list[SignalMetadata], float, float]
 
 
 def fetch_signal_multigroup(mdf, channel_name: str):
-    """Récupère un signal qui peut exister dans plusieurs groupes."""
+    """Recupere un signal qui peut exister dans plusieurs groupes."""
     try:
         groups = mdf.channels_db.get(channel_name, [])
         if not groups:
@@ -41,9 +43,11 @@ def fetch_signal_multigroup(mdf, channel_name: str):
                 else:
                     return sig
             except Exception:
+                logger.debug(f"Failed to load signal {channel_name} in group {group_idx}", exc_info=True)
                 continue
         return None
     except Exception:
+        logger.error(f"fetch_signal_multigroup failed for {channel_name}", exc_info=True)
         return None
 
 
@@ -51,19 +55,19 @@ def load_mf4_with_dbc(mf4_path: Path, dbc_path: Optional[Path] = None) -> LoadRe
     """Charge un fichier MF4 avec décodage DBC optionnel."""
     from asammdf import MDF
 
-    print(f"  Loading MF4: {mf4_path.name}")
+    logger.info(f"Loading MF4: {mf4_path.name}")
     mdf = MDF(mf4_path)
 
     if dbc_path and dbc_path.exists():
-        print(f"  Applying DBC: {dbc_path.name}")
+        logger.info(f"Applying DBC: {dbc_path.name}")
         try:
             extracted = mdf.extract_bus_logging(
                 database_files={"CAN": [(str(dbc_path), 0)]}
             )
             mdf.close()
             mdf = extracted
-        except Exception as e:
-            print(f"  DBC decode failed: {e}")
+        except Exception:
+            logger.error(f"DBC decode failed", exc_info=True)
 
     signal_names = list(mdf.channels_db.keys())
     exclude_patterns = ["time", "t_", "timestamp", "CAN_DataFrame"]
@@ -72,10 +76,9 @@ def load_mf4_with_dbc(mf4_path: Path, dbc_path: Optional[Path] = None) -> LoadRe
         if not any(p.lower() in n.lower() for p in exclude_patterns)
     ]
 
-    print(f"  Found {len(filtered_names)} channels, loading...")
+    logger.info(f"Found {len(filtered_names)} channels")
 
-    signals = []
-    metadata = []
+    signals, metadata = [], []
     t_min_global = float("inf")
     t_max_global = float("-inf")
 
@@ -115,15 +118,15 @@ def load_mf4_with_dbc(mf4_path: Path, dbc_path: Optional[Path] = None) -> LoadRe
     mdf.close()
 
     if not signals:
-        raise ValueError("Aucun signal numérique valide trouvé dans le fichier MF4")
-
-    print(f"Loaded {len(signals)} signals, duration: {t_max_global - t_min_global:.1f}s")
+        raise ValueError("Aucun signal numerique valide trouve dans le fichier MF4")
+    
+    logger.info(f"Loaded {len(signals)} signals, duration: {t_max_global - t_min_global:.1f}s")
     return signals, metadata, t_min_global, t_max_global
 
 
 def load_synthetic_data() -> LoadResult:
     """Genere des donnees synthetiques pour les tests."""
-    print("Generating synthetic data...")
+    logger.info("Generating synthetic data")
 
     sample_rate = 100
     duration = 3000
@@ -153,8 +156,7 @@ def load_synthetic_data() -> LoadResult:
         ("SteeringAngle", "deg", lambda t: 30 * np.sin(2 * np.pi * t / 200) + np.random.randn(len(t)) * 2),
     ]
 
-    signals = []
-    metadata = []
+    signals, metadata = [], []
 
     for i, (name, unit, generator) in enumerate(signal_defs):
         values = generator(timestamps).astype(np.float64)
@@ -163,7 +165,7 @@ def load_synthetic_data() -> LoadResult:
         metadata.append({"name": name, "unit": unit, "color": f"hsl({hue}, 70%, 55%)"})
 
     t_min, t_max = float(timestamps.min()), float(timestamps.max())
-    print(f"  Generated {len(signals)} signals, duration: {t_max - t_min:.1f}s")
+    logger.info(f"Generated {len(signals)} signals, duration: {t_max - t_min:.1f}s")
     return signals, metadata, t_min, t_max
 
 
@@ -171,7 +173,7 @@ def load_csv_data(csv_path: Path) -> LoadResult:
     """Charge un fichier CSV avec premiere colonne timestamp."""
     import pandas as pd
 
-    print(f"Loading CSV: {csv_path.name}")
+    logger.info(f"Loading CSV: {csv_path.name}")
     df = pd.read_csv(csv_path)
 
     if df.empty:
@@ -204,5 +206,5 @@ def load_csv_data(csv_path: Path) -> LoadResult:
         raise ValueError("Aucun signal numérique trouvé dans le CSV")
 
     t_min, t_max = float(timestamps.min()), float(timestamps.max())
-    print(f"Loaded {len(signals)} signals from CSV")
+    logger.info(f"Loaded {len(signals)} signals from CSV")
     return signals, metadata, t_min, t_max
