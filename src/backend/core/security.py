@@ -73,8 +73,7 @@ def validate_layout_id(layout_id: str) -> bool:
     """Valide le format d'un ID de layout (alphanum, underscore, tiret)."""
     if not layout_id or len(layout_id) > 100:
         return False
-    safe_id = re.sub(r"[^a-zA-Z0-9_-]", "", layout_id)
-    return safe_id == layout_id
+    return bool(re.match(r"^[a-zA-Z0-9_-]+$", layout_id))
 
 
 def validate_json_depth(obj: Any, current_depth: int = 0, max_depth: int = 10) -> bool:
@@ -89,7 +88,7 @@ def validate_json_depth(obj: Any, current_depth: int = 0, max_depth: int = 10) -
 
 
 def escape_python_string(value: str) -> str:
-    """Escape std python sting"""
+    """Escape std python sting /!\ do not use for exec or eval sec"""
     return (
         value
         .replace("\\", "\\\\")
