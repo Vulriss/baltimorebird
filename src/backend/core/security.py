@@ -16,7 +16,7 @@ def is_safe_path(base_dir: Path, requested_path: Path) -> bool:
     try:
         base_resolved = base_dir.resolve()
         requested_resolved = requested_path.resolve()
-        return str(requested_resolved).startswith(str(base_resolved))
+        return base_resolved in requested_resolved.parents or requested_resolved == base_resolved
     except (OSError, ValueError):
         return False
 
