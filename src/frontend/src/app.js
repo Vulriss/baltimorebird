@@ -520,6 +520,15 @@ async function preloadSignalOnHover(signalIndex, itemElement) {
             // Mettre à jour l'état du signal
             sig.loaded = true;
             
+            if (data.string_map) {
+                sig.stringMap = data.string_map;
+                sig.isCategorical = true;
+            }
+
+            if (data.unit) {
+                sig.unit = data.unit;
+            }
+
             // Mettre à jour l'affichage
             itemElement.classList.remove('not-loaded', 'loading');
             itemElement.draggable = true;
@@ -528,8 +537,9 @@ async function preloadSignalOnHover(signalIndex, itemElement) {
             if (dot) {
                 dot.classList.remove('lazy-indicator');
             }
-            
-            console.log(`[LazyEDA] Signal "${sig.name}" préchargé (${data.n_samples} pts)`);
+
+            const catLabel = data.is_categorical ? ' [categorical]' : '';
+            console.log(`[LazyEDA] Signal "${sig.name}" préchargé (${data.n_samples} pts)${catLabel}`);
         } else {
             console.warn(`[LazyEDA] Échec préchargement signal ${signalIndex}:`, data.error);
             itemElement.classList.add('load-error');
@@ -1603,6 +1613,11 @@ function colorWithOpacity(color, opacity) {
     return `rgba(${r}, ${g}, ${b}, ${opacity})`;
 }
 
+function isSteppedSignal(sigData) {
+    if (!sigData) return false;
+    return sigData.isCategorical || sigData.unit === 'state' || sigData.unit === 'bool';
+}
+
 function renderPlotFromCache(plot) {
     if (plot.signals.length === 0) return;
     
@@ -2151,7 +2166,9 @@ function renderPlotChart(plot, data) {
             stats: sig.stats,
             isComplete: sig.is_complete,
             timeRange: newTimeRange,
-            fullTimeRange: sig.is_complete ? newTimeRange : null
+            fullTimeRange: sig.is_complete ? newTimeRange : null,
+            stringMap: sig.string_map || null,
+            isCategorical: sig.is_categorical || false
         };
     });
 
@@ -2227,7 +2244,8 @@ function cursorPlugin() {
     let line1, line2;
     let timeLabel1, timeLabel2;
     let deltaLine, deltaLabel;
-    let labels1 = [], labels2 = [];
+    let labelPool1 = [];
+    let labelPool2 = [];
     let over;
     let draggingCursor = null;
 
@@ -2364,72 +2382,102 @@ function cursorPlugin() {
                 });
             },
             draw: u => {
-                labels1.forEach(l => l.remove());
-                labels2.forEach(l => l.remove());
-                labels1 = [];
-                labels2 = [];
-
                 const plot = plots.find(p => p.chart === u);
                 if (!plot) return;
 
                 updateTimeLabels(u);
 
+                // --- Cursor 1 ---
                 if (cursor1 !== null) {
                     const xPos = u.valToPos(cursor1, 'x');
                     line1.style.left = xPos + 'px';
                     line1.style.display = 'block';
                     
+                    let labelIdx = 0;
                     plot.signals.forEach(sigIdx => {
                         const cached = plot.cachedData[sigIdx];
                         if (!cached) return;
-                        const val = getValueAtTime(cached.timestamps, cached.values, cursor1);
-                        if (val === null) return;
-                        const yPos = u.valToPos(val, 'y');
+                        
+                        const result = getValueAtTime(cached.timestamps, cached.values, cursor1, cached.stringMap);
+                        if (result === null) return;
+                        
+                        const yPos = u.valToPos(result.numeric, 'y');
                         if (yPos < 0 || yPos > u.height) return;
-                        const label = document.createElement('div');
-                        label.className = 'cursor-label';
+                        
+                        // Réutilise ou crée le label
+                        let label = labelPool1[labelIdx];
+                        if (!label) {
+                            label = document.createElement('div');
+                            label.className = 'cursor-label';
+                            over.appendChild(label);
+                            labelPool1[labelIdx] = label;
+                        }
+                        
+                        label.style.display = 'block';
                         label.style.setProperty('--sig-color', cached.color);
-                        label.textContent = val.toFixed(2);
+                        label.textContent = result.display;
                         label.style.left = (xPos + 4) + 'px';
                         label.style.top = yPos + 'px';
-                        over.appendChild(label);
-                        labels1.push(label);
+                        labelIdx++;
                     });
+                    
+                    // Cache les labels inutilisés
+                    for (let i = labelIdx; i < labelPool1.length; i++) {
+                        if (labelPool1[i]) labelPool1[i].style.display = 'none';
+                    }
                 } else {
                     line1.style.display = 'none';
+                    labelPool1.forEach(l => { if (l) l.style.display = 'none'; });
                 }
                 
+                // --- Cursor 2 ---
                 if (cursor2 !== null) {
                     const xPos = u.valToPos(cursor2, 'x');
                     line2.style.left = xPos + 'px';
                     line2.style.display = 'block';
                     
+                    let labelIdx = 0;
                     plot.signals.forEach(sigIdx => {
                         const cached = plot.cachedData[sigIdx];
                         if (!cached) return;
-                        const val = getValueAtTime(cached.timestamps, cached.values, cursor2);
-                        if (val === null) return;
-                        const yPos = u.valToPos(val, 'y');
+                        
+                        const result = getValueAtTime(cached.timestamps, cached.values, cursor2, cached.stringMap);
+                        if (result === null) return;
+                        
+                        const yPos = u.valToPos(result.numeric, 'y');
                         if (yPos < 0 || yPos > u.height) return;
-                        const label = document.createElement('div');
-                        label.className = 'cursor-label';
+                        
+                        let label = labelPool2[labelIdx];
+                        if (!label) {
+                            label = document.createElement('div');
+                            label.className = 'cursor-label';
+                            over.appendChild(label);
+                            labelPool2[labelIdx] = label;
+                        }
+                        
+                        label.style.display = 'block';
                         label.style.setProperty('--sig-color', cached.color);
-                        label.textContent = val.toFixed(2);
+                        label.textContent = result.display;
                         label.style.left = (xPos + 4) + 'px';
                         label.style.top = yPos + 'px';
-                        over.appendChild(label);
-                        labels2.push(label);
+                        labelIdx++;
                     });
+                    
+                    for (let i = labelIdx; i < labelPool2.length; i++) {
+                        if (labelPool2[i]) labelPool2[i].style.display = 'none';
+                    }
                 } else {
                     line2.style.display = 'none';
+                    labelPool2.forEach(l => { if (l) l.style.display = 'none'; });
                 }
             }
         }
     };
 }
 
-function getValueAtTime(timestamps, values, targetTime) {
+function getValueAtTime(timestamps, values, targetTime, stringMap = null) {
     if (!timestamps || !values || timestamps.length === 0) return null;
+    
     let lo = 0, hi = timestamps.length - 1;
     while (lo < hi) {
         const mid = Math.floor((lo + hi) / 2);
@@ -2439,7 +2487,17 @@ function getValueAtTime(timestamps, values, targetTime) {
     if (lo > 0 && Math.abs(timestamps[lo - 1] - targetTime) < Math.abs(timestamps[lo] - targetTime)) {
         lo = lo - 1;
     }
-    return values[lo];
+    
+    const numericValue = values[lo];
+    
+    // Si on a un stringMap, retourner la valeur textuelle
+    if (stringMap) {
+        const key = Math.round(numericValue);
+        const textValue = stringMap[key] !== undefined ? stringMap[key] : numericValue.toFixed(2);
+        return { numeric: numericValue, display: textValue };
+    }
+    
+    return { numeric: numericValue, display: numericValue.toFixed(2) };
 }
 
 function updateCursors() {
