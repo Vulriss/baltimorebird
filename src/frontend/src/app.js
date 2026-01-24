@@ -13,6 +13,7 @@ let lodPoints = 2000;
 let cursor1 = null, cursor2 = null;
 let draggedSignal = null;
 let currentSource = null;
+let currentLazySessionId = null;
 
 // Tabs system
 let tabs = [];
@@ -325,6 +326,10 @@ async function changeSource() {
         
         // Pour les sources lazy (fichiers utilisateur), les infos sont déjà dans la réponse
         if (data.lazy && data.signals) {
+            if (data.session_id) {
+                currentLazySessionId = data.session_id;
+            }
+            
             signalsInfo = data.signals;
             window.signalsInfo = signalsInfo;
             globalView = { min: data.time_range.min, max: data.time_range.max };
@@ -339,6 +344,8 @@ async function changeSource() {
             console.log(`Switched to lazy source: ${currentSource}`);
         } else {
             // Pour les sources classiques, recharge les infos via /api/info
+            currentLazySessionId = null;
+            
             const infoRes = typeof authFetch === 'function'
                 ? await authFetch(`${API}/info`)
                 : await fetch(`${API}/info`);
@@ -373,17 +380,23 @@ function renderSignalList() {
     const container = document.getElementById('signalList');
     if (!container) return;
     
-    // Utilise createElement pour éviter XSS
     container.innerHTML = '';
     
     signalsInfo.forEach(sig => {
         const item = document.createElement('div');
         item.className = 'signal-item';
-        item.draggable = true;
         item.dataset.index = sig.index;
         item.id = `signal-item-${sig.index}`;
         
-        // Marquer les variables calculées
+        // Lazy loading : non chargé = non draggable
+        const isLoaded = sig.loaded !== false; // true si loaded est true ou undefined
+        item.draggable = isLoaded;
+        
+        if (!isLoaded) {
+            item.classList.add('not-loaded');
+        }
+        
+        // Variables calculées
         const isComputed = sig.computed === true;
         if (isComputed) {
             item.classList.add('computed');
@@ -396,20 +409,60 @@ function renderSignalList() {
         const dot = document.createElement('div');
         dot.className = 'signal-dot';
         
+        if (!isLoaded) {
+            dot.classList.add('lazy-indicator');
+        }
+        
         const nameSpan = document.createElement('span');
         nameSpan.className = 'signal-name';
-        nameSpan.textContent = sig.name; // textContent = safe
+        nameSpan.textContent = sig.name;
         
         const unitSpan = document.createElement('span');
         unitSpan.className = 'signal-unit';
         unitSpan.textContent = sig.unit;
         
+        // Loader spinner (caché par défaut)
+        const loader = document.createElement('div');
+        loader.className = 'signal-loader';
+        loader.style.display = 'none';
+        
         item.appendChild(dot);
         item.appendChild(nameSpan);
         item.appendChild(unitSpan);
+        item.appendChild(loader);
         
-        // Event listeners
+        // =====================================================
+        // HOVER : Précharge le signal si pas encore chargé
+        // =====================================================
+        if (!isLoaded && currentLazySessionId) {
+            let hoverTimeout = null;
+            
+            item.addEventListener('mouseenter', () => {
+                // Délai court pour éviter les préchargements accidentels
+                hoverTimeout = setTimeout(() => {
+                    preloadSignalOnHover(sig.index, item);
+                }, 150);
+            });
+            
+            item.addEventListener('mouseleave', () => {
+                if (hoverTimeout) {
+                    clearTimeout(hoverTimeout);
+                    hoverTimeout = null;
+                }
+            });
+        }
+        
+        // =====================================================
+        // DRAG : Seulement si chargé
+        // =====================================================
         item.addEventListener('dragstart', e => {
+            // Vérifier si le signal est chargé
+            const currentSig = signalsInfo[parseInt(item.dataset.index)];
+            if (currentSig && currentSig.loaded === false) {
+                e.preventDefault();
+                return;
+            }
+            
             draggedSignal = parseInt(item.dataset.index);
             item.classList.add('dragging');
             const dropZone = document.getElementById(`dropZone-${activeTabId}`);
@@ -435,37 +488,70 @@ function renderSignalList() {
     });
 }
 
-function updateSignalActiveStates() {
-    // Build a map of signal index -> color (from the plot where it's displayed)
-    const signalColors = new Map();
-    plots.forEach(plot => {
-        plot.signals.forEach(sigIdx => {
-            // Priority: custom style color > cached data color > signalsInfo color
-            const customColor = plot.signalStyles?.[sigIdx]?.color;
-            const cachedColor = plot.cachedData?.[sigIdx]?.color;
-            const defaultColor = signalsInfo[sigIdx]?.color;
-            signalColors.set(sigIdx, customColor || cachedColor || defaultColor);
-        });
-    });
 
-    signalsInfo.forEach(sig => {
-        const item = document.getElementById(`signal-item-${sig.index}`);
-        if (item) {
-            const dot = item.querySelector('.signal-dot');
-            const isActive = signalColors.has(sig.index);
-            
-            item.classList.toggle('active', isActive);
-            
-            if (isActive && dot) {
-                const color = signalColors.get(sig.index);
-                dot.style.setProperty('--signal-color', color);
-                item.style.setProperty('--signal-color', color);
-            } else if (dot) {
-                dot.style.removeProperty('--signal-color');
-                item.style.removeProperty('--signal-color');
-            }
+async function preloadSignalOnHover(signalIndex, itemElement) {
+    if (!currentLazySessionId) return;
+    
+    // Vérifier si déjà chargé
+    const sig = signalsInfo[signalIndex];
+    if (!sig || sig.loaded !== false) return;
+    
+    // Afficher le loader
+    const loader = itemElement.querySelector('.signal-loader');
+    if (loader) loader.style.display = 'block';
+    
+    itemElement.classList.add('loading');
+    
+    try {
+        const headers = {};
+        const token = sessionStorage.getItem('auth_token');
+        if (token) {
+            headers['Authorization'] = 'Bearer ' + token;
         }
-    });
+        
+        const response = await fetch(
+            `${API}/eda/preload-signal/${currentLazySessionId}/${signalIndex}`,
+            { method: 'POST', headers }
+        );
+        
+        const data = await response.json();
+        
+        if (response.ok && data.status === 'ready') {
+            // Mettre à jour l'état du signal
+            sig.loaded = true;
+            
+            if (data.string_map) {
+                sig.stringMap = data.string_map;
+                sig.isCategorical = true;
+            }
+
+            if (data.unit) {
+                sig.unit = data.unit;
+            }
+
+            // Mettre à jour l'affichage
+            itemElement.classList.remove('not-loaded', 'loading');
+            itemElement.draggable = true;
+            
+            const dot = itemElement.querySelector('.signal-dot');
+            if (dot) {
+                dot.classList.remove('lazy-indicator');
+            }
+
+            const catLabel = data.is_categorical ? ' [categorical]' : '';
+            console.log(`[LazyEDA] Signal "${sig.name}" préchargé (${data.n_samples} pts)${catLabel}`);
+        } else {
+            console.warn(`[LazyEDA] Échec préchargement signal ${signalIndex}:`, data.error);
+            itemElement.classList.add('load-error');
+        }
+        
+    } catch (e) {
+        console.error(`[LazyEDA] Erreur préchargement signal ${signalIndex}:`, e);
+        itemElement.classList.add('load-error');
+    } finally {
+        if (loader) loader.style.display = 'none';
+        itemElement.classList.remove('loading');
+    }
 }
 
 // =========================================================================
@@ -1469,6 +1555,32 @@ function addSignalToPlot(plotId, signalIndex) {
     setTimeout(resizePlotCharts, 100);
 }
 
+function updateSignalsLoadedStatus(signalsStatus) {
+    if (!signalsStatus || !Array.isArray(signalsStatus)) return;
+    
+    signalsStatus.forEach(status => {
+        const sig = signalsInfo.find(s => s.index === status.index);
+        if (sig && sig.loaded !== status.loaded) {
+            sig.loaded = status.loaded;
+            
+            const item = document.getElementById(`signal-item-${status.index}`);
+            if (item) {
+                const dot = item.querySelector('.signal-dot');
+                
+                if (status.loaded) {
+                    item.classList.remove('not-loaded');
+                    item.draggable = true;
+                    if (dot) dot.classList.remove('lazy-indicator');
+                } else {
+                    item.classList.add('not-loaded');
+                    item.draggable = false;
+                    if (dot) dot.classList.add('lazy-indicator');
+                }
+            }
+        }
+    });
+}
+
 function removeSignalFromPlot(plotId, signalIndex) {
     const plot = plots.find(p => p.id === plotId);
     if (!plot) return;
@@ -1499,6 +1611,11 @@ function colorWithOpacity(color, opacity) {
     ctx.fillRect(0, 0, 1, 1);
     const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data;
     return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+}
+
+function isSteppedSignal(sigData) {
+    if (!sigData) return false;
+    return sigData.isCategorical || sigData.unit === 'state' || sigData.unit === 'bool';
 }
 
 function renderPlotFromCache(plot) {
@@ -1811,6 +1928,37 @@ function updateSignalStyle(plotId, sigIdx, property, value) {
     updateSignalActiveStates();
 }
 
+function updateSignalActiveStates() {
+    const signalColors = new Map();
+    plots.forEach(plot => {
+        plot.signals.forEach(sigIdx => {
+            const customColor = plot.signalStyles?.[sigIdx]?.color;
+            const cachedColor = plot.cachedData?.[sigIdx]?.color;
+            const defaultColor = signalsInfo[sigIdx]?.color;
+            signalColors.set(sigIdx, customColor || cachedColor || defaultColor);
+        });
+    });
+
+    signalsInfo.forEach(sig => {
+        const item = document.getElementById(`signal-item-${sig.index}`);
+        if (item) {
+            const dot = item.querySelector('.signal-dot');
+            const isActive = signalColors.has(sig.index);
+            
+            item.classList.toggle('active', isActive);
+            
+            if (isActive && dot) {
+                const color = signalColors.get(sig.index);
+                dot.style.setProperty('--signal-color', color);
+                item.style.setProperty('--signal-color', color);
+            } else if (dot) {
+                dot.style.removeProperty('--signal-color');
+                item.style.removeProperty('--signal-color');
+            }
+        }
+    });
+}
+
 // =========================================================================
 // Data Fetching & Rendering (with local filtering optimization)
 // =========================================================================
@@ -1973,6 +2121,11 @@ async function fetchAndRenderPlot(plot) {
 
         renderPlotChart(plot, data);
         
+        // Mettre à jour le statut loaded des signaux (pour lazy EDA)
+        if (data.signals_status) {
+            updateSignalsLoadedStatus(data.signals_status);
+        }
+        
     } catch (e) {
         console.error('Fetch error:', e);
     }
@@ -2013,7 +2166,9 @@ function renderPlotChart(plot, data) {
             stats: sig.stats,
             isComplete: sig.is_complete,
             timeRange: newTimeRange,
-            fullTimeRange: sig.is_complete ? newTimeRange : null
+            fullTimeRange: sig.is_complete ? newTimeRange : null,
+            stringMap: sig.string_map || null,
+            isCategorical: sig.is_categorical || false
         };
     });
 
@@ -2089,7 +2244,8 @@ function cursorPlugin() {
     let line1, line2;
     let timeLabel1, timeLabel2;
     let deltaLine, deltaLabel;
-    let labels1 = [], labels2 = [];
+    let labelPool1 = [];
+    let labelPool2 = [];
     let over;
     let draggingCursor = null;
 
@@ -2226,72 +2382,102 @@ function cursorPlugin() {
                 });
             },
             draw: u => {
-                labels1.forEach(l => l.remove());
-                labels2.forEach(l => l.remove());
-                labels1 = [];
-                labels2 = [];
-
                 const plot = plots.find(p => p.chart === u);
                 if (!plot) return;
 
                 updateTimeLabels(u);
 
+                // --- Cursor 1 ---
                 if (cursor1 !== null) {
                     const xPos = u.valToPos(cursor1, 'x');
                     line1.style.left = xPos + 'px';
                     line1.style.display = 'block';
                     
+                    let labelIdx = 0;
                     plot.signals.forEach(sigIdx => {
                         const cached = plot.cachedData[sigIdx];
                         if (!cached) return;
-                        const val = getValueAtTime(cached.timestamps, cached.values, cursor1);
-                        if (val === null) return;
-                        const yPos = u.valToPos(val, 'y');
+                        
+                        const result = getValueAtTime(cached.timestamps, cached.values, cursor1, cached.stringMap);
+                        if (result === null) return;
+                        
+                        const yPos = u.valToPos(result.numeric, 'y');
                         if (yPos < 0 || yPos > u.height) return;
-                        const label = document.createElement('div');
-                        label.className = 'cursor-label';
+                        
+                        // Réutilise ou crée le label
+                        let label = labelPool1[labelIdx];
+                        if (!label) {
+                            label = document.createElement('div');
+                            label.className = 'cursor-label';
+                            over.appendChild(label);
+                            labelPool1[labelIdx] = label;
+                        }
+                        
+                        label.style.display = 'block';
                         label.style.setProperty('--sig-color', cached.color);
-                        label.textContent = val.toFixed(2);
+                        label.textContent = result.display;
                         label.style.left = (xPos + 4) + 'px';
                         label.style.top = yPos + 'px';
-                        over.appendChild(label);
-                        labels1.push(label);
+                        labelIdx++;
                     });
+                    
+                    // Cache les labels inutilisés
+                    for (let i = labelIdx; i < labelPool1.length; i++) {
+                        if (labelPool1[i]) labelPool1[i].style.display = 'none';
+                    }
                 } else {
                     line1.style.display = 'none';
+                    labelPool1.forEach(l => { if (l) l.style.display = 'none'; });
                 }
                 
+                // --- Cursor 2 ---
                 if (cursor2 !== null) {
                     const xPos = u.valToPos(cursor2, 'x');
                     line2.style.left = xPos + 'px';
                     line2.style.display = 'block';
                     
+                    let labelIdx = 0;
                     plot.signals.forEach(sigIdx => {
                         const cached = plot.cachedData[sigIdx];
                         if (!cached) return;
-                        const val = getValueAtTime(cached.timestamps, cached.values, cursor2);
-                        if (val === null) return;
-                        const yPos = u.valToPos(val, 'y');
+                        
+                        const result = getValueAtTime(cached.timestamps, cached.values, cursor2, cached.stringMap);
+                        if (result === null) return;
+                        
+                        const yPos = u.valToPos(result.numeric, 'y');
                         if (yPos < 0 || yPos > u.height) return;
-                        const label = document.createElement('div');
-                        label.className = 'cursor-label';
+                        
+                        let label = labelPool2[labelIdx];
+                        if (!label) {
+                            label = document.createElement('div');
+                            label.className = 'cursor-label';
+                            over.appendChild(label);
+                            labelPool2[labelIdx] = label;
+                        }
+                        
+                        label.style.display = 'block';
                         label.style.setProperty('--sig-color', cached.color);
-                        label.textContent = val.toFixed(2);
+                        label.textContent = result.display;
                         label.style.left = (xPos + 4) + 'px';
                         label.style.top = yPos + 'px';
-                        over.appendChild(label);
-                        labels2.push(label);
+                        labelIdx++;
                     });
+                    
+                    for (let i = labelIdx; i < labelPool2.length; i++) {
+                        if (labelPool2[i]) labelPool2[i].style.display = 'none';
+                    }
                 } else {
                     line2.style.display = 'none';
+                    labelPool2.forEach(l => { if (l) l.style.display = 'none'; });
                 }
             }
         }
     };
 }
 
-function getValueAtTime(timestamps, values, targetTime) {
+function getValueAtTime(timestamps, values, targetTime, stringMap = null) {
     if (!timestamps || !values || timestamps.length === 0) return null;
+    
     let lo = 0, hi = timestamps.length - 1;
     while (lo < hi) {
         const mid = Math.floor((lo + hi) / 2);
@@ -2301,7 +2487,17 @@ function getValueAtTime(timestamps, values, targetTime) {
     if (lo > 0 && Math.abs(timestamps[lo - 1] - targetTime) < Math.abs(timestamps[lo] - targetTime)) {
         lo = lo - 1;
     }
-    return values[lo];
+    
+    const numericValue = values[lo];
+    
+    // Si on a un stringMap, retourner la valeur textuelle
+    if (stringMap) {
+        const key = Math.round(numericValue);
+        const textValue = stringMap[key] !== undefined ? stringMap[key] : numericValue.toFixed(2);
+        return { numeric: numericValue, display: textValue };
+    }
+    
+    return { numeric: numericValue, display: numericValue.toFixed(2) };
 }
 
 function updateCursors() {
@@ -3006,3 +3202,6 @@ window.saveCurrentLayout = saveCurrentLayout;
 window.closeSaveMode = closeSaveMode;
 window.exportCurrentLayout = exportCurrentLayout;
 window.applyLayout = applyLayout;
+window.currentLazySessionId = null; // Sera mis à jour par changeSource
+window.preloadSignalOnHover = preloadSignalOnHover;
+window.updateSignalsLoadedStatus = updateSignalsLoadedStatus;

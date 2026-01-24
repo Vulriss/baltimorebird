@@ -502,31 +502,71 @@
     }
   },
   "2026-01-15": {
-    "total_requests": 115,
+    "total_requests": 171,
     "unique_users": [
       "b2aeadbb5b4cd836"
     ],
     "endpoints": {
-      "/api/auth/me": 8,
-      "/api/sources": 16,
-      "/api/info": 22,
-      "/api/storage/files": 23,
+      "/api/auth/me": 11,
+      "/api/sources": 20,
+      "/api/info": 26,
+      "/api/storage/files": 26,
       "/api/layouts": 8,
       "/api/layouts/demo_obd2": 2,
       "/api/storage/files/9edcf5b7-0223-4381-bb2f-80bc616bf7ae/content": 1,
-      "/api/view": 12,
+      "/api/view": 15,
       "/api/storage/json/layouts": 1,
       "/api/storage/files/46dc77ce-2754-4ff4-adba-be3cfea6c565/content": 2,
-      "/api/storage/info": 6,
+      "/api/storage/info": 9,
       "/api/auth/login": 2,
       "/api/auth/logout": 1,
-      "/api/source/user_mf4_df08fab3-2347-4271-9dec-bc0605e79d6b": 9,
+      "/api/source/user_mf4_df08fab3-2347-4271-9dec-bc0605e79d6b": 10,
       "/api/source/synthetic": 1,
-      "/api/source/mf4": 1
+      "/api/source/mf4": 1,
+      "/api/scripts": 9,
+      "/api/reports": 23,
+      "/api/admin/users": 3
     },
     "status_codes": {
-      "200": 114,
+      "200": 170,
       "201": 1
+    },
+    "sessions": {
+      "count": 2,
+      "total_duration": 1100.5714128017426,
+      "max_duration": 573.2656695842743
+    },
+    "latency": {
+      "count": 171,
+      "min": 0.0,
+      "max": 232.48,
+      "avg": 6.59,
+      "p50": 0,
+      "p95": 0,
+      "p99": 0
+    }
+  },
+  "2026-01-19": {
+    "unique_users": [
+      "11307f27733167f9"
+    ],
+    "total_requests": 35,
+    "endpoints": {
+      "/api/sources": 3,
+      "/api/info": 2,
+      "/api/reports": 4,
+      "/api/view": 3,
+      "/api/auth/login": 1,
+      "/api/auth/me": 1,
+      "/api/scripts": 2,
+      "/api/scripts/script_example_obd2": 1,
+      "/api/reports/demo": 1,
+      "/api/storage/info": 6,
+      "/api/storage/files": 9,
+      "/api/admin/users": 2
+    },
+    "status_codes": {
+      "200": 35
     },
     "sessions": {
       "count": 0,
@@ -534,13 +574,44 @@
       "max_duration": 0
     },
     "latency": {
-      "count": 115,
+      "count": 35,
       "min": 0.0,
-      "max": 232.48,
-      "avg": 9.04,
-      "p50": 1.0,
-      "p95": 127.58,
-      "p99": 221.4
+      "max": 207.2,
+      "avg": 9.82,
+      "p50": 0,
+      "p95": 0,
+      "p99": 0
+    }
+  },
+  "2026-01-24": {
+    "unique_users": [
+      "11307f27733167f9"
+    ],
+    "total_requests": 43,
+    "endpoints": {
+      "/api/sources": 11,
+      "/api/info": 10,
+      "/api/view": 9,
+      "/api/auth/login": 1,
+      "/api/auth/me": 9,
+      "/api/source/user_mf4_df08fab3-2347-4271-9dec-bc0605e79d6b": 3
+    },
+    "status_codes": {
+      "200": 43
+    },
+    "sessions": {
+      "count": 0,
+      "total_duration": 0,
+      "max_duration": 0
+    },
+    "latency": {
+      "count": 43,
+      "min": 0.0,
+      "max": 2833.9,
+      "avg": 92.47,
+      "p50": 1.03,
+      "p95": 245.57,
+      "p99": 2833.9
     }
   }
 }
