@@ -13,6 +13,7 @@ let lodPoints = 2000;
 let cursor1 = null, cursor2 = null;
 let draggedSignal = null;
 let currentSource = null;
+let currentLazySessionId = null;
 
 // Tabs system
 let tabs = [];
@@ -325,6 +326,10 @@ async function changeSource() {
         
         // Pour les sources lazy (fichiers utilisateur), les infos sont déjà dans la réponse
         if (data.lazy && data.signals) {
+            if (data.session_id) {
+                currentLazySessionId = data.session_id;
+            }
+            
             signalsInfo = data.signals;
             window.signalsInfo = signalsInfo;
             globalView = { min: data.time_range.min, max: data.time_range.max };
@@ -339,6 +344,8 @@ async function changeSource() {
             console.log(`Switched to lazy source: ${currentSource}`);
         } else {
             // Pour les sources classiques, recharge les infos via /api/info
+            currentLazySessionId = null;
+            
             const infoRes = typeof authFetch === 'function'
                 ? await authFetch(`${API}/info`)
                 : await fetch(`${API}/info`);
@@ -373,17 +380,23 @@ function renderSignalList() {
     const container = document.getElementById('signalList');
     if (!container) return;
     
-    // Utilise createElement pour éviter XSS
     container.innerHTML = '';
     
     signalsInfo.forEach(sig => {
         const item = document.createElement('div');
         item.className = 'signal-item';
-        item.draggable = true;
         item.dataset.index = sig.index;
         item.id = `signal-item-${sig.index}`;
         
-        // Marquer les variables calculées
+        // Lazy loading : non chargé = non draggable
+        const isLoaded = sig.loaded !== false; // true si loaded est true ou undefined
+        item.draggable = isLoaded;
+        
+        if (!isLoaded) {
+            item.classList.add('not-loaded');
+        }
+        
+        // Variables calculées
         const isComputed = sig.computed === true;
         if (isComputed) {
             item.classList.add('computed');
@@ -396,20 +409,60 @@ function renderSignalList() {
         const dot = document.createElement('div');
         dot.className = 'signal-dot';
         
+        if (!isLoaded) {
+            dot.classList.add('lazy-indicator');
+        }
+        
         const nameSpan = document.createElement('span');
         nameSpan.className = 'signal-name';
-        nameSpan.textContent = sig.name; // textContent = safe
+        nameSpan.textContent = sig.name;
         
         const unitSpan = document.createElement('span');
         unitSpan.className = 'signal-unit';
         unitSpan.textContent = sig.unit;
         
+        // Loader spinner (caché par défaut)
+        const loader = document.createElement('div');
+        loader.className = 'signal-loader';
+        loader.style.display = 'none';
+        
         item.appendChild(dot);
         item.appendChild(nameSpan);
         item.appendChild(unitSpan);
+        item.appendChild(loader);
         
-        // Event listeners
+        // =====================================================
+        // HOVER : Précharge le signal si pas encore chargé
+        // =====================================================
+        if (!isLoaded && currentLazySessionId) {
+            let hoverTimeout = null;
+            
+            item.addEventListener('mouseenter', () => {
+                // Délai court pour éviter les préchargements accidentels
+                hoverTimeout = setTimeout(() => {
+                    preloadSignalOnHover(sig.index, item);
+                }, 150);
+            });
+            
+            item.addEventListener('mouseleave', () => {
+                if (hoverTimeout) {
+                    clearTimeout(hoverTimeout);
+                    hoverTimeout = null;
+                }
+            });
+        }
+        
+        // =====================================================
+        // DRAG : Seulement si chargé
+        // =====================================================
         item.addEventListener('dragstart', e => {
+            // Vérifier si le signal est chargé
+            const currentSig = signalsInfo[parseInt(item.dataset.index)];
+            if (currentSig && currentSig.loaded === false) {
+                e.preventDefault();
+                return;
+            }
+            
             draggedSignal = parseInt(item.dataset.index);
             item.classList.add('dragging');
             const dropZone = document.getElementById(`dropZone-${activeTabId}`);
@@ -435,37 +488,60 @@ function renderSignalList() {
     });
 }
 
-function updateSignalActiveStates() {
-    // Build a map of signal index -> color (from the plot where it's displayed)
-    const signalColors = new Map();
-    plots.forEach(plot => {
-        plot.signals.forEach(sigIdx => {
-            // Priority: custom style color > cached data color > signalsInfo color
-            const customColor = plot.signalStyles?.[sigIdx]?.color;
-            const cachedColor = plot.cachedData?.[sigIdx]?.color;
-            const defaultColor = signalsInfo[sigIdx]?.color;
-            signalColors.set(sigIdx, customColor || cachedColor || defaultColor);
-        });
-    });
 
-    signalsInfo.forEach(sig => {
-        const item = document.getElementById(`signal-item-${sig.index}`);
-        if (item) {
-            const dot = item.querySelector('.signal-dot');
-            const isActive = signalColors.has(sig.index);
-            
-            item.classList.toggle('active', isActive);
-            
-            if (isActive && dot) {
-                const color = signalColors.get(sig.index);
-                dot.style.setProperty('--signal-color', color);
-                item.style.setProperty('--signal-color', color);
-            } else if (dot) {
-                dot.style.removeProperty('--signal-color');
-                item.style.removeProperty('--signal-color');
-            }
+async function preloadSignalOnHover(signalIndex, itemElement) {
+    if (!currentLazySessionId) return;
+    
+    // Vérifier si déjà chargé
+    const sig = signalsInfo[signalIndex];
+    if (!sig || sig.loaded !== false) return;
+    
+    // Afficher le loader
+    const loader = itemElement.querySelector('.signal-loader');
+    if (loader) loader.style.display = 'block';
+    
+    itemElement.classList.add('loading');
+    
+    try {
+        const headers = {};
+        const token = sessionStorage.getItem('auth_token');
+        if (token) {
+            headers['Authorization'] = 'Bearer ' + token;
         }
-    });
+        
+        const response = await fetch(
+            `${API}/eda/preload-signal/${currentLazySessionId}/${signalIndex}`,
+            { method: 'POST', headers }
+        );
+        
+        const data = await response.json();
+        
+        if (response.ok && data.status === 'ready') {
+            // Mettre à jour l'état du signal
+            sig.loaded = true;
+            
+            // Mettre à jour l'affichage
+            itemElement.classList.remove('not-loaded', 'loading');
+            itemElement.draggable = true;
+            
+            const dot = itemElement.querySelector('.signal-dot');
+            if (dot) {
+                dot.classList.remove('lazy-indicator');
+            }
+            
+            console.log(`[LazyEDA] Signal "${sig.name}" préchargé (${data.n_samples} pts)`);
+        } else {
+            console.warn(`[LazyEDA] Échec préchargement signal ${signalIndex}:`, data.error);
+            itemElement.classList.add('load-error');
+        }
+        
+    } catch (e) {
+        console.error(`[LazyEDA] Erreur préchargement signal ${signalIndex}:`, e);
+        itemElement.classList.add('load-error');
+    } finally {
+        if (loader) loader.style.display = 'none';
+        itemElement.classList.remove('loading');
+    }
 }
 
 // =========================================================================
@@ -1469,6 +1545,32 @@ function addSignalToPlot(plotId, signalIndex) {
     setTimeout(resizePlotCharts, 100);
 }
 
+function updateSignalsLoadedStatus(signalsStatus) {
+    if (!signalsStatus || !Array.isArray(signalsStatus)) return;
+    
+    signalsStatus.forEach(status => {
+        const sig = signalsInfo.find(s => s.index === status.index);
+        if (sig && sig.loaded !== status.loaded) {
+            sig.loaded = status.loaded;
+            
+            const item = document.getElementById(`signal-item-${status.index}`);
+            if (item) {
+                const dot = item.querySelector('.signal-dot');
+                
+                if (status.loaded) {
+                    item.classList.remove('not-loaded');
+                    item.draggable = true;
+                    if (dot) dot.classList.remove('lazy-indicator');
+                } else {
+                    item.classList.add('not-loaded');
+                    item.draggable = false;
+                    if (dot) dot.classList.add('lazy-indicator');
+                }
+            }
+        }
+    });
+}
+
 function removeSignalFromPlot(plotId, signalIndex) {
     const plot = plots.find(p => p.id === plotId);
     if (!plot) return;
@@ -1811,6 +1913,37 @@ function updateSignalStyle(plotId, sigIdx, property, value) {
     updateSignalActiveStates();
 }
 
+function updateSignalActiveStates() {
+    const signalColors = new Map();
+    plots.forEach(plot => {
+        plot.signals.forEach(sigIdx => {
+            const customColor = plot.signalStyles?.[sigIdx]?.color;
+            const cachedColor = plot.cachedData?.[sigIdx]?.color;
+            const defaultColor = signalsInfo[sigIdx]?.color;
+            signalColors.set(sigIdx, customColor || cachedColor || defaultColor);
+        });
+    });
+
+    signalsInfo.forEach(sig => {
+        const item = document.getElementById(`signal-item-${sig.index}`);
+        if (item) {
+            const dot = item.querySelector('.signal-dot');
+            const isActive = signalColors.has(sig.index);
+            
+            item.classList.toggle('active', isActive);
+            
+            if (isActive && dot) {
+                const color = signalColors.get(sig.index);
+                dot.style.setProperty('--signal-color', color);
+                item.style.setProperty('--signal-color', color);
+            } else if (dot) {
+                dot.style.removeProperty('--signal-color');
+                item.style.removeProperty('--signal-color');
+            }
+        }
+    });
+}
+
 // =========================================================================
 // Data Fetching & Rendering (with local filtering optimization)
 // =========================================================================
@@ -1972,6 +2105,11 @@ async function fetchAndRenderPlot(plot) {
         }
 
         renderPlotChart(plot, data);
+        
+        // Mettre à jour le statut loaded des signaux (pour lazy EDA)
+        if (data.signals_status) {
+            updateSignalsLoadedStatus(data.signals_status);
+        }
         
     } catch (e) {
         console.error('Fetch error:', e);
@@ -3006,3 +3144,6 @@ window.saveCurrentLayout = saveCurrentLayout;
 window.closeSaveMode = closeSaveMode;
 window.exportCurrentLayout = exportCurrentLayout;
 window.applyLayout = applyLayout;
+window.currentLazySessionId = null; // Sera mis à jour par changeSource
+window.preloadSignalOnHover = preloadSignalOnHover;
+window.updateSignalsLoadedStatus = updateSignalsLoadedStatus;
