@@ -35,6 +35,7 @@ class LazySignal:
     metadata: SignalMetadata
     timestamps: Optional[NDArray[np.float64]] = None
     values: Optional[NDArray[np.float64]] = None
+    string_map: Optional[Dict[int, str]] = None  # Mapping int->string pour signaux catégoriels
 
     @property
     def is_loaded(self) -> bool:
@@ -238,40 +239,68 @@ class LazyEDAManager:
             if sig is None or sig.samples is None or len(sig.samples) == 0:
                 return {"index": signal_index, "status": "error", "error": "Signal empty"}
 
-            if not np.issubdtype(sig.samples.dtype, np.number):
-                return {"index": signal_index, "status": "error", "error": "Non-numeric signal"}
-
             timestamps = np.asarray(sig.timestamps, dtype=np.float64)
-            values = np.asarray(sig.samples, dtype=np.float64)
+            samples = sig.samples
+            string_map = None
 
-            mask = ~np.isfinite(values)
-            if mask.all():
-                return {"index": signal_index, "status": "error", "error": "All NaN values"}
+            # Handle non-numeric signals (string/bytes/object)
+            if samples.dtype.kind in ('S', 'U', 'O'):  # String, Unicode, or Object
+                unique_vals = np.unique(samples)
+                string_map = {}
+                val_to_num = {}
 
-            if mask.any():
-                valid_mask = ~mask
-                values[mask] = np.interp(
-                    timestamps[mask],
-                    timestamps[valid_mask],
-                    values[valid_mask],
-                    left=values[valid_mask][0],
-                    right=values[valid_mask][-1]
-                )
+                for i, val in enumerate(unique_vals):
+                    if isinstance(val, bytes):
+                        decoded = val.decode('utf-8', errors='replace')
+                    else:
+                        decoded = str(val)
+                    string_map[i] = decoded
+                    val_to_num[val] = i
+
+                values = np.array([val_to_num[v] for v in samples], dtype=np.float64)
+                lazy_signal.metadata.unit = "state"
+                lazy_signal.string_map = string_map
+            else:
+                values = np.asarray(samples, dtype=np.float64)
+                lazy_signal.string_map = None
+
+                mask = ~np.isfinite(values)
+                if mask.all():
+                    return {"index": signal_index, "status": "error", "error": "All NaN values"}
+
+                if mask.any():
+                    valid_mask = ~mask
+                    values[mask] = np.interp(
+                        timestamps[mask],
+                        timestamps[valid_mask],
+                        values[valid_mask],
+                        left=values[valid_mask][0],
+                        right=values[valid_mask][-1]
+                    )
 
             lazy_signal.timestamps = timestamps
             lazy_signal.values = values
             lazy_signal.metadata.loaded = True
 
             elapsed = (time.time() - start_time) * 1000
-            print(f"[LazyEDA] Preloaded '{signal_name}' ({len(timestamps):,} pts) in {elapsed:.1f}ms")
+            is_categorical = string_map is not None
+            print(f"[LazyEDA] Preloaded '{signal_name}' ({len(timestamps):,} pts) in {elapsed:.1f}ms"
+                  f"{' [categorical]' if is_categorical else ''}")
 
-            return {
+            response = {
                 "index": signal_index,
                 "name": signal_name,
                 "status": "ready",
                 "n_samples": len(timestamps),
-                "load_time_ms": round(elapsed, 1)
+                "load_time_ms": round(elapsed, 1),
+                "unit": lazy_signal.metadata.unit,
             }
+
+            if string_map:
+                response["string_map"] = string_map
+                response["is_categorical"] = True
+
+            return response
 
         except Exception as e:
             logger.error(f"[LazyEDA] Error preloading signal {signal_index}", exc_info=True)
@@ -387,7 +416,7 @@ class LazyEDAManager:
             else:
                 t_down, v_down = t_slice, v_slice
 
-            result_signals.append({
+            signal_data = {
                 "index": idx,
                 "name": meta.name,
                 "unit": meta.unit,
@@ -402,7 +431,14 @@ class LazyEDAManager:
                     "max": float(np.max(v_slice)) if len(v_slice) > 0 else 0,
                     "lttb_ms": 0,
                 },
-            })
+            }
+
+            # Ajouter string_map pour les signaux catégoriels
+            if lazy_signal.string_map:
+                signal_data["string_map"] = lazy_signal.string_map
+                signal_data["is_categorical"] = True
+
+            result_signals.append(signal_data)
 
         if not result_signals:
             return None
