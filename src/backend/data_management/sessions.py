@@ -331,6 +331,14 @@ class LazyEDAManager:
             except Exception:
                 logger.warning("[LazyEDA] couldnt close current session", exc_info=True)
 
+    def close_user_sessions(self, user_id: str) -> int:
+        """Ferme toutes les sessions d'un utilisateur. Retourne le nombre de sessions fermées."""
+        to_close = [sid for sid, session in self.sessions.items() if session.user_id == user_id]
+        for sid in to_close:
+            self.close_session(sid)
+            logger.info(f"[LazyEDA] Closed session {sid[:8]} for user {user_id}")
+        return len(to_close)
+
     def _cleanup_old_sessions(self) -> None:
         """Supprime les sessions expirées pour libérer la mémoire."""
         now = time.time()

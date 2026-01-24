@@ -553,11 +553,27 @@ def login():
 
 @auth_bp.route("/api/auth/logout", methods=["POST"])
 def logout():
-    """Déconnexion."""
+    """Déconnexion et nettoyage des sessions lazy."""
     auth_header = request.headers.get("Authorization")
     if auth_header and auth_header.startswith("Bearer "):
         token = auth_header[7:]
+
+        # Récupère le user_id avant de supprimer la session
+        session = user_store.get_session(token)
+        if session:
+            user_id = session.user_id
+
+            # Ferme les sessions lazy EDA de cet utilisateur
+            try:
+                from data_management.sessions import lazy_eda
+                closed = lazy_eda.close_user_sessions(user_id)
+                if closed > 0:
+                    print(f"[Auth] Closed {closed} lazy session(s) for user {user_id}")
+            except Exception as e:
+                print(f"[Auth] Warning: could not close lazy sessions: {e}")
+
         user_store.delete_session(token)
+
     return jsonify({"success": True})
 
 
