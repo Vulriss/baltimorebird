@@ -58,18 +58,19 @@ python server.py
 ```
 
 ### Frontend setup
+I am using [bun](https://bun.com/) instead of node.js for my JavaScript runtime and package management. Feel free to use whichever you prefer. 
 ```bash
 cd frontend
 
 # Dependencies
-npm install
+bun install
 
 # Dev
-npm run dev
+bun run dev
 # → http://localhost:5173 (proxies API to :5000)
 
 # Production build
-npm run build
+bun run build
 # → generates dist/
 ```
 
@@ -100,7 +101,7 @@ FLASK_DEBUG=1 python server.py
 
 # Terminal 2 - Frontend (Vite dev server)
 cd frontend
-npm run dev
+bun run dev
 # → http://localhost:5173
 ```
 
@@ -112,7 +113,7 @@ The Vite dev server proxies `/api` requests to the backend automatically.
 
 ```bash
 cd frontend
-npm run build
+bun run build
 ```
 
 This generates an optimized `dist/` folder with:
