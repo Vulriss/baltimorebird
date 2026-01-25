@@ -2016,6 +2016,29 @@ body {
     }
 }
 
+.legend-extend-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding-top: 4px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    margin-top: 4px;
+}
+
+.legend-extend-row label {
+    font-size: 11px;
+    color: #a6adc8;
+    cursor: help;
+}
+
+.extend-zones-toggle {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+    accent-color: #89b4fa;
+}
+
 /* === MAIN === */
 .main {
     flex: 1;

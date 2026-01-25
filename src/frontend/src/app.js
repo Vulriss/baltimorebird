@@ -15,6 +15,9 @@ let draggedSignal = null;
 let currentSource = null;
 let currentLazySessionId = null;
 
+let extendedBoolZones = new Map();
+let disabledBoolZones = new Set();
+
 // Tabs system
 let tabs = [];
 let activeTabId = null;
@@ -552,6 +555,75 @@ async function preloadSignalOnHover(signalIndex, itemElement) {
         if (loader) loader.style.display = 'none';
         itemElement.classList.remove('loading');
     }
+}
+
+
+function extractBoolHighRanges(timestamps, values, threshold = 0.5) {
+    const ranges = [];
+    let inHigh = false;
+    let rangeStart = null;
+    
+    for (let i = 0; i < timestamps.length; i++) {
+        const isHigh = values[i] > threshold;
+        
+        if (isHigh && !inHigh) {
+            // Début d'une zone high
+            rangeStart = timestamps[i];
+            inHigh = true;
+        } else if (!isHigh && inHigh) {
+            // Fin d'une zone high
+            ranges.push([rangeStart, timestamps[i]]);
+            inHigh = false;
+        }
+    }
+    
+    // Si on termine en high, fermer la dernière range
+    if (inHigh && rangeStart !== null) {
+        ranges.push([rangeStart, timestamps[timestamps.length - 1]]);
+    }
+    
+    return ranges;
+}
+
+function boolZonesPlugin() {
+    return {
+        hooks: {
+            drawClear: u => {
+                // Dessine les zones AVANT les données (en fond)
+                if (extendedBoolZones.size === 0) return;
+                
+                const ctx = u.ctx;
+                const { left, top, width, height } = u.bbox;
+                
+                // Facteur de scale pour device pixel ratio
+                const pxRatio = devicePixelRatio || 1;
+                
+                extendedBoolZones.forEach((zoneData, sigIdx) => {
+                    const { color, ranges } = zoneData;
+                    
+                    // Couleur avec opacité réduite (20%)
+                    ctx.fillStyle = colorWithOpacity(color, 0.15);
+                    
+                    ranges.forEach(([start, end]) => {
+                        // Convertir les temps en positions pixels
+                        const xStart = u.valToPos(start, 'x', true);
+                        const xEnd = u.valToPos(end, 'x', true);
+                        
+                        // Ne dessiner que si visible dans la vue
+                        if (xEnd < left || xStart > left + width) return;
+                        
+                        // Clipper aux limites du graphique
+                        const drawX = Math.max(left, xStart);
+                        const drawWidth = Math.min(left + width, xEnd) - drawX;
+                        
+                        if (drawWidth > 0) {
+                            ctx.fillRect(drawX, top, drawWidth, height);
+                        }
+                    });
+                });
+            }
+        }
+    };
 }
 
 // =========================================================================
@@ -1587,6 +1659,7 @@ function removeSignalFromPlot(plotId, signalIndex) {
     
     plot.signals = plot.signals.filter(s => s !== signalIndex);
     delete plot.cachedData[signalIndex];
+    cleanupExtendedZones(signalIndex);
     
     if (plot.signals.length === 0) {
         deletePlot(plotId);
@@ -1680,7 +1753,7 @@ function renderPlotFromCache(plot) {
                 u.setSelect({ left: 0, width: 0 }, false);
             }]
         },
-        plugins: [cursorPlugin()]
+        plugins: [boolZonesPlugin(), cursorPlugin()]
     };
 
     plot.chart = new uPlot(opts, uplotData, chartDiv);
@@ -1690,6 +1763,7 @@ function renderPlotFromCache(plot) {
         return s ? `${s.name}: ${s.stats.min.toFixed(2)}/${s.stats.max.toFixed(2)}` : '';
     }).join(' | ');
     statsDiv.querySelector('.plot-stats-text').textContent = stats;
+    autoEnableExtendedZones(plot);
 }
 
 function deletePlotInTab(tabId, plotId) {
@@ -1758,6 +1832,11 @@ function updatePlotHeader(plot) {
     const legendDiv = plot.element.querySelector('.plot-legend');
     if (!legendDiv) return;
     
+    const expandedItems = new Set();
+    legendDiv.querySelectorAll('.legend-item.expanded').forEach(item => {
+        expandedItems.add(item.dataset.sigIdx);
+    });
+
     // Vide et reconstruit avec createElement (CSP safe, XSS safe)
     legendDiv.innerHTML = '';
     
@@ -1772,6 +1851,10 @@ function updatePlotHeader(plot) {
         item.dataset.sigIdx = sigIdx;
         item.dataset.plotId = plot.id;
         
+        if (expandedItems.has(String(sigIdx))) {
+            item.classList.add('expanded');
+        }
+
         // Header
         const header = document.createElement('div');
         header.className = 'legend-item-header';
@@ -1845,6 +1928,31 @@ function updatePlotHeader(plot) {
         controls.appendChild(widthRow);
         controls.appendChild(dashRow);
         
+        const cached = plot.cachedData?.[sigIdx];
+        const isBool = cached?.unit === 'bool' || sig.unit === 'bool';
+        
+        if (isBool) {
+            const extendRow = document.createElement('div');
+            extendRow.className = 'legend-control-row legend-extend-row';
+            
+            const extendLabel = document.createElement('label');
+            extendLabel.textContent = 'Étendre zones';
+            extendLabel.title = 'Afficher les zones HIGH sur tous les graphiques';
+            
+            const extendToggle = document.createElement('input');
+            extendToggle.type = 'checkbox';
+            extendToggle.className = 'extend-zones-toggle';
+            extendToggle.checked = extendedBoolZones.has(sigIdx);
+            
+            extendToggle.addEventListener('change', (e) => {
+                toggleExtendedZones(plot.id, sigIdx, e.target.checked);
+            });
+            
+            extendRow.appendChild(extendLabel);
+            extendRow.appendChild(extendToggle);
+            controls.appendChild(extendRow);
+        }
+
         item.appendChild(header);
         item.appendChild(controls);
         
@@ -1877,6 +1985,36 @@ function updatePlotHeader(plot) {
         
         legendDiv.appendChild(item);
     });
+}
+
+function autoEnableExtendedZones(plot) {
+    if (!plot || !plot.cachedData) return;
+    
+    let hasBoolSignals = false;
+    
+    plot.signals.forEach(sigIdx => {
+        const cached = plot.cachedData[sigIdx];
+        if (!cached) return;
+        
+        const isBool = cached.unit === 'bool';
+        
+        if (isBool) {
+            hasBoolSignals = true;
+            
+            // Ne pas réactiver si désactivé manuellement
+            if (!extendedBoolZones.has(sigIdx) && !disabledBoolZones.has(sigIdx)) {
+                const ranges = extractBoolHighRanges(cached.timestamps, cached.values);
+                const color = plot.signalStyles?.[sigIdx]?.color || cached.color;
+                
+                extendedBoolZones.set(sigIdx, { color, ranges, plotId: plot.id });
+                console.log(`[BoolZones] Auto-enabled for "${cached.name}": ${ranges.length} zones`);
+            }
+        }
+    });
+
+    if (hasBoolSignals) {
+        updatePlotHeader(plot);
+    }
 }
 
 function rgbToHex(color) {
@@ -1921,11 +2059,55 @@ function updateSignalStyle(plotId, sigIdx, property, value) {
     if (property === 'color' && plot.cachedData[sigIdx]) {
         plot.cachedData[sigIdx].color = value;
     }
+    if (property === 'color') {
+        updateExtendedZoneColor(sigIdx, value);
+    }
 
     renderPlotFromCache(plot);
     
     // Update sidebar signal colors when plot color changes
     updateSignalActiveStates();
+}
+
+function toggleExtendedZones(plotId, sigIdx, enabled) {
+    console.log(`[BoolZones] Toggle called: plotId=${plotId}, sigIdx=${sigIdx}, enabled=${enabled}`);
+    
+    const plot = plots.find(p => p.id === plotId);
+    if (!plot) return;
+    
+    const cached = plot.cachedData[sigIdx];
+    if (!cached) return;
+    
+    if (enabled) {
+        const ranges = extractBoolHighRanges(cached.timestamps, cached.values);
+        const color = plot.signalStyles?.[sigIdx]?.color || cached.color;
+        
+        extendedBoolZones.set(sigIdx, { color, ranges, plotId });
+        disabledBoolZones.delete(sigIdx);
+        console.log(`[BoolZones] Enabled for "${cached.name}": ${ranges.length} zones`);
+    } else {
+        extendedBoolZones.delete(sigIdx);
+        disabledBoolZones.add(sigIdx);
+        console.log(`[BoolZones] Disabled for "${cached.name}"`);
+    }
+    
+    refreshAllPlots();
+}
+
+function updateExtendedZoneColor(sigIdx, newColor) {
+    if (extendedBoolZones.has(sigIdx)) {
+        const zoneData = extendedBoolZones.get(sigIdx);
+        zoneData.color = newColor;
+        refreshAllPlots();
+    }
+}
+
+function cleanupExtendedZones(sigIdx) {
+    if (extendedBoolZones.has(sigIdx)) {
+        extendedBoolZones.delete(sigIdx);
+    }
+    disabledBoolZones.delete(sigIdx);
+    refreshAllPlots();
 }
 
 function updateSignalActiveStates() {
@@ -2078,7 +2260,7 @@ function renderPlotFromCacheFiltered(plot) {
                 u.setSelect({ left: 0, width: 0 }, false);
             }]
         },
-        plugins: [cursorPlugin()]
+        plugins: [boolZonesPlugin(), cursorPlugin()]
     };
 
     plot.chart = new uPlot(opts, uplotData, chartDiv);
@@ -2094,6 +2276,7 @@ function renderPlotFromCacheFiltered(plot) {
     
     const totalPoints = commonTimestamps.length * plot.signals.length;
     statsDiv.querySelector('.plot-stats-text').textContent = `${totalPoints} pts (cache) | ${stats}`;
+    autoEnableExtendedZones(plot);
 }
 
 async function fetchAndRenderPlot(plot) {
@@ -2218,7 +2401,7 @@ function renderPlotChart(plot, data) {
                 u.setSelect({ left: 0, width: 0 }, false);
             }]
         },
-        plugins: [cursorPlugin()]
+        plugins: [boolZonesPlugin(), cursorPlugin()]
     };
 
     plot.chart = new uPlot(opts, uplotData, chartDiv);
@@ -2231,6 +2414,8 @@ function renderPlotChart(plot, data) {
     if (statsText) {
         statsText.textContent = `${data.view.original_points.toLocaleString()} → ${data.view.returned_points} pts ${completeStatus} | ${stats}`;
     }
+
+    autoEnableExtendedZones(plot);
 }
 
 function refreshAllPlots() {
@@ -3205,3 +3390,7 @@ window.applyLayout = applyLayout;
 window.currentLazySessionId = null; // Sera mis à jour par changeSource
 window.preloadSignalOnHover = preloadSignalOnHover;
 window.updateSignalsLoadedStatus = updateSignalsLoadedStatus;
+window.extendedBoolZones = extendedBoolZones;
+window.toggleExtendedZones = toggleExtendedZones;
+window.extractBoolHighRanges = extractBoolHighRanges;
+window.disabledBoolZones = disabledBoolZones;
