@@ -440,7 +440,9 @@ const StorageManager = (() => {
             if (!e.lengthComputable) return;
             const percent = Math.round((e.loaded / e.total) * 100);
             if (progressFill) progressFill.style.width = percent + '%';
-            if (progressText) progressText.textContent = percent + '%';
+            if (progressText) {
+                progressText.textContent = percent < 100 ? percent + '%' : 'Finalisation...';
+            }
         });
 
         xhr.addEventListener('load', () => {
@@ -448,6 +450,10 @@ const StorageManager = (() => {
                 showNotification('Fichier uploadé avec succès', 'success');
                 closeUploadModal();
                 refresh();
+                if ((state.currentCategory === 'mf4' || state.currentCategory === 'dbc')
+                        && typeof window.loadSources === 'function') {
+                    window.loadSources();
+                }
             } else {
                 const err = JSON.parse(xhr.responseText || '{}');
                 showNotification(err.error || 'Upload échoué', 'error');

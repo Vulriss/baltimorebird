@@ -2288,12 +2288,21 @@ async function fetchAndRenderPlot(plot) {
     }
 
     const signalIndices = plot.signals.join(',');
-    const url = `${API}/view?signals=${signalIndices}&start=${globalView.min}&end=${globalView.max}&max_points=${lodPoints}`;
+    let url = `${API}/view?signals=${signalIndices}&start=${globalView.min}&end=${globalView.max}&max_points=${lodPoints}`;
+
+    const headers = {};
+    if (currentLazySessionId) {
+        url += `&session_id=${encodeURIComponent(currentLazySessionId)}`;
+        const token = sessionStorage.getItem('auth_token');
+        if (token) {
+            headers['Authorization'] = 'Bearer ' + token;
+        }
+    }
 
     const startTime = performance.now();
 
     try {
-        const res = await fetch(url);
+        const res = await fetch(url, { headers });
         const data = await res.json();
         
         const fetchTime = performance.now() - startTime;
@@ -2914,6 +2923,10 @@ async function uploadEdaFile() {
         });
         
         xhr.open('POST', `${API}/eda/upload`);
+        const token = sessionStorage.getItem('auth_token');
+        if (token) {
+            xhr.setRequestHeader('Authorization', 'Bearer ' + token);
+        }
         xhr.send(formData);
         
     } catch (e) {
