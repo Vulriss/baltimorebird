@@ -4,17 +4,24 @@ Baltimore Bird - Application principale.
 Point d'entrée de l'application Flask.
 """
 
+import logging
 import threading
 import time
 
 from flask import Flask, jsonify
 from flask_cors import CORS
 
-from config import ALLOWED_ORIGINS, MAX_CONTENT_LENGTH, REPORTS_DIR, TEMP_DIR
+from config import ALLOWED_ORIGINS, MAX_CONTENT_LENGTH, TEMP_DIR
 from middleware import register_metrics_middleware, register_security_middleware
 from api import register_blueprints
 from data_management import datastore
 from services import conversion_manager, concatenation_manager, get_supported_conversions
+
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+)
 
 
 def create_app() -> Flask:
@@ -103,6 +110,6 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"  Warning: {e}")
 
-    print(f"\n  http://localhost:5000")
+    print("\n  http://localhost:5000")
     print("=" * 60)
     app.run(debug=False, port=5000, host="0.0.0.0", threaded=True)

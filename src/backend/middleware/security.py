@@ -17,7 +17,8 @@ def add_security_headers(response: Response, debug: bool = False) -> Response:
     csp_directives = [
         "default-src 'self'",
         "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.plot.ly",
-        "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.plot.ly https://fonts.googleapis.com",
+        "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com"
+        " https://cdn.plot.ly https://fonts.googleapis.com",
         "img-src 'self' data: blob:",
         "font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net data:",
         "connect-src 'self'",

@@ -9,9 +9,13 @@ from werkzeug.utils import secure_filename
 
 from api.auth import login_required
 from config import ALLOWED_EXTENSIONS, BASE_DIR
-from core import allowed_file, sanitize_task_id
+from core import allowed_file, sanitize_session_id
 from core.downsampling import lttb_downsample
 from data_management import lazy_eda
+
+import logging
+
+logger = logging.getLogger(__name__)
 
 eda_bp = Blueprint("eda", __name__)
 
@@ -36,7 +40,8 @@ def upload_eda_file():
         return jsonify({"error": "Nom de fichier invalide"}), 400
 
     file_ext = Path(filename).suffix.lower()
-    dest_dir = BASE_DIR / "data" / "users" / user.id / ("mf4" if file_ext == ".mf4" else "dbc" if file_ext == ".dbc" else "other")
+    subdir = "mf4" if file_ext == ".mf4" else "dbc" if file_ext == ".dbc" else "other"
+    dest_dir = BASE_DIR / "data" / "users" / user.id / subdir
     dest_dir.mkdir(parents=True, exist_ok=True)
 
     session_id = str(uuid.uuid4())
@@ -70,7 +75,7 @@ def upload_eda_file():
 @login_required
 def list_eda_signals(session_id: str):
     """Liste tous les signaux d'un fichier MF4."""
-    safe_id = sanitize_task_id(session_id)
+    safe_id = sanitize_session_id(session_id)
     if not safe_id:
         return jsonify({"error": "ID invalide"}), 400
 
@@ -88,8 +93,8 @@ def list_eda_signals(session_id: str):
 @login_required
 def preload_eda_signal(session_id: str, signal_index: int):
     """Précharge les données d'un signal."""
-    safe_id = sanitize_task_id(session_id)
-    if not safe_id or signal_index < 0 or signal_index > 1000:
+    safe_id = sanitize_session_id(session_id)
+    if not safe_id or signal_index < 0:
         return jsonify({"error": "Paramètres invalides"}), 400
 
     session = lazy_eda.get_session(safe_id)
@@ -97,6 +102,13 @@ def preload_eda_signal(session_id: str, signal_index: int):
         return jsonify({"error": "Session introuvable"}), 404
     if session.user_id != g.current_user.id:
         return jsonify({"error": "Accès non autorisé"}), 403
+
+    if session.listed and signal_index >= session.n_signals:
+        logger.warning(
+            "[EDA] Preload rejeté: index %d hors limites (session %s, %d signaux)",
+            signal_index, safe_id[:8], session.n_signals,
+        )
+        return jsonify({"error": "Signal introuvable"}), 404
 
     result = lazy_eda.preload_signal(safe_id, signal_index)
     return jsonify(result) if result else (jsonify({"error": "Signal introuvable"}), 404)
@@ -106,7 +118,7 @@ def preload_eda_signal(session_id: str, signal_index: int):
 @login_required
 def get_lazy_eda_view(session_id: str):
     """Récupère une vue downsamplée des signaux."""
-    safe_id = sanitize_task_id(session_id)
+    safe_id = sanitize_session_id(session_id)
     if not safe_id:
         return jsonify({"error": "ID invalide"}), 400
 
@@ -137,7 +149,10 @@ def get_lazy_eda_view(session_id: str):
             continue
 
         result["view"]["original_points"] += len(view_ts)
-        ds_ts, ds_vals = (lttb_downsample(view_ts, view_vals, max_points) if len(view_ts) > max_points else (view_ts, view_vals))
+        if len(view_ts) > max_points:
+            ds_ts, ds_vals = lttb_downsample(view_ts, view_vals, max_points)
+        else:
+            ds_ts, ds_vals = view_ts, view_vals
         result["view"]["returned_points"] += len(ds_ts)
 
         result["signals"].append({
@@ -154,7 +169,7 @@ def get_lazy_eda_view(session_id: str):
 @login_required
 def get_eda_session_info(session_id: str):
     """Récupère les informations sur une session EDA."""
-    safe_id = sanitize_task_id(session_id)
+    safe_id = sanitize_session_id(session_id)
     if not safe_id:
         return jsonify({"error": "ID invalide"}), 400
 
@@ -175,7 +190,7 @@ def get_eda_session_info(session_id: str):
 @login_required
 def close_eda_session(session_id: str):
     """Ferme une session EDA."""
-    safe_id = sanitize_task_id(session_id)
+    safe_id = sanitize_session_id(session_id)
     if not safe_id:
         return jsonify({"error": "ID invalide"}), 400
 

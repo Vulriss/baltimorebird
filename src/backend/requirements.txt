@@ -2,8 +2,9 @@ flask==3.0.0
 flask-cors==4.0.0
 bcrypt==5.0.0
 numpy
+numba
 asammdf
 pandas
 polars
 gunicorn
-dotenv
+python-dotenv

@@ -9,6 +9,10 @@ import secrets
 from typing import Set
 from pathlib import Path
 
+from dotenv import load_dotenv
+
+load_dotenv(Path(__file__).parent / ".env")
+
 
 def _parse_cors_origins() -> list[str]:
     origins = os.environ.get("CORS_ORIGINS", "").split(",")
@@ -17,12 +21,11 @@ def _parse_cors_origins() -> list[str]:
             "http://localhost:5000",
             "http://127.0.0.1:5000",
         ]
-    
+
     for origin in origins:
-        assert origin.startswith("https://"), (
-            f"CORS origin invalide (https requis) : {origin}"
-        )
-    
+        if not origin.startswith("https://"):
+            raise ValueError(f"CORS origin invalide (https requis) : {origin}")
+
     return origins
 
 
@@ -30,7 +33,7 @@ def _get_auth_secret_key() -> str:
     key = os.environ.get("AUTH_SECRET_KEY")
     if not key:
         key = secrets.token_hex(32)
-        print("AUTH_SECRET_KEY non définie fallbakc to using temp key (dev mode)")
+        print("AUTH_SECRET_KEY non definie : cle temporaire generee (mode dev)")
     return key
 
 
@@ -73,7 +76,7 @@ DATA_SOURCES = {
     },
 }
 
-DEFAULT_QUOTA_BYTES = 5 * 1024 * 1024 * 1024  # 5Go by user -> limited only for the current prod serv baltimorebird.cloud
+DEFAULT_QUOTA_BYTES = 5 * 1024 * 1024 * 1024  # 5 Go par utilisateur (limite du serveur de production)
 MAX_FILES_PER_USER = 1000
 MAX_FILES_PER_CATEGORY = 200
 MAX_JSON_SIZE_BYTES = 5 * 1024 * 1024

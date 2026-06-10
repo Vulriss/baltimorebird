@@ -12,7 +12,7 @@ from werkzeug.utils import secure_filename as werkzeug_secure_filename
 
 
 def is_safe_path(base_dir: Path, requested_path: Path) -> bool:
-    """Check if path exist in a given directory."""
+    """Verifie que requested_path est confine dans base_dir (protection path traversal)."""
     try:
         base_resolved = base_dir.resolve()
         requested_resolved = requested_path.resolve()
@@ -60,6 +60,15 @@ def sanitize_task_id(task_id: str) -> Optional[str]:
     return task_id
 
 
+def sanitize_session_id(session_id: str) -> Optional[str]:
+    """Valide un ID de session EDA (UUID ou stem de fichier: alphanum, underscore, tiret)."""
+    if not session_id or len(session_id) > 100:
+        return None
+    if not all(c.isalnum() or c in "-_" for c in session_id):
+        return None
+    return session_id
+
+
 def validate_script_id(script_id: str) -> bool:
     """Valide le format d'un ID de script (script_XXX ou UUID)."""
     if not script_id or len(script_id) > 50:
@@ -88,7 +97,7 @@ def validate_json_depth(obj: Any, current_depth: int = 0, max_depth: int = 10) -
 
 
 def escape_python_string(value: str) -> str:
-    """Escape std python sting /!\ do not use for exec or eval sec"""
+    """Echappe une chaine Python standard. Ne pas utiliser pour securiser exec ou eval."""
     return (
         value
         .replace("\\", "\\\\")

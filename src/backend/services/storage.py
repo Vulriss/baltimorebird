@@ -5,7 +5,6 @@ import sqlite3
 import threading
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -17,7 +16,7 @@ from config import (
     MAX_JSON_DEPTH,
     MAX_JSON_SIZE_BYTES,
 )
-from core import is_safe_path, is_valid_uuid, sanitize_filename, validate_json_depth
+from core import utc_now_iso, is_valid_uuid, sanitize_filename, validate_json_depth
 
 
 CATEGORIES: Dict[str, Dict[str, Any]] = {
@@ -205,14 +204,16 @@ class StorageManager:
                     continue
 
                 file_id = str(uuid.uuid4())
-                now = datetime.utcnow().isoformat() + "Z"
+                now = utc_now_iso()
 
                 cursor.execute(
                     """
-                    INSERT INTO stored_files (id, user_id, category, filename, original_name, size_bytes, uploaded_at, description)
+                    INSERT INTO stored_files
+                        (id, user_id, category, filename, original_name, size_bytes, uploaded_at, description)
                     VALUES (?, NULL, ?, ?, ?, ?, ?, ?)
                     """,
-                    (file_id, category, file_path.name, file_path.name, file_path.stat().st_size, now, "Fichier de démonstration"),
+                    (file_id, category, file_path.name, file_path.name,
+                     file_path.stat().st_size, now, "Fichier de démonstration"),
                 )
 
         conn.commit()
@@ -296,7 +297,9 @@ class StorageManager:
             },
         }
 
-    def list_files(self, user_id: str, category: Optional[str] = None, include_default: bool = True) -> List[StoredFile]:
+    def list_files(
+        self, user_id: str, category: Optional[str] = None, include_default: bool = True
+    ) -> List[StoredFile]:
         if not is_valid_uuid(user_id):
             return []
 
@@ -404,7 +407,7 @@ class StorageManager:
 
         file_id = str(uuid.uuid4())
         stored_name = f"{file_id[:8]}_{safe_name}"
-        now = datetime.utcnow().isoformat() + "Z"
+        now = utc_now_iso()
 
         user_cat_dir = USERS_ROOT / user_id / category
         user_cat_dir.mkdir(parents=True, exist_ok=True)
@@ -417,10 +420,12 @@ class StorageManager:
         cursor = conn.cursor()
         cursor.execute(
             """
-            INSERT INTO stored_files (id, user_id, category, filename, original_name, size_bytes, uploaded_at, description, metadata)
+            INSERT INTO stored_files
+                (id, user_id, category, filename, original_name, size_bytes, uploaded_at, description, metadata)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
-            (file_id, user_id, category, stored_name, safe_name, file_size, now, description, json.dumps(metadata or {})),
+            (file_id, user_id, category, stored_name, safe_name,
+             file_size, now, description, json.dumps(metadata or {})),
         )
         conn.commit()
 

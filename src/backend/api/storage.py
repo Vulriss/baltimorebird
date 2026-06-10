@@ -1,17 +1,16 @@
 """Baltimore Bird - API REST du stockage utilisateur."""
 
-import json
 import uuid
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from flask import Blueprint, g, jsonify, request, send_file
 from werkzeug.utils import secure_filename
 
 from api.auth import admin_required, login_required
-from config import BASE_DIR, DEFAULT_QUOTA_BYTES, MAX_JSON_DEPTH, MAX_JSON_SIZE_BYTES
-from core import is_safe_path, validate_json_depth
-from services.storage import CATEGORIES, StoredFile, storage
+from config import BASE_DIR
+from core import is_safe_path
+from services.storage import CATEGORIES, allowed_file, storage
 
 storage_bp = Blueprint("storage", __name__)
 
@@ -77,8 +76,8 @@ def upload_file(category: str):
     if not filename:
         return jsonify({"error": "Nom de fichier invalide"}), 400
 
-    ext = "." + Path(filename).suffix.lower().lstrip(".")
-    if ext not in CATEGORIES[category]["extensions"]:
+    if not allowed_file(filename, category):
+        ext = Path(filename).suffix.lower()
         return jsonify({"error": f"Extension {ext} non autorisée pour la catégorie {category}"}), 400
 
     description = request.form.get("description", "")[:500]

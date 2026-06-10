@@ -14,7 +14,9 @@ from numpy.typing import NDArray
 logger = logging.getLogger(__name__)
 
 
-def _lttb_numpy(x: NDArray[np.float32], y: NDArray[np.float32], threshold: int) -> Tuple[NDArray[np.float32], NDArray[np.float32]]:
+def _lttb_numpy(
+    x: NDArray[np.float32], y: NDArray[np.float32], threshold: int
+) -> Tuple[NDArray[np.float32], NDArray[np.float32]]:
     """NumPy LTTB (fallback)."""
     n = len(x)
     if threshold >= n or threshold <= 2:
@@ -66,7 +68,9 @@ try:
     from numba import jit
 
     @jit(nopython=True, cache=True)
-    def _lttb_numba(x: NDArray[np.float32], y: NDArray[np.float32], threshold: int) -> Tuple[NDArray[np.float32], NDArray[np.float32]]:
+    def _lttb_numba(
+        x: NDArray[np.float32], y: NDArray[np.float32], threshold: int
+    ) -> Tuple[NDArray[np.float32], NDArray[np.float32]]:
         """Numba JIT LTTB (fast as fuck)."""
         n = len(x)
         if threshold >= n or threshold <= 2:

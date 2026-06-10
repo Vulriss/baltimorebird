@@ -9,6 +9,7 @@ Fonctionnalités:
 """
 
 import json
+import re
 import secrets
 import sqlite3
 import threading
@@ -17,16 +18,17 @@ import uuid
 from collections import defaultdict
 from contextlib import contextmanager
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from functools import wraps
 from typing import Any, Callable, Dict, List, Optional, Set
 
 import bcrypt
 from flask import Blueprint, g, jsonify, request
 
+from core import utc_now_iso
+
 from config import (
     AUTH_DATABASE_PATH,
-    AUTH_SECRET_KEY,
     AUTH_TOKEN_EXPIRY_HOURS,
     RATE_LIMIT_LOCKOUT,
     RATE_LIMIT_MAX_ATTEMPTS,
@@ -34,6 +36,11 @@ from config import (
 )
 
 auth_bp = Blueprint("auth", __name__)
+
+
+def _to_iso_z(moment: datetime) -> str:
+    """Formate un datetime UTC en ISO 8601 suffixe 'Z'."""
+    return moment.isoformat().replace("+00:00", "Z")
 
 
 class RateLimiter:
@@ -237,7 +244,7 @@ class UserStore:
 
     def create(self, email: str, password_hash: str, name: str = "", role: str = "user") -> User:
         user_id = str(uuid.uuid4())
-        now = datetime.utcnow().isoformat() + "Z"
+        now = utc_now_iso()
 
         with self.db.get_cursor() as cursor:
             cursor.execute(
@@ -287,22 +294,22 @@ class UserStore:
 
     def create_session(self, user: User, ip_address: str, user_agent: str) -> Session:
         token = secrets.token_urlsafe(32)
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         expires = now + timedelta(hours=AUTH_TOKEN_EXPIRY_HOURS)
 
         with self.db.get_cursor() as cursor:
             cursor.execute(
                 """INSERT INTO sessions (token, user_id, created_at, expires_at, ip_address, user_agent)
                    VALUES (?, ?, ?, ?, ?, ?)""",
-                (token, user.id, now.isoformat() + "Z", expires.isoformat() + "Z",
+                (token, user.id, _to_iso_z(now), _to_iso_z(expires),
                  ip_address[:50], user_agent[:200])
             )
 
         return Session(
             token=token,
             user_id=user.id,
-            created_at=now.isoformat() + "Z",
-            expires_at=expires.isoformat() + "Z",
+            created_at=_to_iso_z(now),
+            expires_at=_to_iso_z(expires),
             ip_address=ip_address,
             user_agent=user_agent
         )
@@ -336,7 +343,7 @@ class UserStore:
             return cursor.fetchone()["count"]
 
     def cleanup_expired_sessions(self) -> int:
-        now = datetime.utcnow().isoformat() + "Z"
+        now = utc_now_iso()
         with self.db.get_cursor() as cursor:
             cursor.execute("DELETE FROM sessions WHERE expires_at < ?", (now,))
             return cursor.rowcount
@@ -357,7 +364,6 @@ def verify_password(password: str, password_hash: str) -> bool:
 
 
 def validate_email(email: str) -> tuple[bool, str]:
-    import re
     if not email or len(email) > 254:
         return False, "Email invalide"
     pattern = r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
@@ -470,6 +476,17 @@ def feature_required(feature: str) -> Callable:
 @auth_bp.route("/api/auth/register", methods=["POST"])
 def register():
     """Inscription d'un nouvel utilisateur."""
+    client_ip = get_client_ip()
+    rate_key = f"register:{client_ip}"
+
+    locked, remaining = rate_limiter.is_locked(rate_key)
+    if locked:
+        return jsonify({"error": f"Trop de tentatives. Réessayez dans {remaining // 60} minutes."}), 429
+
+    allowed, _ = rate_limiter.record_attempt(rate_key)
+    if not allowed:
+        return jsonify({"error": "Trop de tentatives. Réessayez plus tard."}), 429
+
     data = request.get_json()
     if not data:
         return jsonify({"error": "Données requises"}), 400
@@ -493,7 +510,7 @@ def register():
     role = "admin" if user_store.count_active() == 0 else "user"
     user = user_store.create(email, password_hash, name, role)
 
-    client_ip = get_client_ip()
+    rate_limiter.reset(rate_key)
     user_agent = request.headers.get("User-Agent", "")[:200]
     session = user_store.create_session(user, client_ip, user_agent)
 
@@ -537,7 +554,7 @@ def login():
 
     rate_limiter.reset(client_ip)
 
-    user.last_login = datetime.utcnow().isoformat() + "Z"
+    user.last_login = utc_now_iso()
     user_store.update(user)
 
     user_agent = request.headers.get("User-Agent", "")[:200]

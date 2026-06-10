@@ -1,15 +1,10 @@
 """Baltimore Bird - API des sources de données et visualisation."""
 
-import time
-from pathlib import Path
-
-import numpy as np
 from flask import Blueprint, g, jsonify, request
 
-from api.auth import login_required, optional_auth
-from config import ALLOWED_EXTENSIONS, BASE_DIR, DATA_SOURCES
-from core import is_safe_path, sanitize_task_id
-from core.downsampling import lttb_downsample
+from api.auth import optional_auth
+from config import BASE_DIR, DATA_SOURCES
+from core import is_safe_path, sanitize_session_id
 from data_management import datastore, lazy_eda
 
 sources_bp = Blueprint("sources", __name__)
@@ -128,7 +123,7 @@ def set_source(source_id: str):
         return jsonify({"error": "Fichier introuvable"}), 404
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
-    except Exception as e:
+    except Exception:
         return jsonify({"error": "Erreur lors du chargement de la source"}), 500
 
 
@@ -166,18 +161,24 @@ def get_info():
 
 
 @sources_bp.route("/api/view")
+@optional_auth
 def get_view():
-    """Récupère une vue downsamplée des signaux (supporte lazy EDA et datastore classique)."""
+    """Récupère une vue downsamplée des signaux (lazy EDA avec contrôle d'accès, ou datastore démo)."""
     session_id = request.args.get("session_id")
 
     if session_id:
-        session = lazy_eda.get_session(session_id)
-        if session:
-            return _get_lazy_view(session_id)
+        safe_id = sanitize_session_id(session_id)
+        session = lazy_eda.get_session(safe_id) if safe_id else None
+        if not session:
+            return jsonify({"error": "Session introuvable"}), 404
 
-    if lazy_eda.sessions:
-        last_session_id = list(lazy_eda.sessions.keys())[-1]
-        return _get_lazy_view(last_session_id)
+        user = getattr(g, "current_user", None)
+        if not user:
+            return jsonify({"error": "Authentification requise"}), 401
+        if session.user_id != user.id:
+            return jsonify({"error": "Accès non autorisé"}), 403
+
+        return _get_lazy_view(safe_id)
 
     try:
         datastore.load()
@@ -219,7 +220,9 @@ def _get_lazy_view(session_id: str):
     signals_param = request.args.get("signals", "0")
     try:
         if signals_param == "all":
-            signal_indices = list(range(1000))
+            session = lazy_eda.get_session(session_id)
+            n_signals = session.n_signals if session else 0
+            signal_indices = list(range(min(n_signals, 50)))
         else:
             signal_indices = [int(x) for x in signals_param.split(",") if x.strip()]
             if len(signal_indices) > 50:

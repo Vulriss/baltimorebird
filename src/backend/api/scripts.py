@@ -1,17 +1,15 @@
 """Baltimore Bird - API de gestion des scripts d'analyse Dashboard."""
 
 import json
-import re
 import uuid
-from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Dict, List, Optional
 
 from flask import Blueprint, g, jsonify, request
 
 from api.auth import feature_required, login_required
 from config import BASE_DIR
-from core import is_safe_path, is_valid_uuid, sanitize_string, validate_script_id
+from core import utc_now_iso, is_safe_path, is_valid_uuid, sanitize_string, validate_script_id
 
 try:
     from services.sandbox import ALLOWED_BUILTINS, ALLOWED_MODULES, check_code_safety
@@ -201,7 +199,7 @@ def generate_python_code(script: Dict) -> str:
         block_type = block.get("type")
         if block_type == "code":
             code = block.get("content", "")
-            lines.append(f"\n# Code block")
+            lines.append("\n# Code block")
             lines.append(code)
         elif block_type == "markdown":
             content = block.get("content", "")
@@ -216,7 +214,11 @@ def list_scripts():
     user = g.current_user
     user_scripts = list_user_scripts(user.id)
     default_scripts = list_default_scripts()
-    return jsonify({"scripts": user_scripts + default_scripts, "user_count": len(user_scripts), "default_count": len(default_scripts)})
+    return jsonify({
+        "scripts": user_scripts + default_scripts,
+        "user_count": len(user_scripts),
+        "default_count": len(default_scripts),
+    })
 
 
 @scripts_bp.route("/api/scripts/<script_id>")
@@ -249,7 +251,7 @@ def create_script():
         return jsonify({"error": error}), 400
 
     script_id = f"script_{uuid.uuid4().hex[:8]}"
-    now = datetime.utcnow().isoformat() + "Z"
+    now = utc_now_iso()
 
     script_data = {
         "id": script_id,
@@ -313,7 +315,7 @@ def update_script(script_id: str):
             "mappingId": settings.get("mappingId", existing.get("settings", {}).get("mappingId")),
         }
 
-    existing["modified"] = datetime.utcnow().isoformat() + "Z"
+    existing["modified"] = utc_now_iso()
 
     try:
         save_script(existing, user.id)
@@ -375,7 +377,7 @@ def run_script(script_id: str):
     import time
     start_time = time.time()
     duration = time.time() - start_time
-    now = datetime.utcnow().isoformat() + "Z"
+    now = utc_now_iso()
 
     if not script.get("_readonly") and script.get("_owner") == user.id:
         script["lastRun"] = now

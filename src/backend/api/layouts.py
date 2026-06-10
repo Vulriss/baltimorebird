@@ -3,7 +3,6 @@
 import json
 import re
 import uuid
-from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -11,7 +10,7 @@ from flask import Blueprint, g, jsonify, request
 
 from api.auth import login_required, optional_auth
 from config import BASE_DIR
-from core import is_safe_path
+from core import utc_now_iso, is_safe_path
 
 layouts_bp = Blueprint("layouts", __name__)
 
@@ -41,15 +40,21 @@ def _create_demo_layout_if_missing() -> None:
         "name": "OBD2 Overview",
         "description": "Vue d'ensemble des données OBD2",
         "version": LAYOUT_VERSION,
-        "created_at": datetime.utcnow().isoformat() + "Z",
-        "updated_at": datetime.utcnow().isoformat() + "Z",
+        "created_at": utc_now_iso(),
+        "updated_at": utc_now_iso(),
         "is_demo": True,
         "tabs": [
             {
                 "name": "Moteur",
                 "plots": [
-                    {"flex": 1.5, "signals": [{"name": "VehicleSpeed", "style": {"color": "#fab387", "width": 2, "dash": ""}}]},
-                    {"flex": 1, "signals": [{"name": "EngineRPM", "style": {"color": "#89b4fa", "width": 1.5, "dash": ""}}]},
+                    {
+                        "flex": 1.5,
+                        "signals": [{"name": "VehicleSpeed", "style": {"color": "#fab387", "width": 2, "dash": ""}}],
+                    },
+                    {
+                        "flex": 1,
+                        "signals": [{"name": "EngineRPM", "style": {"color": "#89b4fa", "width": 1.5, "dash": ""}}],
+                    },
                 ]
             }
         ],
@@ -222,7 +227,7 @@ def save_layout():
             return jsonify({"error": error}), 400
 
         layout_id = f"{_sanitize_layout_id(data['name'])}_{uuid.uuid4().hex[:8]}"
-        now = datetime.utcnow().isoformat() + "Z"
+        now = utc_now_iso()
 
         layout = {
             "id": layout_id,
@@ -275,7 +280,7 @@ def update_layout(layout_id: str):
         with open(file_path, "r", encoding="utf-8") as f:
             existing = json.load(f)
 
-        now = datetime.utcnow().isoformat() + "Z"
+        now = utc_now_iso()
         existing.update({
             "name": data["name"].strip(),
             "description": data.get("description", "").strip()[:500],
