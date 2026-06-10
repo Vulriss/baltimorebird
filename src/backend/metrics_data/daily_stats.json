@@ -609,9 +609,55 @@
       "min": 0.0,
       "max": 2833.9,
       "avg": 92.47,
-      "p50": 1.03,
-      "p95": 245.57,
-      "p99": 2833.9
+      "p50": 0,
+      "p95": 0,
+      "p99": 0
+    }
+  },
+  "2026-03-11": {
+    "unique_users": [
+      "11307f27733167f9"
+    ],
+    "total_requests": 128,
+    "endpoints": {
+      "/api/sources": 12,
+      "/api/info": 17,
+      "/api/view": 39,
+      "/api/auth/login": 1,
+      "/api/auth/me": 1,
+      "/api/source/synthetic": 3,
+      "/api/source/mf4": 3,
+      "/api/source/user_mf4_df08fab3-2347-4271-9dec-bc0605e79d6b": 1,
+      "/api/eda/preload-signal/df08fab3-2347-4271-9dec-bc0605e79d6b/160": 1,
+      "/api/eda/preload-signal/df08fab3-2347-4271-9dec-bc0605e79d6b/390": 1,
+      "/api/storage/info": 16,
+      "/api/storage/files": 23,
+      "/api/eda/preload-signal/df08fab3-2347-4271-9dec-bc0605e79d6b/943": 2,
+      "/api/storage/json/layouts": 1,
+      "/api/storage/files/8dceed87-fba0-4671-a0ff-ebe2ae5909f0/content": 1,
+      "/api/scripts": 2,
+      "/api/auth/logout": 1,
+      "/api/auth/register": 1,
+      "/api/create-variable": 2
+    },
+    "status_codes": {
+      "200": 125,
+      "201": 2,
+      "400": 1
+    },
+    "sessions": {
+      "count": 1,
+      "total_duration": 918.612731218338,
+      "max_duration": 918.612731218338
+    },
+    "latency": {
+      "count": 128,
+      "min": 0.0,
+      "max": 3636.9,
+      "avg": 55.88,
+      "p50": 2.0,
+      "p95": 214.87,
+      "p99": 1237.51
     }
   }
 }
