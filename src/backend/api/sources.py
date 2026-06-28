@@ -1,10 +1,14 @@
 """Baltimore Bird - API des sources de données et visualisation."""
 
-from flask import Blueprint, g, jsonify, request
+import json
+import struct
+
+import numpy as np
+from flask import Blueprint, Response, g, jsonify, request
 
 from api.auth import optional_auth
 from config import BASE_DIR, DATA_SOURCES
-from core import is_safe_path, sanitize_session_id
+from core import is_safe_path
 from data_management import datastore, lazy_eda
 
 sources_bp = Blueprint("sources", __name__)
@@ -167,18 +171,13 @@ def get_view():
     session_id = request.args.get("session_id")
 
     if session_id:
-        safe_id = sanitize_session_id(session_id)
-        session = lazy_eda.get_session(safe_id) if safe_id else None
-        if not session:
-            return jsonify({"error": "Session introuvable"}), 404
+        from api.eda import _resolve_session
 
-        user = getattr(g, "current_user", None)
-        if not user:
-            return jsonify({"error": "Authentification requise"}), 401
-        if session.user_id != user.id:
-            return jsonify({"error": "Accès non autorisé"}), 403
+        session, error = _resolve_session(session_id)
+        if error:
+            return error
 
-        return _get_lazy_view(safe_id)
+        return _get_lazy_view(session.session_id)
 
     try:
         datastore.load()
@@ -244,6 +243,69 @@ def _get_lazy_view(session_id: str):
 
     result = lazy_eda.get_view(session_id, signal_indices, start, end, max_points)
     return jsonify(result) if result else (jsonify({"error": "No data in range"}), 404)
+
+
+@sources_bp.route("/api/raw")
+@optional_auth
+def get_raw():
+    """Renvoie les signaux demandés en pleine résolution, encodés en binaire.
+
+    Destiné au rendu et au panning entièrement côté client : une fois ces données rapatriées, le
+    zoom/pan ne nécessite plus aucun aller-retour serveur. Réservé aux sessions lazy EDA.
+    """
+    session_id = request.args.get("session_id")
+    if not session_id:
+        return jsonify({"error": "session_id requis"}), 400
+
+    from api.eda import _resolve_session
+
+    session, error = _resolve_session(session_id)
+    if error:
+        return error
+    return _get_lazy_raw(session.session_id)
+
+
+def _get_lazy_raw(session_id: str):
+    """Encode en binaire les signaux pleine résolution d'une session lazy.
+
+    Format : [uint32 little-endian = longueur d'entête][entête JSON UTF-8][blocs binaires]. L'entête
+    décrit chaque signal et le nombre d'échantillons ; les blocs suivent dans le même ordre, chacun
+    composé des horodatages (float64) puis des valeurs (float32).
+    """
+    try:
+        indices = [int(x) for x in request.args.get("signals", "").split(",") if x.strip()][:50]
+    except ValueError:
+        return jsonify({"error": "Paramètre signals invalide"}), 400
+    if not indices:
+        return jsonify({"error": "Aucun signal demandé"}), 400
+
+    header_signals = []
+    chunks: list[bytes] = []
+    for index in indices:
+        signal = lazy_eda.get_signal_data(session_id, index)
+        if not signal or not signal.is_loaded:
+            continue
+        timestamps = np.ascontiguousarray(signal.timestamps, dtype="<f8")
+        values = np.ascontiguousarray(signal.values, dtype="<f4")
+        meta = signal.metadata
+        header_signals.append({
+            "index": index,
+            "name": meta.name,
+            "unit": meta.unit,
+            "color": meta.color,
+            "n": int(timestamps.size),
+            "is_categorical": signal.string_map is not None,
+            "string_map": signal.string_map or None,
+        })
+        chunks.append(timestamps.tobytes())
+        chunks.append(values.tobytes())
+
+    if not header_signals:
+        return jsonify({"error": "No data"}), 404
+
+    header = json.dumps({"signals": header_signals}, ensure_ascii=False).encode("utf-8")
+    body = b"".join([struct.pack("<I", len(header)), header, *chunks])
+    return Response(body, mimetype="application/octet-stream")
 
 
 @sources_bp.route("/health")
