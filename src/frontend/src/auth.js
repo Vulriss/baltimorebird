@@ -371,10 +371,40 @@ async function getUserFeatures() {
 
 // --- UI Updates ---
 
+const AUTH_LOCKED_VIEWS = ['dashboard', 'reports'];
+
+function updateLockedViews() {
+    const isGuest = !currentUser;
+
+    AUTH_LOCKED_VIEWS.forEach(viewId => {
+        const item = document.querySelector(`.nav-item[data-view="${viewId}"]`);
+        if (!item) return;
+        item.classList.toggle('locked', isGuest);
+        if (isGuest) {
+            item.dataset.originalTitle = item.dataset.originalTitle || item.getAttribute('title') || '';
+            item.setAttribute('title', 'Connexion requise');
+        } else if (item.dataset.originalTitle !== undefined) {
+            item.setAttribute('title', item.dataset.originalTitle);
+        }
+    });
+
+    // Si l'invité se trouve sur une vue verrouillée (ex. après déconnexion), retour à l'EDA
+    if (isGuest) {
+        const onLockedView = AUTH_LOCKED_VIEWS.some(
+            viewId => document.getElementById('view-' + viewId)?.classList.contains('active')
+        );
+        if (onLockedView && typeof switchView === 'function') {
+            switchView('eda', document.querySelector('.nav-item[data-view="eda"]'));
+        }
+    }
+}
+
 function updateAuthUI() {
     const loginBtn = document.getElementById('loginBtn');
     const userInfo = document.getElementById('userInfo');
     const userDropdown = document.getElementById('userDropdown');
+
+    updateLockedViews();
     
     if (currentUser) {
         // Utilisateur connecté
