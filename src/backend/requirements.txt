@@ -4,6 +4,10 @@ bcrypt==5.0.0
 numpy
 numba
 asammdf
+python-can
+cantools
+lxml
+scipy
 pandas
 polars
 gunicorn
