@@ -20,35 +20,43 @@ SignalData = dict[str, NDArray]
 SignalMetadata = dict[str, str]
 LoadResult = Tuple[list[SignalData], list[SignalMetadata], float, float]
 
+# Préfixes de canaux non traçables (trames CAN brutes issues du logging bus).
+RAW_FRAME_PREFIXES = ("CAN_DataFrame", "CAN_ErrorFrame", "CAN_RemoteFrame")
 
-def fetch_signal_multigroup(mdf, channel_name: str):
-    """Recupere un signal qui peut exister dans plusieurs groupes."""
-    try:
-        groups = mdf.channels_db.get(channel_name, [])
-        if not groups:
-            return None
 
-        if len(groups) == 1:
-            group_idx, channel_idx = groups[0]
-            return mdf.get(channel_name, group=group_idx, index=channel_idx)
+def master_channel_names(mdf) -> set:
+    """Noms des canaux maîtres (axe temps) du fichier, à exclure des signaux traçables.
 
-        for group_idx, channel_idx in groups:
-            try:
-                sig = mdf.get(channel_name, group=group_idx, index=channel_idx)
-                if sig is None or sig.samples is None or len(sig.samples) == 0:
-                    continue
-                if np.issubdtype(sig.samples.dtype, np.number):
-                    if np.any(sig.samples != 0) or len(sig.timestamps) > 10:
-                        return sig
-                else:
-                    return sig
-            except Exception:
-                logger.debug(f"Failed to load signal {channel_name} in group {group_idx}", exc_info=True)
-                continue
-        return None
-    except Exception:
-        logger.error(f"fetch_signal_multigroup failed for {channel_name}", exc_info=True)
-        return None
+    Détection précise via masters_db plutôt qu'un filtrage par sous-chaîne, qui
+    excluait à tort des signaux légitimes (ex. « EngineRunTime »).
+    """
+    names = set()
+    for group_idx, channel_idx in getattr(mdf, "masters_db", {}).items():
+        try:
+            names.add(mdf.groups[group_idx].channels[channel_idx].name)
+        except Exception:
+            continue
+    return names
+
+
+def iter_channel_occurrences(mdf):
+    """Énumère chaque canal traçable sous la forme (nom, groupe, index).
+
+    Toutes les occurrences sont émises, y compris les homonymes présents dans
+    plusieurs groupes (sinon des canaux distincts disparaissent de la liste).
+    Les canaux maîtres et les trames CAN brutes sont écartés.
+    """
+    masters = master_channel_names(mdf)
+    for name, entries in mdf.channels_db.items():
+        if name in masters or name.startswith(RAW_FRAME_PREFIXES):
+            continue
+        for group_idx, channel_idx in entries:
+            yield name, group_idx, channel_idx
+
+
+def disambiguate_name(name: str, group_idx: int, duplicated: bool) -> str:
+    """Suffixe le nom d'affichage des homonymes pour les distinguer dans la liste."""
+    return f"{name} ({group_idx})" if duplicated else name
 
 
 def load_mf4_with_dbc(mf4_path: Path, dbc_path: Optional[Path] = None) -> LoadResult:
@@ -67,23 +75,25 @@ def load_mf4_with_dbc(mf4_path: Path, dbc_path: Optional[Path] = None) -> LoadRe
             mdf.close()
             mdf = extracted
         except Exception:
-            logger.error(f"DBC decode failed", exc_info=True)
+            logger.error("DBC decode failed", exc_info=True)
 
-    signal_names = list(mdf.channels_db.keys())
-    exclude_patterns = ["time", "t_", "timestamp", "CAN_DataFrame"]
-    filtered_names = [
-        n for n in signal_names
-        if not any(p.lower() in n.lower() for p in exclude_patterns)
-    ]
+    occurrences = list(iter_channel_occurrences(mdf))
+    name_counts = {}
+    for name, _, _ in occurrences:
+        name_counts[name] = name_counts.get(name, 0) + 1
 
-    logger.info(f"Found {len(filtered_names)} channels")
+    logger.info(f"Found {len(occurrences)} channels")
 
     signals, metadata = [], []
     t_min_global = float("inf")
     t_max_global = float("-inf")
 
-    for i, name in enumerate(filtered_names):
-        sig = fetch_signal_multigroup(mdf, name)
+    for name, group_idx, channel_idx in occurrences:
+        try:
+            sig = mdf.get(group=group_idx, index=channel_idx)
+        except Exception:
+            logger.debug(f"Failed to load {name} (group {group_idx})", exc_info=True)
+            continue
         if sig is None or sig.samples is None or len(sig.samples) == 0:
             continue
 
@@ -111,15 +121,16 @@ def load_mf4_with_dbc(mf4_path: Path, dbc_path: Optional[Path] = None) -> LoadRe
 
         unit = str(sig.unit) if sig.unit else ""
         hue = (len(signals) * 37) % 360
+        display = disambiguate_name(name, group_idx, name_counts[name] > 1)
 
         signals.append({"timestamps": timestamps, "values": values})
-        metadata.append({"name": name, "unit": unit, "color": f"hsl({hue}, 70%, 55%)"})
+        metadata.append({"name": display, "unit": unit, "color": f"hsl({hue}, 70%, 55%)"})
 
     mdf.close()
 
     if not signals:
         raise ValueError("Aucun signal numerique valide trouve dans le fichier MF4")
-    
+
     logger.info(f"Loaded {len(signals)} signals, duration: {t_max_global - t_min_global:.1f}s")
     return signals, metadata, t_min_global, t_max_global
 
@@ -152,7 +163,8 @@ def load_synthetic_data() -> LoadResult:
         ("EGT", "C", lambda t: 400 + 150 * np.sin(2 * np.pi * t / 250) + np.random.randn(len(t)) * 10),
         ("Lambda", "", lambda t: 1.0 + 0.1 * np.sin(2 * np.pi * t / 40) + np.random.randn(len(t)) * 0.01),
         ("AccelPedalPos", "%", lambda t: 25 + 20 * np.sin(2 * np.pi * t / 70) + np.random.randn(len(t)) * 2),
-        ("BrakePressure", "bar", lambda t: np.maximum(0, 20 * np.sin(2 * np.pi * t / 50) ** 2 + np.random.randn(len(t)) * 1)),
+        ("BrakePressure", "bar",
+         lambda t: np.maximum(0, 20 * np.sin(2 * np.pi * t / 50) ** 2 + np.random.randn(len(t)) * 1)),
         ("SteeringAngle", "deg", lambda t: 30 * np.sin(2 * np.pi * t / 200) + np.random.randn(len(t)) * 2),
     ]
 
