@@ -65,7 +65,7 @@ class RateLimiter:
                 del self._lockouts[key]
             return False, 0
 
-    def record_attempt(self, key: str) -> tuple[bool, int]:
+    def record_attempt(self, key: str, max_attempts: int = RATE_LIMIT_MAX_ATTEMPTS) -> tuple[bool, int]:
         with self._lock:
             now = time.time()
 
@@ -76,9 +76,9 @@ class RateLimiter:
             self._attempts[key].append(now)
 
             attempt_count = len(self._attempts[key])
-            remaining = RATE_LIMIT_MAX_ATTEMPTS - attempt_count
+            remaining = max_attempts - attempt_count
 
-            if attempt_count >= RATE_LIMIT_MAX_ATTEMPTS:
+            if attempt_count >= max_attempts:
                 self._lockouts[key] = now + RATE_LIMIT_LOCKOUT
                 self._attempts[key] = []
                 return False, 0

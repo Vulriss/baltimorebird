@@ -4,9 +4,12 @@ import re
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, g, jsonify, request
 
-from data_management import datastore
+from api.auth import optional_auth
+from config import ANONYMOUS_USER_ID
+from core import sanitize_session_id
+from data_management import datastore, lazy_eda
 
 computed_vars_bp = Blueprint("computed_vars", __name__)
 
@@ -93,11 +96,67 @@ def compute_formula(
         raise ValueError(f"Erreur d'évaluation: {str(e)}")
 
 
-@computed_vars_bp.route("/api/create-variable", methods=["POST"])
-def create_variable():
-    if not datastore.loaded:
-        return jsonify({"error": "Aucune source de données chargée"}), 400
+def _resolve_session(session_id: str):
+    """Résout une session lazy et vérifie les droits d'accès.
+    Retourne (session, None) si autorisé, (None, réponse_erreur) sinon."""
+    safe_id = sanitize_session_id(session_id)
+    if not safe_id:
+        return None, (jsonify({"error": "ID de session invalide"}), 400)
 
+    session = lazy_eda.get_session(safe_id)
+    if not session:
+        return None, (jsonify({"error": "Session introuvable"}), 404)
+
+    if session.user_id == ANONYMOUS_USER_ID:
+        return session, None
+
+    user = getattr(g, "current_user", None)
+    if not user:
+        return None, (jsonify({"error": "Authentification requise"}), 401)
+    if session.user_id != user.id:
+        return None, (jsonify({"error": "Accès non autorisé"}), 403)
+
+    return session, None
+
+
+def _resolve_mapped_lazy_signals(session_id: str, mapping: Dict[str, str]):
+    """Pour une session lazy, résout chaque signal mappé en données alignées.
+    Retourne ((signal_data, reference_timestamps), None) ou (None, réponse_erreur)."""
+    signal_data: Dict[str, np.ndarray] = {}
+    reference_timestamps: Optional[np.ndarray] = None
+    reference_length: Optional[int] = None
+
+    for var_letter, signal_name in mapping.items():
+        if not re.match(r"^[A-Z]$", var_letter):
+            return None, (jsonify({"error": f"'{var_letter}' n'est pas une lettre de variable valide (A-Z)"}), 400)
+
+        index = lazy_eda.get_signal_index_by_name(session_id, signal_name)
+        if index is None:
+            return None, (jsonify({"error": f"Signal '{signal_name}' non trouvé"}), 404)
+
+        lazy_sig = lazy_eda.get_signal_data(session_id, index)
+        if not lazy_sig or not lazy_sig.is_loaded:
+            return None, (jsonify({"error": f"Signal '{signal_name}' non chargeable"}), 404)
+
+        values = lazy_sig.values
+        if reference_timestamps is None:
+            reference_timestamps = np.asarray(lazy_sig.timestamps, dtype=np.float64)
+            reference_length = len(values)
+
+        if len(values) != reference_length:
+            return None, (jsonify({"error": f"Le signal '{signal_name}' a une longueur différente"}), 400)
+
+        signal_data[var_letter] = np.asarray(values, dtype=np.float64)
+
+    if reference_timestamps is None:
+        return None, (jsonify({"error": "Aucun signal mappé"}), 400)
+
+    return (signal_data, reference_timestamps), None
+
+
+@computed_vars_bp.route("/api/create-variable", methods=["POST"])
+@optional_auth
+def create_variable():
     try:
         data = request.get_json()
         if not data:
@@ -108,6 +167,7 @@ def create_variable():
         description = data.get("description", "").strip()
         formula = data.get("formula", "").strip()
         mapping = data.get("mapping", {})
+        session_id = data.get("session_id")
 
         if not name:
             return jsonify({"error": "Le nom est requis"}), 400
@@ -120,6 +180,35 @@ def create_variable():
 
         if not mapping:
             return jsonify({"error": "Au moins une variable doit être mappée"}), 400
+
+        # Branche session lazy (fichier MF4 ouvert par l'utilisateur).
+        if session_id:
+            session, err = _resolve_session(session_id)
+            if err:
+                return err
+            safe_id = session.session_id
+            if lazy_eda.get_signal_index_by_name(safe_id, name) is not None:
+                return jsonify({"error": f"Un signal nommé '{name}' existe déjà"}), 409
+
+            resolved, err = _resolve_mapped_lazy_signals(safe_id, mapping)
+            if err:
+                return err
+            signal_data, reference_timestamps = resolved
+            try:
+                new_ts, new_vals = compute_formula(formula, signal_data, reference_timestamps)
+            except ValueError as e:
+                return jsonify({"error": str(e)}), 400
+
+            result = lazy_eda.add_computed_signal(
+                safe_id, name, unit, description, formula, list(mapping.values()), new_ts, new_vals
+            )
+            if result is None:
+                return jsonify({"error": "Session introuvable"}), 404
+            return jsonify({"success": True, "signal": result})
+
+        # Branche source classique (datastore eager).
+        if not datastore.loaded:
+            return jsonify({"error": "Aucune source de données chargée"}), 400
 
         for existing_meta in datastore.metadata:
             if existing_meta["name"] == name:
@@ -210,7 +299,23 @@ def list_computed_variables():
 
 
 @computed_vars_bp.route("/api/computed-variables/<int:index>", methods=["DELETE"])
+@optional_auth
 def delete_computed_variable(index: int):
+    session_id = request.args.get("session_id")
+
+    # Branche session lazy.
+    if session_id:
+        session, err = _resolve_session(session_id)
+        if err:
+            return err
+        result = lazy_eda.remove_computed_signal(session.session_id, index)
+        if result is None:
+            return jsonify({"error": "Index invalide"}), 404
+        if result is False:
+            return jsonify({"error": "Seules les variables calculées peuvent être supprimées"}), 403
+        return jsonify({"success": True})
+
+    # Branche source classique (datastore eager).
     if not datastore.loaded:
         return jsonify({"error": "Aucune source de données chargée"}), 400
 
@@ -230,32 +335,68 @@ def delete_computed_variable(index: int):
 
 
 @computed_vars_bp.route("/api/computed-variables/<int:index>", methods=["PUT"])
+@optional_auth
 def update_computed_variable(index: int):
-    if not datastore.loaded:
-        return jsonify({"error": "Aucune source de données chargée"}), 400
-
-    if index < 0 or index >= len(datastore.metadata):
-        return jsonify({"error": "Index invalide"}), 404
-
-    meta = datastore.metadata[index]
-    if not meta.get("computed"):
-        return jsonify({"error": "Seules les variables calculées peuvent être modifiées"}), 403
-
     try:
         data = request.get_json()
         if not data:
             return jsonify({"error": "Données JSON requises"}), 400
 
-        unit = data.get("unit", meta.get("unit", "")).strip()
-        description = data.get("description", meta.get("description", "")).strip()
         formula = data.get("formula", "").strip()
         mapping = data.get("mapping", {})
+        session_id = data.get("session_id")
 
         if not formula:
             return jsonify({"error": "La formule est requise"}), 400
-
         if not mapping:
             return jsonify({"error": "Au moins une variable doit être mappée"}), 400
+
+        # Branche session lazy (fichier MF4 ouvert par l'utilisateur).
+        if session_id:
+            session, err = _resolve_session(session_id)
+            if err:
+                return err
+            safe_id = session.session_id
+            sig = session.signals.get(index)
+            if sig is None:
+                return jsonify({"error": "Index invalide"}), 404
+            if not sig.metadata.computed:
+                return jsonify({"error": "Seules les variables calculées peuvent être modifiées"}), 403
+
+            unit = data.get("unit", sig.metadata.unit).strip()
+            description = data.get("description", sig.metadata.description).strip()
+
+            resolved, err = _resolve_mapped_lazy_signals(safe_id, mapping)
+            if err:
+                return err
+            signal_data, reference_timestamps = resolved
+            try:
+                new_ts, new_vals = compute_formula(formula, signal_data, reference_timestamps)
+            except ValueError as e:
+                return jsonify({"error": str(e)}), 400
+
+            result = lazy_eda.update_computed_signal(
+                safe_id, index, unit, description, formula, list(mapping.values()), new_ts, new_vals
+            )
+            if result is None:
+                return jsonify({"error": "Index invalide"}), 404
+            if result is False:
+                return jsonify({"error": "Seules les variables calculées peuvent être modifiées"}), 403
+            return jsonify({"success": True, "signal": result})
+
+        # Branche source classique (datastore eager).
+        if not datastore.loaded:
+            return jsonify({"error": "Aucune source de données chargée"}), 400
+
+        if index < 0 or index >= len(datastore.metadata):
+            return jsonify({"error": "Index invalide"}), 404
+
+        meta = datastore.metadata[index]
+        if not meta.get("computed"):
+            return jsonify({"error": "Seules les variables calculées peuvent être modifiées"}), 403
+
+        unit = data.get("unit", meta.get("unit", "")).strip()
+        description = data.get("description", meta.get("description", "")).strip()
 
         signal_data: Dict[str, np.ndarray] = {}
         reference_timestamps: Optional[np.ndarray] = None
