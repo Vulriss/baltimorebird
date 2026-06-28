@@ -61,7 +61,7 @@ RATE_LIMIT_WINDOW = 900  # 15min
 RATE_LIMIT_MAX_ATTEMPTS = 5  # 5 attempts
 RATE_LIMIT_LOCKOUT = 1800  # 30min
 
-ALLOWED_EXTENSIONS: Set[str] = {".mf4", ".csv", ".mat", ".dat", ".blf", ".dbc"}
+ALLOWED_EXTENSIONS: Set[str] = {".mf4", ".csv", ".mat", ".dat", ".blf", ".dbc", ".arxml"}
 
 DATA_SOURCES = {
     "mf4": {
@@ -92,8 +92,13 @@ SANDBOX_MAX_STRING_LENGTH = 100000
 SANDBOX_MAX_CODE_LENGTH = 500000
 
 LAZY_EDA_MAX_SESSIONS = 50
-LAZY_EDA_SESSION_TIMEOUT = 3600  # Expirqtion apres 1h
+LAZY_EDA_SESSION_TIMEOUT = 28800  # Expiration apres 8h
 
 METRICS_IP_SALT = os.environ.get("METRICS_IP_SALT", "baltimore_bird_2025")  # Different en prod
 
 LAYOUT_VERSION = 1
+
+# --- Sessions EDA anonymes (fichiers temporaires, non persistants) ---
+ANONYMOUS_USER_ID = "anonymous"
+ANON_EDA_DIR_NAME = "anon_eda"
+ANON_UPLOAD_MAX_PER_WINDOW = 20  # Uploads anonymes par IP et par fenetre de 15 min
