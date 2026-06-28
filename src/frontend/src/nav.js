@@ -35,6 +35,11 @@ function toggleNav() {
 function switchView(viewId, element) {
     if (event) event.preventDefault();
 
+    if (element?.classList.contains('locked')) {
+        if (typeof showLoginModal === 'function') showLoginModal();
+        return;
+    }
+
     document.querySelectorAll('.nav-item[data-view]').forEach(item => item.classList.remove('active'));
     element?.classList.add('active');
 

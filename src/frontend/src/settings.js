@@ -175,7 +175,6 @@ const SettingsManager = (() => {
         const prefs = {
             theme: $('settingsTheme')?.value || 'dark',
             language: $('settingsLanguage')?.value || 'fr',
-            lod: $('settingsLod')?.value || 2000,
             interpolation: $('settingsInterpolation')?.value || 'linear'
         };
 
@@ -188,7 +187,6 @@ const SettingsManager = (() => {
         const prefs = JSON.parse(localStorage.getItem('preferences') || '{}');
         if ($('settingsTheme')) $('settingsTheme').value = prefs.theme || 'dark';
         if ($('settingsLanguage')) $('settingsLanguage').value = prefs.language || 'fr';
-        if ($('settingsLod')) $('settingsLod').value = prefs.lod || 2000;
         if ($('settingsInterpolation')) $('settingsInterpolation').value = prefs.interpolation || 'linear';
     }
 

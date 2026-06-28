@@ -12,9 +12,15 @@ import '../styles/main.scss'
 // ============================================================================
 // Legacy modules (ordre important préservé)
 // ============================================================================
+import './state.js'
+import './units.js'
 import './utils.js'
 import './view-loader.js'
 import './app.js'
+import './run-list.js'
+import './tabs.js'
+import './lxf.js'
+import './layouts.js'
 import './nav.js'
 import './reports.js'
 import './dashboard.js'
