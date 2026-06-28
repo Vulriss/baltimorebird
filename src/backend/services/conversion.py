@@ -171,11 +171,12 @@ class ConversionManager:
             to_delete = [tid for tid, task in self._tasks.items() if task.created_at < cutoff]
             for tid in to_delete:
                 task = self._tasks.pop(tid)
-                if task.output_file and task.output_file.exists():
-                    try:
-                        task.output_file.unlink()
-                    except OSError:
-                        pass
+                for artifact in (task.output_file, task.input_file, task.dbc_file):
+                    if artifact and artifact.exists():
+                        try:
+                            artifact.unlink()
+                        except OSError:
+                            pass
                 deleted += 1
         return deleted
 
@@ -267,11 +268,15 @@ class ConcatenationManager:
             to_delete = [tid for tid, task in self._tasks.items() if task.created_at < cutoff]
             for tid in to_delete:
                 task = self._tasks.pop(tid)
-                if task.output_file and task.output_file.exists():
-                    try:
-                        task.output_file.unlink()
-                    except OSError:
-                        pass
+                artifacts = list(task.input_files)
+                if task.output_file:
+                    artifacts.append(task.output_file)
+                for artifact in artifacts:
+                    if artifact and artifact.exists():
+                        try:
+                            artifact.unlink()
+                        except OSError:
+                            pass
                 deleted += 1
         return deleted
 

@@ -406,7 +406,11 @@ class StorageManager:
             raise ValueError("Limite totale de fichiers atteinte")
 
         file_id = str(uuid.uuid4())
-        stored_name = f"{file_id[:8]}_{safe_name}"
+        # Base tronquee pour rester loin de MAX_PATH (260) sous Windows;
+        # le nom original complet est conserve en base (original_name)
+        stem = Path(safe_name).stem[:60]
+        suffix = Path(safe_name).suffix.lower()
+        stored_name = f"{file_id[:8]}_{stem}{suffix}"
         now = utc_now_iso()
 
         user_cat_dir = USERS_ROOT / user_id / category
