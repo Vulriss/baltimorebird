@@ -80,6 +80,7 @@ class SmokeTestRunner:
         session_id = self.test_lazy_source_flow(alice["token"])
         self.test_view_access_control(alice["token"], bob["token"], session_id)
         self.test_eda_upload(alice["token"])
+        self.test_anonymous_flow(alice["token"])
 
         print(f"\nResultat: {self.passed} OK, {self.failed} KO")
         return 0 if self.failed == 0 else 1
@@ -127,6 +128,21 @@ class SmokeTestRunner:
                 timeout=30,
             )
         self.check("Upload dbc -> 201", res.status_code == 201, res.text[:200])
+
+        long_name = "05-12-2025_DZ110Entry_VC827_A212_0100H_D149_0212_VC_1_PVALs_AU-PT_PTM01_Test1_NORMAL_" \
+            + "x" * 40 + ".mf4"
+        with DEMO_MF4.open("rb") as fh:
+            res = requests.post(
+                self.url("/api/storage/files/mf4"),
+                headers=headers,
+                files={"file": (long_name, fh)},
+                timeout=60,
+            )
+        self.check(
+            "Upload mf4 nom tres long (>120 car.) -> 201 (limite MAX_PATH Windows)",
+            res.status_code == 201,
+            res.text[:200],
+        )
 
         res = requests.post(
             self.url("/api/storage/files/mf4"),
@@ -208,16 +224,21 @@ class SmokeTestRunner:
 
         with DEMO_MF4.open("rb") as fh:
             res = requests.post(self.url("/api/eda/upload"), files={"file": ("anon.mf4", fh)}, timeout=30)
-        self.check("Upload EDA anonyme -> 401", res.status_code == 401, f"recu {res.status_code}")
+        self.check(
+            "Upload EDA anonyme accepte en mode ephemere",
+            res.status_code == 200 and res.json().get("ephemeral") is True,
+            f"recu {res.status_code}: {res.text[:120]}",
+        )
 
+        long_eda_name = "smoke_eda_" + "y" * 110 + ".mf4"
         with DEMO_MF4.open("rb") as mf4, DEMO_DBC.open("rb") as dbc:
             res = requests.post(
                 self.url("/api/eda/upload"),
                 headers=self.bearer(token),
-                files={"file": ("smoke_eda.mf4", mf4), "dbc": ("smoke_eda.dbc", dbc)},
+                files={"file": (long_eda_name, mf4), "dbc": ("smoke_eda.dbc", dbc)},
                 timeout=120,
             )
-        self.check("Upload EDA authentifie -> 200", res.status_code == 200, res.text[:200])
+        self.check("Upload EDA authentifie (nom tres long) -> 200", res.status_code == 200, res.text[:200])
         if res.status_code != 200:
             return
 
@@ -253,6 +274,40 @@ class SmokeTestRunner:
             timeout=30,
         )
         self.check("Preload d'un indice hors limites -> 404", res.status_code == 404, f"recu {res.status_code}")
+
+    def test_anonymous_flow(self, owner_token: str) -> None:
+        print("[7] Parcours utilisateur anonyme")
+
+        res = requests.post(self.url("/api/source/synthetic"), timeout=60)
+        self.check("Source demo synthetic sans token -> 200", res.status_code == 200, res.text[:150])
+        res = requests.post(self.url("/api/source/mf4"), timeout=60)
+        self.check("Source demo mf4 sans token -> 200", res.status_code == 200, res.text[:150])
+
+        with DEMO_MF4.open("rb") as mf4, DEMO_DBC.open("rb") as dbc:
+            res = requests.post(
+                self.url("/api/eda/upload"),
+                files={"file": ("anon_session.mf4", mf4), "dbc": ("anon_session.dbc", dbc)},
+                timeout=120,
+            )
+        self.check("Upload EDA anonyme -> 200 (fichier temporaire)", res.status_code == 200, res.text[:200])
+        if res.status_code != 200:
+            return
+
+        payload = res.json()
+        self.check("Session marquee ephemeral", payload.get("ephemeral") is True, str(payload)[:150])
+        session_id = payload.get("session_id", "")
+
+        res = requests.get(self.url(f"/api/eda/list-signals/{session_id}"), timeout=120)
+        self.check("Listing anonyme de sa session -> 200", res.status_code == 200, res.text[:150])
+
+        res = requests.get(self.url(f"/api/view?session_id={session_id}&signals=3"), timeout=60)
+        self.check("Vue anonyme de sa session -> 200", res.status_code == 200, res.text[:150])
+
+        res = requests.delete(self.url(f"/api/eda/session/{session_id}"), timeout=30)
+        self.check("Fermeture de la session anonyme -> 200", res.status_code == 200, res.text[:150])
+
+        res = requests.get(self.url(f"/api/eda/list-signals/{session_id}"), timeout=30)
+        self.check("Session fermee inaccessible -> 404", res.status_code == 404, f"recu {res.status_code}")
 
 
 def main() -> int:
