@@ -124,7 +124,9 @@ class MultiSourceDataStore:
         self._warmup_lttb()
         logger.info(f"Ready: {len(self.signals)} signals")
 
-    def get_view(self, signal_indices: list[int], start_time: float, end_time: float, max_points: int) -> Optional[dict[str, Any]]:
+    def get_view(
+        self, signal_indices: list[int], start_time: float, end_time: float, max_points: int
+    ) -> Optional[dict[str, Any]]:
         """Retourne une vue downsamplée des signaux demandés."""
         if not self.loaded:
             self.load()
@@ -147,8 +149,10 @@ class MultiSourceDataStore:
             meta = self.metadata[sig_idx]
             timestamps, values = sig["timestamps"], sig["values"]
 
-            mask = (timestamps >= start_time) & (timestamps <= end_time)
-            view_ts, view_vals = timestamps[mask], values[mask]
+            # Timestamps monotones: bornage O(log n) au lieu d'un masque O(n).
+            i0 = int(np.searchsorted(timestamps, start_time, side="left"))
+            i1 = int(np.searchsorted(timestamps, end_time, side="right"))
+            view_ts, view_vals = timestamps[i0:i1], values[i0:i1]
 
             if len(view_ts) == 0:
                 continue

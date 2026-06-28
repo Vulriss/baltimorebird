@@ -3,18 +3,48 @@ Baltimore Bird - Gestionnaire de sessions EDA.
 Permet de charger les signaux des MF4 à la demande, limit memory footprint.
 """
 
+import os
 import time
 import logging
+import threading
 from pathlib import Path
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Set
 
 import numpy as np
 from numpy.typing import NDArray
 
 from config import LAZY_EDA_MAX_SESSIONS, LAZY_EDA_SESSION_TIMEOUT
+from .loaders import iter_channel_occurrences, disambiguate_name
 
 logger = logging.getLogger(__name__)
+
+
+def state_change_points(
+    timestamps: NDArray[np.float64], values: NDArray[np.float64]
+) -> tuple[NDArray[np.float64], NDArray[np.float64]]:
+    """Réduit un signal en escalier à ses seuls fronts.
+
+    Pour chaque changement d'état (values[i] != values[i-1]) on conserve l'échantillon
+    du front (i) ET celui juste avant (i-1): l'instant exact du basculement est incertain
+    à l'échelle de la période d'échantillonnage, et garder les deux bornes encadre cette
+    incertitude. Les deux extrémités sont toujours conservées. Représentation exacte en
+    rendu escalier, et très compacte pour un signal qui change peu.
+    """
+    n = len(values)
+    if n <= 2:
+        return timestamps, values
+    # Masque des fronts par comparaison decalee, puis report sur le point du front ET
+    # sur l'echantillon juste avant via deux masques decales (OU en place). flatnonzero
+    # donne des indices deja tries et uniques: strictement O(n), sans concatenate ni tri.
+    diff = values[1:] != values[:-1]
+    keep = np.zeros(n, dtype=bool)
+    keep[1:] |= diff   # point du front (i)
+    keep[:-1] |= diff  # echantillon juste avant (i-1)
+    keep[0] = True
+    keep[-1] = True
+    idx = np.flatnonzero(keep)
+    return timestamps[idx], values[idx]
 
 
 @dataclass
@@ -27,6 +57,10 @@ class SignalMetadata:
     group_index: int = 0
     channel_index: int = 0
     loaded: bool = False
+    computed: bool = False
+    formula: str = ""
+    description: str = ""
+    source_signals: List[str] = field(default_factory=list)
 
 
 @dataclass
@@ -57,6 +91,7 @@ class LazySession:
     n_signals: int = 0
     mdf_handle: Any = None
     listed: bool = False
+    ephemeral: bool = False
     created_at: float = field(default_factory=time.time)
     last_access: float = field(default_factory=time.time)
 
@@ -72,27 +107,34 @@ class LazyEDAManager:
         self.sessions: Dict[str, LazySession] = {}
         self.max_sessions = max_sessions
         self.session_timeout = session_timeout
+        self._lock = threading.RLock()
 
-    def create_session(self, session_id: str, user_id: str, mf4_path: Path, dbc_path: Optional[Path] = None) -> LazySession:
-        """Crée une nouvelle session lazy."""
-        self._cleanup_old_sessions()
+    def create_session(
+        self, session_id: str, user_id: str, mf4_path: Path,
+        dbc_path: Optional[Path] = None, ephemeral: bool = False
+    ) -> LazySession:
+        """Crée une nouvelle session lazy. Les sessions éphémères suppriment leurs fichiers à la fermeture."""
+        with self._lock:
+            self._cleanup_old_sessions()
 
-        session = LazySession(
-            session_id=session_id,
-            user_id=user_id,
-            mf4_path=mf4_path,
-            dbc_path=dbc_path,
-            filename=mf4_path.name
-        )
-        self.sessions[session_id] = session
-        return session
+            session = LazySession(
+                session_id=session_id,
+                user_id=user_id,
+                mf4_path=mf4_path,
+                dbc_path=dbc_path,
+                filename=mf4_path.name,
+                ephemeral=ephemeral
+            )
+            self.sessions[session_id] = session
+            return session
 
     def get_session(self, session_id: str) -> Optional[LazySession]:
         """Récupère une session par ID."""
-        session = self.sessions.get(session_id)
-        if session:
-            session.touch()
-        return session
+        with self._lock:
+            session = self.sessions.get(session_id)
+            if session:
+                session.touch()
+            return session
 
     def list_signals(self, session_id: str) -> Optional[Dict]:
         """Liste les signaux d'un fichier MF4 sans charger les données."""
@@ -121,49 +163,38 @@ class LazyEDAManager:
 
             session.mdf_handle = mdf
 
-            signal_names = list(mdf.channels_db.keys())
-            exclude_patterns = ["time", "t_", "timestamp", "CAN_DataFrame"]
-            filtered_names = [n for n in signal_names if not any(p.lower() in n.lower() for p in exclude_patterns)]
+            occurrences = list(iter_channel_occurrences(mdf))
+            name_counts = {}
+            for name, _, _ in occurrences:
+                name_counts[name] = name_counts.get(name, 0) + 1
 
-            logger.info(f"[LazyEDA] Found {len(filtered_names)} channels, collecting metadata...")
-
-            channel_info = {}
-            for name in filtered_names:
-                groups = mdf.channels_db.get(name, [])
-                if groups:
-                    group_idx, channel_idx = groups[0]
-                    channel_info[name] = (group_idx, channel_idx)
+            logger.info(f"[LazyEDA] Found {len(occurrences)} channels, collecting metadata...")
 
             t_min_global = float("inf")
             t_max_global = float("-inf")
             sampled_one = False
             valid_signals = []
 
-            for name, (group_idx, channel_idx) in channel_info.items():
+            for name, group_idx, channel_idx in occurrences:
                 try:
-                    group = mdf.groups[group_idx]
-                    channel = group.channels[channel_idx]
-
-                    unit = ""
-                    if hasattr(channel, "unit"):
-                        unit = str(channel.unit) if channel.unit else ""
+                    channel = mdf.groups[group_idx].channels[channel_idx]
+                    unit = str(channel.unit) if getattr(channel, "unit", "") else ""
 
                     if not sampled_one:
                         try:
-                            sig = mdf.get(name, group=group_idx, index=channel_idx, raw=True)
+                            sig = mdf.get(group=group_idx, index=channel_idx, raw=True)
                             if sig is not None and sig.timestamps is not None and len(sig.timestamps) > 0:
                                 t_min_global = float(sig.timestamps[0])
                                 t_max_global = float(sig.timestamps[-1])
                                 sampled_one = True
-                                if not np.issubdtype(sig.samples.dtype, np.number):
-                                    continue
                         except Exception:
                             pass
 
+                    display = disambiguate_name(name, group_idx, name_counts[name] > 1)
                     hue = (len(valid_signals) * 37) % 360
                     metadata = SignalMetadata(
                         index=len(valid_signals),
-                        name=name,
+                        name=display,
                         unit=unit,
                         color=f"hsl({hue}, 70%, 55%)",
                         group_index=group_idx,
@@ -234,7 +265,7 @@ class LazyEDAManager:
                     mdf = extracted
                 session.mdf_handle = mdf
 
-            sig = mdf.get(signal_name, group=meta.group_index, index=meta.channel_index)
+            sig = mdf.get(group=meta.group_index, index=meta.channel_index)
 
             if sig is None or sig.samples is None or len(sig.samples) == 0:
                 return {"index": signal_index, "status": "error", "error": "Signal empty"}
@@ -321,9 +352,80 @@ class LazyEDAManager:
 
         return lazy_signal
 
+    def get_signal_index_by_name(self, session_id: str, name: str) -> Optional[int]:
+        """Retrouve l'index d'un signal de session par son nom d'affichage."""
+        session = self.get_session(session_id)
+        if not session:
+            return None
+        for idx, sig in session.signals.items():
+            if sig.metadata.name == name:
+                return idx
+        return None
+
+    def add_computed_signal(
+        self, session_id: str, name: str, unit: str, description: str,
+        formula: str, source_signals: List[str],
+        timestamps: NDArray[np.float64], values: NDArray[np.float64]
+    ) -> Optional[Dict]:
+        """Ajoute une variable calculée (données déjà calculées) à la session."""
+        session = self.get_session(session_id)
+        if not session:
+            return None
+        with self._lock:
+            index = max(session.signals.keys(), default=-1) + 1
+            hue = (index * 37) % 360
+            meta = SignalMetadata(
+                index=index, name=name, unit=unit, color=f"hsl({hue}, 70%, 55%)",
+                loaded=True, computed=True, formula=formula,
+                description=description, source_signals=list(source_signals)
+            )
+            session.signals[index] = LazySignal(
+                metadata=meta,
+                timestamps=np.asarray(timestamps, dtype=np.float64),
+                values=np.asarray(values, dtype=np.float64)
+            )
+            session.signal_names.append(name)
+            session.n_signals = len(session.signals)
+        return {"name": name, "unit": unit, "index": index, "color": meta.color}
+
+    def update_computed_signal(
+        self, session_id: str, index: int, unit: str, description: str,
+        formula: str, source_signals: List[str],
+        timestamps: NDArray[np.float64], values: NDArray[np.float64]
+    ) -> Optional[Dict]:
+        """Met à jour une variable calculée existante. Retourne None si absente,
+        False si le signal visé n'est pas une variable calculée."""
+        session = self.get_session(session_id)
+        if not session or index not in session.signals:
+            return None
+        sig = session.signals[index]
+        if not sig.metadata.computed:
+            return False
+        with self._lock:
+            sig.timestamps = np.asarray(timestamps, dtype=np.float64)
+            sig.values = np.asarray(values, dtype=np.float64)
+            sig.metadata.unit = unit
+            sig.metadata.description = description
+            sig.metadata.formula = formula
+            sig.metadata.source_signals = list(source_signals)
+        return {"name": sig.metadata.name, "unit": unit, "index": index, "color": sig.metadata.color}
+
+    def remove_computed_signal(self, session_id: str, index: int) -> Optional[bool]:
+        """Supprime une variable calculée. None si absente, False si non calculée."""
+        session = self.get_session(session_id)
+        if not session or index not in session.signals:
+            return None
+        if not session.signals[index].metadata.computed:
+            return False
+        with self._lock:
+            del session.signals[index]
+            session.n_signals = len(session.signals)
+        return True
+
     def close_session(self, session_id: str) -> None:
         """Ferme une session et libère les ressources."""
-        session = self.sessions.pop(session_id, None)
+        with self._lock:
+            session = self.sessions.pop(session_id, None)
         if session and session.mdf_handle:
             try:
                 session.mdf_handle.close()
@@ -331,44 +433,113 @@ class LazyEDAManager:
             except Exception:
                 logger.warning("[LazyEDA] couldnt close current session", exc_info=True)
 
+        if session and session.ephemeral:
+            for path in (session.mf4_path, session.dbc_path):
+                if path is None:
+                    continue
+                try:
+                    path.unlink(missing_ok=True)
+                except OSError:
+                    logger.warning(f"[LazyEDA] Could not delete temp file {path.name}", exc_info=True)
+            logger.info(f"[LazyEDA] Ephemeral session {session_id[:8]} files removed")
+
     def close_user_sessions(self, user_id: str) -> int:
         """Ferme toutes les sessions d'un utilisateur. Retourne le nombre de sessions fermées."""
-        to_close = [sid for sid, session in self.sessions.items() if session.user_id == user_id]
+        with self._lock:
+            to_close = [sid for sid, session in self.sessions.items() if session.user_id == user_id]
         for sid in to_close:
             self.close_session(sid)
             logger.info(f"[LazyEDA] Closed session {sid[:8]} for user {user_id}")
         return len(to_close)
 
+    def _expired_session_ids(self, now: float) -> List[str]:
+        """Identifiants des sessions expirées. Suppose le verrou détenu par l'appelant."""
+        return [
+            sid for sid, session in self.sessions.items()
+            if now - session.last_access > self.session_timeout
+        ]
+
     def _cleanup_old_sessions(self) -> None:
-        """Supprime les sessions expirées pour libérer la mémoire."""
-        now = time.time()
-        to_remove = []
-
-        for sid, session in self.sessions.items():
-            if now - session.last_access > self.session_timeout:
-                to_remove.append(sid)
-
-        for sid in to_remove:
-            self.close_session(sid)
-            logger.info(f"[LazyEDA] Cleaned up expired session {sid[:8]}")
-
-        if len(self.sessions) > self.max_sessions:
-            sorted_sessions = sorted(self.sessions.items(), key=lambda x: x[1].last_access)
-            for sid, _ in sorted_sessions[:len(self.sessions) - self.max_sessions]:
+        """Supprime les sessions expirées et applique le plafond de sessions pour libérer la mémoire."""
+        with self._lock:
+            for sid in self._expired_session_ids(time.time()):
                 self.close_session(sid)
+                logger.info(f"[LazyEDA] Cleaned up expired session {sid[:8]}")
+
+            if len(self.sessions) > self.max_sessions:
+                sorted_sessions = sorted(self.sessions.items(), key=lambda x: x[1].last_access)
+                for sid, _ in sorted_sessions[:len(self.sessions) - self.max_sessions]:
+                    self.close_session(sid)
+
+    def cleanup_expired(self) -> int:
+        """Évince les sessions expirées et libère leurs ressources (fichiers éphémères inclus).
+
+        Pensé pour un appel périodique en tâche de fond. La liste des sessions à fermer est calculée
+        sous verrou, mais la fermeture (entrées/sorties disque) a lieu hors verrou pour ne pas bloquer
+        les requêtes concurrentes. Retourne le nombre de sessions évincées.
+        """
+        with self._lock:
+            expired = self._expired_session_ids(time.time())
+        for session_id in expired:
+            self.close_session(session_id)
+            logger.info(f"[LazyEDA] Session expirée évincée: {session_id[:8]}")
+        return len(expired)
+
+    def active_file_paths(self) -> Set[Path]:
+        """Chemins disque référencés par les sessions vivantes, pour les protéger du balayage des orphelins."""
+        with self._lock:
+            paths: Set[Path] = set()
+            for session in self.sessions.values():
+                paths.add(session.mf4_path)
+                if session.dbc_path is not None:
+                    paths.add(session.dbc_path)
+            return paths
+
+    def refresh_ephemeral_file_mtimes(self) -> None:
+        """Aligne le mtime des fichiers éphémères vivants sur l'heure courante.
+
+        Le balayage des orphelins se fonde sur l'âge du fichier sur disque. Dans un déploiement
+        multi-worker, un worker ne connaît pas les sessions des autres : sans ce rafraîchissement,
+        le fichier d'une session active de longue durée (dont le mtime reste figé à l'upload) pourrait
+        être considéré à tort comme orphelin par un autre worker et supprimé. On maintient donc les
+        fichiers des sessions vivantes « récents » tant qu'elles ne sont pas expirées.
+        """
+        with self._lock:
+            live_paths = [
+                (session.mf4_path, session.dbc_path)
+                for session in self.sessions.values()
+                if session.ephemeral
+            ]
+        now = time.time()
+        for mf4_path, dbc_path in live_paths:
+            for path in (mf4_path, dbc_path):
+                if path is None:
+                    continue
+                try:
+                    os.utime(path, (now, now))
+                except OSError:
+                    logger.debug(f"[LazyEDA] mtime non rafraîchi pour {path.name}", exc_info=True)
 
     def _format_signal_list(self, session: LazySession) -> Dict:
         """Formate la liste des signaux pour la réponse API."""
         signals = []
         for idx, lazy_sig in sorted(session.signals.items()):
             meta = lazy_sig.metadata
-            signals.append({
+            entry = {
                 "index": meta.index,
                 "name": meta.name,
                 "unit": meta.unit,
                 "color": meta.color,
                 "loaded": lazy_sig.is_loaded
-            })
+            }
+            if meta.computed:
+                entry.update({
+                    "computed": True,
+                    "formula": meta.formula,
+                    "description": meta.description,
+                    "source_signals": meta.source_signals,
+                })
+            signals.append(entry)
 
         return {
             "session_id": session.session_id,
@@ -412,17 +583,49 @@ class LazyEDAManager:
             values = lazy_signal.values
             meta = lazy_signal.metadata
 
-            mask = (timestamps >= start) & (timestamps <= end)
-            t_slice = timestamps[mask]
-            v_slice = values[mask]
+            # Timestamps monotones (serie temporelle MDF): on borne la fenetre en
+            # O(log n) via searchsorted plutot que par un masque booleen O(n)
+            # recalcule sur tout le signal a chaque zoom/pan.
+            i0 = int(np.searchsorted(timestamps, start, side="left"))
+            i1 = int(np.searchsorted(timestamps, end, side="right"))
 
-            if len(t_slice) == 0:
-                continue
+            is_step = lazy_signal.string_map is not None or meta.unit == "bool"
 
-            if len(t_slice) > max_points:
-                t_down, v_down = lttb_downsample(t_slice, v_slice, max_points)
+            if is_step:
+                # Signal escalier (booleen/etat): on ne renvoie que les fronts. On etend
+                # d'un echantillon de chaque cote pour porter l'etat aux bords de la vue.
+                a0 = max(0, i0 - 1)
+                a1 = min(len(values), i1 + 1)
+                t_seg = timestamps[a0:a1]
+                v_seg = values[a0:a1]
+                if len(t_seg) == 0:
+                    continue
+                t_red, v_red = state_change_points(t_seg, v_seg)
+                if len(t_red) > max(2 * max_points, 4000):
+                    # Cas pathologique (transitions quasi a chaque echantillon): repli.
+                    t_slice = timestamps[i0:i1]
+                    v_slice = values[i0:i1]
+                    if len(t_slice) > max_points:
+                        t_down, v_down = lttb_downsample(t_slice, v_slice, max_points)
+                    else:
+                        t_down, v_down = t_slice, v_slice
+                else:
+                    t_down, v_down = t_red, v_red
+                stat_values = values[i0:i1]
+                n_original = i1 - i0
+                is_complete = i0 == 0 and i1 == len(values)
             else:
-                t_down, v_down = t_slice, v_slice
+                t_slice = timestamps[i0:i1]
+                v_slice = values[i0:i1]
+                if len(t_slice) == 0:
+                    continue
+                n_original = i1 - i0
+                if len(t_slice) > max_points:
+                    t_down, v_down = lttb_downsample(t_slice, v_slice, max_points)
+                else:
+                    t_down, v_down = t_slice, v_slice
+                stat_values = v_slice
+                is_complete = n_original <= max_points
 
             signal_data = {
                 "index": idx,
@@ -431,12 +634,12 @@ class LazyEDAManager:
                 "color": meta.color,
                 "timestamps": t_down.tolist(),
                 "values": v_down.tolist(),
-                "n_original": int(mask.sum()),
+                "n_original": n_original,
                 "n_returned": len(t_down),
-                "is_complete": len(t_slice) <= max_points,
+                "is_complete": is_complete,
                 "stats": {
-                    "min": float(np.min(v_slice)) if len(v_slice) > 0 else 0,
-                    "max": float(np.max(v_slice)) if len(v_slice) > 0 else 0,
+                    "min": float(np.min(stat_values)) if len(stat_values) > 0 else 0,
+                    "max": float(np.max(stat_values)) if len(stat_values) > 0 else 0,
                     "lttb_ms": 0,
                 },
             }

@@ -3,6 +3,7 @@
 from .datastore import datastore, MultiSourceDataStore
 from .sessions import lazy_eda, LazyEDAManager, LazySession, LazySignal
 from .loaders import load_mf4_with_dbc, load_synthetic_data, load_csv_data
+from .maintenance import purge_orphan_files
 
 __all__ = [
     "datastore",
@@ -14,4 +15,5 @@ __all__ = [
     "load_mf4_with_dbc",
     "load_synthetic_data",
     "load_csv_data",
+    "purge_orphan_files",
 ]
