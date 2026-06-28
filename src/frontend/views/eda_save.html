@@ -1,0 +1,102 @@
+<div class="app">
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <div class="sidebar-title">Signaux</div>
+            <input type="text" class="search-box" id="search" placeholder="Rechercher..." autocomplete="off">
+        </div>
+        <div class="signal-list" id="signalList">
+            <div style="color:#555;padding:20px;text-align:center;">Chargement...</div>
+        </div>
+        <button class="create-variable-btn" id="createVariableBtn" title="Créer une variable calculée">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+            <span>Créer une variable</span>
+        </button>
+        <div class="sidebar-footer">
+            Signaux: <span id="statSignals">-</span> &nbsp;|&nbsp; 
+            Longueur: <span id="statDuration">-</span> &nbsp;|&nbsp; 
+            Serveur: <span id="statServer">-</span>
+        </div>
+    </aside>
+
+    <main class="main">
+        <div class="toolbar">
+            <div class="toolbar-title">Interactive EDA</div>
+            
+            <div class="toolbar-group">
+                <label>Source:</label>
+                <select id="sourceSelector">
+                    <option value="">Chargement...</option>
+                </select>
+                <!-- Connecté : fichier conservé dans l'espace personnel -->
+                <button class="toolbar-btn upload-btn" id="uploadBtnAuth" title="Charger votre fichier" data-auth="required">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                        <polyline points="17 8 12 3 7 8"/>
+                        <line x1="12" y1="3" x2="12" y2="15"/>
+                    </svg>
+                </button>
+
+                <!-- Non connecté : fichier temporaire, non sauvegardé -->
+                <button class="toolbar-btn upload-btn" id="uploadBtnGuest" title="Charger un fichier temporaire (non sauvegardé)" data-auth="guest">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                        <polyline points="17 8 12 3 7 8"/>
+                        <line x1="12" y1="3" x2="12" y2="15"/>
+                    </svg>
+                </button>
+            </div>
+
+            <span class="toolbar-divider" aria-hidden="true"></span>
+
+            <button class="toolbar-btn" id="addCursorBtn" title="Ajouter un curseur - raccourci : Ctrl + clic gauche (Ctrl + LMB)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="9" y1="4" x2="9" y2="20"/>
+                    <line x1="6" y1="4" x2="12" y2="4"/>
+                    <line x1="6" y1="20" x2="12" y2="20"/>
+                    <line x1="17" y1="9" x2="17" y2="15"/>
+                    <line x1="14" y1="12" x2="20" y2="12"/>
+                </svg>
+            </button>
+
+            <button class="toolbar-btn active" id="cursorLabelsToggle" aria-pressed="true" title="Afficher les infos des curseurs : temps, ligne et valeur de delta, valeurs par courbe">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
+                    <line x1="7" y1="7" x2="7.01" y2="7"/>
+                </svg>
+            </button>
+
+            <button id="resetBtn">Reset Zoom</button>
+            <span class="toolbar-divider" aria-hidden="true"></span>
+            <button id="clearBtn">Effacer tout</button>
+        </div>
+
+        <div class="plots-area" id="plotsArea">
+            <div class="tabs-container">
+                <div class="tabs-list" id="tabsList"></div>
+                <button class="tab-add" id="tabAddBtn" title="Nouveau tab">+</button>
+                <div class="tabs-actions">
+                    <button class="tab-action-btn" id="saveLayoutBtn" title="Sauvegarder le layout">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                            <polyline points="17 21 17 13 7 13 7 21"/>
+                            <polyline points="7 3 7 8 15 8"/>
+                        </svg>
+                        Save
+                    </button>
+                    <button class="tab-action-btn" id="loadLayoutBtn" title="Charger un layout">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                            <polyline points="7 10 12 15 17 10"/>
+                            <line x1="12" y1="15" x2="12" y2="3"/>
+                        </svg>
+                        Load
+                    </button>
+                </div>
+            </div>
+            <!-- Tab contents will be created dynamically by JavaScript -->
+        </div>
+    </main>
+</div>
