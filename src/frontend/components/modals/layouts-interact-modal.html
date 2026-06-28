@@ -18,15 +18,23 @@
             <div class="layouts-loading">Chargement...</div>
         </div>
         
-        <!-- Bouton sauvegarder -->
+        <!-- Boutons sauvegarder / importer -->
         <div class="layouts-save-trigger">
             <button class="btn-primary" onclick="openSaveLayoutDialog()">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
                     <polyline points="17 21 17 13 7 13 7 21"/>
                     <polyline points="7 3 7 8 15 8"/>
                 </svg>
                 Sauvegarder le layout actuel
+            </button>
+            <button class="btn-secondary" onclick="importLayoutFromFile()" title="Importer un layout depuis un fichier LXF">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                    <polyline points="7 10 12 15 17 10"/>
+                    <line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+                Importer un layout
             </button>
         </div>
     </div>
@@ -34,7 +42,7 @@
     <!-- Mode Sauvegarde -->
     <div class="drawer-body layouts-save-mode">
         <button class="layouts-back-btn" onclick="closeSaveMode()">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <polyline points="15 18 9 12 15 6"/>
             </svg>
             Retour à la liste
@@ -60,15 +68,20 @@
                 <li>Variables calculées</li>
             </ul>
         </div>
+
+        <div class="layout-guest-hint" id="layoutGuestHint" style="display: none;">
+            Vous n'êtes pas connecté : le layout sera téléchargé sous forme de fichier LXF (.lxf).
+            Reconnectez-vous pour le conserver dans votre compte, ou réimportez-le ensuite via « Importer un layout ».
+        </div>
     </div>
     
     <div class="drawer-footer">
         <button class="btn-secondary footer-list" onclick="closeLayoutsDrawer()">Fermer</button>
         <button class="btn-primary footer-save" onclick="saveCurrentLayout()">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <polyline points="20 6 9 17 4 12"></polyline>
             </svg>
-            Sauvegarder
+            <span id="footerSaveLabel">Sauvegarder</span>
         </button>
     </div>
 </div>
