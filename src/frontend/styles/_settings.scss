@@ -90,7 +90,7 @@
 
 .settings-nav-item.active {
     color: $text-white;
-    background: rgba($color-primary, 0.1);
+    background: rgba(var(--ctp-teal-rgb), 0.1);
     border-left-color: $color-primary;
 }
 
@@ -237,7 +237,7 @@
 .settings-field select:focus {
     outline: none;
     border-color: $color-primary;
-    box-shadow: 0 0 0 3px rgba($color-primary, 0.1);
+    box-shadow: 0 0 0 3px rgba(var(--ctp-teal-rgb), 0.1);
 }
 
 .settings-field input:disabled {
@@ -291,7 +291,7 @@
 
 .settings-btn.primary:hover {
     transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba($color-primary, 0.4);
+    box-shadow: 0 4px 12px rgba(var(--ctp-teal-rgb), 0.4);
     filter: brightness(1.05);
 }
 
@@ -318,13 +318,13 @@
 }
 
 .settings-btn.danger {
-    background: rgba($ctp-red, 0.1);
-    border: 1px solid rgba($ctp-red, 0.3);
+    background: rgba(var(--ctp-red-rgb), 0.1);
+    border: 1px solid rgba(var(--ctp-red-rgb), 0.3);
     color: $color-error;
 }
 
 .settings-btn.danger:hover {
-    background: rgba($ctp-red, 0.2);
+    background: rgba(var(--ctp-red-rgb), 0.2);
 }
 
 /* =============================================================================
@@ -401,8 +401,8 @@
 
 .settings-user-role {
     padding: 5px 12px;
-    background: rgba($color-primary, 0.1);
-    border: 1px solid rgba($color-primary, 0.3);
+    background: rgba(var(--ctp-teal-rgb), 0.1);
+    border: 1px solid rgba(var(--ctp-teal-rgb), 0.3);
     border-radius: 12px;
     font-size: 11px;
     font-weight: 600;
@@ -422,7 +422,7 @@
     height: 10px;
     border-radius: 50%;
     background: $color-success;
-    box-shadow: 0 0 8px rgba($ctp-green, 0.5);
+    box-shadow: 0 0 8px rgba(var(--ctp-green-rgb), 0.5);
 }
 
 .settings-user-status.inactive {
@@ -504,7 +504,7 @@
 
 .settings-stat-card.highlight {
     border-color: $color-primary;
-    background: rgba($color-primary, 0.05);
+    background: rgba(var(--ctp-teal-rgb), 0.05);
 }
 
 .settings-stat-card.highlight .settings-stat-value {
@@ -897,17 +897,17 @@
 }
 
 .metrics-status-badge.success {
-    background: rgba($ctp-green, 0.15);
+    background: rgba(var(--ctp-green-rgb), 0.15);
     color: $color-success;
 }
 
 .metrics-status-badge.error {
-    background: rgba($ctp-red, 0.15);
+    background: rgba(var(--ctp-red-rgb), 0.15);
     color: $color-error;
 }
 
 .metrics-status-badge.other {
-    background: rgba($color-primary, 0.15);
+    background: rgba(var(--ctp-teal-rgb), 0.15);
     color: $color-primary;
 }
 
@@ -962,7 +962,7 @@
     }
     
     .settings-nav-item.active {
-        background: rgba($color-primary, 0.2);
+        background: rgba(var(--ctp-teal-rgb), 0.2);
     }
     
     .settings-content {

@@ -32,7 +32,7 @@
 
 .login-btn:hover {
     transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba($color-primary, 0.4);
+    box-shadow: 0 4px 12px rgba(var(--ctp-teal-rgb), 0.4);
     filter: brightness(1.05);
 }
 
@@ -44,16 +44,16 @@
 /* Nav Login Button */
 .nav-login {
     cursor: pointer;
-    background: linear-gradient(135deg, rgba($color-primary, 0.2), rgba($color-primary, 0.2));
-    border: 1px solid rgba($color-primary, 0.3);
+    background: linear-gradient(135deg, rgba(var(--ctp-teal-rgb), 0.2), rgba(var(--ctp-teal-rgb), 0.2));
+    border: 1px solid rgba(var(--ctp-teal-rgb), 0.3);
     border-radius: 10px;
     margin: 0 12px;
     transition: all 0.2s;
 }
 
 .nav-login:hover {
-    background: linear-gradient(135deg, rgba($color-primary, 0.3), rgba($color-primary, 0.3));
-    border-color: rgba($color-primary, 0.5);
+    background: linear-gradient(135deg, rgba(var(--ctp-teal-rgb), 0.3), rgba(var(--ctp-teal-rgb), 0.3));
+    border-color: rgba(var(--ctp-teal-rgb), 0.5);
 }
 
 .nav-login .nav-icon {
@@ -104,7 +104,7 @@
 
 .nav-user-dropdown-header {
     padding: 16px;
-    background: rgba($color-primary, 0.1);
+    background: rgba(var(--ctp-teal-rgb), 0.1);
 }
 
 .nav-user-dropdown-header .user-name {
@@ -157,7 +157,7 @@
 }
 
 .nav-user-dropdown-item.logout:hover {
-    background: rgba($ctp-red, 0.1);
+    background: rgba(var(--ctp-red-rgb), 0.1);
 }
 
 /* Collapsed nav state */
@@ -322,7 +322,7 @@
 }
 
 .user-dropdown-item.logout:hover {
-    background: rgba($ctp-red, 0.1);
+    background: rgba(var(--ctp-red-rgb), 0.1);
 }
 
 /* =============================================================================
@@ -438,7 +438,7 @@
 .auth-field input:focus {
     outline: none;
     border-color: $color-primary;
-    box-shadow: 0 0 0 3px rgba($color-primary, 0.1);
+    box-shadow: 0 0 0 3px rgba(var(--ctp-teal-rgb), 0.1);
 }
 
 .auth-field input::placeholder {
@@ -527,7 +527,7 @@
 
 .auth-submit-btn:hover {
     transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba($ctp-peach, 0.4);
+    box-shadow: 0 4px 12px rgba(var(--ctp-teal-rgb), 0.4);
     filter: brightness(1.05);
 }
 

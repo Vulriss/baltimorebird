@@ -20,40 +20,154 @@
 // Utiliser les variables sémantiques (Section 2+) dans le code.
 
 // --- Accent Colors (couleurs vives pour éléments interactifs) ---
-$ctp-rosewater: #f5e0dc;  // HSL: 10°, 56%, 91%  - Rose très pâle, curseur
-$ctp-flamingo:  #f2cdcd;  // HSL: 0°, 59%, 88%   - Rose saumon
-$ctp-pink:      #f5c2e7;  // HSL: 316°, 72%, 86% - Rose vif
-$ctp-mauve:     #cba6f7;  // HSL: 267°, 84%, 81% - Violet pastel, keywords
-$ctp-red:       #f38ba8;  // HSL: 343°, 81%, 75% - Rouge doux, erreurs
-$ctp-maroon:    #eba0ac;  // HSL: 350°, 65%, 77% - Rouge-brun
-$ctp-peach:     #fab387;  // HSL: 23°, 92%, 75%  - Orange chaud, ACCENT PRINCIPAL
-$ctp-yellow:    #f9e2af;  // HSL: 41°, 86%, 83%  - Jaune doux, warnings
-$ctp-green:     #a6e3a1;  // HSL: 115°, 54%, 76% - Vert pastel, succès
-$ctp-teal:      #94e2d5;  // HSL: 170°, 57%, 73% - Turquoise
-$ctp-sky:       #89dceb;  // HSL: 189°, 71%, 73% - Bleu ciel
-$ctp-sapphire:  #74c7ec;  // HSL: 199°, 76%, 69% - Bleu cyan
-$ctp-blue:      #89b4fa;  // HSL: 217°, 92%, 76% - Bleu, liens
-$ctp-lavender:  #b4befe;  // HSL: 232°, 97%, 85% - Lavande
+
+// ============================================================================
+// THEME RUNTIME - custom properties (Mocha par defaut, Latte en .light)
+// ============================================================================
+:root {
+    --ctp-rosewater: #f5e0dc;
+    --ctp-rosewater-rgb: 245, 224, 220;
+    --ctp-flamingo: #f2cdcd;
+    --ctp-flamingo-rgb: 242, 205, 205;
+    --ctp-pink: #f5c2e7;
+    --ctp-pink-rgb: 245, 194, 231;
+    --ctp-mauve: #cba6f7;
+    --ctp-mauve-rgb: 203, 166, 247;
+    --ctp-red: #f38ba8;
+    --ctp-red-rgb: 243, 139, 168;
+    --ctp-maroon: #eba0ac;
+    --ctp-maroon-rgb: 235, 160, 172;
+    --ctp-peach: #fab387;
+    --ctp-peach-rgb: 250, 179, 135;
+    --ctp-yellow: #f9e2af;
+    --ctp-yellow-rgb: 249, 226, 175;
+    --ctp-green: #a6e3a1;
+    --ctp-green-rgb: 166, 227, 161;
+    --ctp-teal: #94e2d5;
+    --ctp-teal-rgb: 148, 226, 213;
+    --ctp-sky: #89dceb;
+    --ctp-sky-rgb: 137, 220, 235;
+    --ctp-sapphire: #74c7ec;
+    --ctp-sapphire-rgb: 116, 199, 236;
+    --ctp-blue: #89b4fa;
+    --ctp-blue-rgb: 137, 180, 250;
+    --ctp-lavender: #b4befe;
+    --ctp-lavender-rgb: 180, 190, 254;
+    --ctp-text: #cdd6f4;
+    --ctp-text-rgb: 205, 214, 244;
+    --ctp-subtext1: #bac2de;
+    --ctp-subtext1-rgb: 186, 194, 222;
+    --ctp-subtext0: #a6adc8;
+    --ctp-subtext0-rgb: 166, 173, 200;
+    --ctp-overlay2: #9399b2;
+    --ctp-overlay2-rgb: 147, 153, 178;
+    --ctp-overlay1: #7f849c;
+    --ctp-overlay1-rgb: 127, 132, 156;
+    --ctp-overlay0: #6c7086;
+    --ctp-overlay0-rgb: 108, 112, 134;
+    --ctp-surface2: #585b70;
+    --ctp-surface2-rgb: 88, 91, 112;
+    --ctp-surface1: #45475a;
+    --ctp-surface1-rgb: 69, 71, 90;
+    --ctp-surface0: #313244;
+    --ctp-surface0-rgb: 49, 50, 68;
+    --ctp-base: #1e1e2e;
+    --ctp-base-rgb: 30, 30, 46;
+    --ctp-mantle: #181825;
+    --ctp-mantle-rgb: 24, 24, 37;
+    --ctp-crust: #11111b;
+    --ctp-crust-rgb: 17, 17, 27;
+}
+
+:root[data-theme="light"] {
+    --ctp-rosewater: #dc8a78;
+    --ctp-rosewater-rgb: 220, 138, 120;
+    --ctp-flamingo: #dd7878;
+    --ctp-flamingo-rgb: 221, 120, 120;
+    --ctp-pink: #ea76cb;
+    --ctp-pink-rgb: 234, 118, 203;
+    --ctp-mauve: #8839ef;
+    --ctp-mauve-rgb: 136, 57, 239;
+    --ctp-red: #d20f39;
+    --ctp-red-rgb: 210, 15, 57;
+    --ctp-maroon: #e64553;
+    --ctp-maroon-rgb: 230, 69, 83;
+    --ctp-peach: #fe640b;
+    --ctp-peach-rgb: 254, 100, 11;
+    --ctp-yellow: #df8e1d;
+    --ctp-yellow-rgb: 223, 142, 29;
+    --ctp-green: #40a02b;
+    --ctp-green-rgb: 64, 160, 43;
+    --ctp-teal: #179299;
+    --ctp-teal-rgb: 23, 146, 153;
+    --ctp-sky: #04a5e5;
+    --ctp-sky-rgb: 4, 165, 229;
+    --ctp-sapphire: #209fb5;
+    --ctp-sapphire-rgb: 32, 159, 181;
+    --ctp-blue: #1e66f5;
+    --ctp-blue-rgb: 30, 102, 245;
+    --ctp-lavender: #7287fd;
+    --ctp-lavender-rgb: 114, 135, 253;
+    --ctp-text: #4c4f69;
+    --ctp-text-rgb: 76, 79, 105;
+    --ctp-subtext1: #5c5f77;
+    --ctp-subtext1-rgb: 92, 95, 119;
+    --ctp-subtext0: #6c6f85;
+    --ctp-subtext0-rgb: 108, 111, 133;
+    --ctp-overlay2: #7c7f93;
+    --ctp-overlay2-rgb: 124, 127, 147;
+    --ctp-overlay1: #8c8fa1;
+    --ctp-overlay1-rgb: 140, 143, 161;
+    --ctp-overlay0: #9ca0b0;
+    --ctp-overlay0-rgb: 156, 160, 176;
+    --ctp-surface2: #acb0be;
+    --ctp-surface2-rgb: 172, 176, 190;
+    --ctp-surface1: #bcc0cc;
+    --ctp-surface1-rgb: 188, 192, 204;
+    --ctp-surface0: #ccd0da;
+    --ctp-surface0-rgb: 204, 208, 218;
+    --ctp-base: #eff1f5;
+    --ctp-base-rgb: 239, 241, 245;
+    --ctp-mantle: #e6e9ef;
+    --ctp-mantle-rgb: 230, 233, 239;
+    --ctp-crust: #dce0e8;
+    --ctp-crust-rgb: 220, 224, 232;
+}
+
+$ctp-rosewater: var(--ctp-rosewater);  // HSL: 10°, 56%, 91%  - Rose très pâle, curseur
+$ctp-flamingo: var(--ctp-flamingo);  // HSL: 0°, 59%, 88%   - Rose saumon
+$ctp-pink: var(--ctp-pink);  // HSL: 316°, 72%, 86% - Rose vif
+$ctp-mauve: var(--ctp-mauve);  // HSL: 267°, 84%, 81% - Violet pastel, keywords
+$ctp-red: var(--ctp-red);  // HSL: 343°, 81%, 75% - Rouge doux, erreurs
+$ctp-maroon: var(--ctp-maroon);  // HSL: 350°, 65%, 77% - Rouge-brun
+$ctp-peach: var(--ctp-peach);  // HSL: 23°, 92%, 75%  - Orange chaud, ACCENT PRINCIPAL
+$ctp-yellow: var(--ctp-yellow);  // HSL: 41°, 86%, 83%  - Jaune doux, warnings
+$ctp-green: var(--ctp-green);  // HSL: 115°, 54%, 76% - Vert pastel, succès
+$ctp-teal: var(--ctp-teal);  // HSL: 170°, 57%, 73% - Turquoise
+$ctp-sky: var(--ctp-sky);  // HSL: 189°, 71%, 73% - Bleu ciel
+$ctp-sapphire: var(--ctp-sapphire);  // HSL: 199°, 76%, 69% - Bleu cyan
+$ctp-blue: var(--ctp-blue);  // HSL: 217°, 92%, 76% - Bleu, liens
+$ctp-lavender: var(--ctp-lavender);  // HSL: 232°, 97%, 85% - Lavande
 
 // --- Text Colors (du plus visible au plus subtil) ---
-$ctp-text:      #cdd6f4;  // HSL: 226°, 64%, 88% - Texte principal
-$ctp-subtext1:  #bac2de;  // HSL: 227°, 35%, 80% - Sous-titres, labels
-$ctp-subtext0:  #a6adc8;  // HSL: 228°, 24%, 72% - Texte secondaire
+$ctp-text: var(--ctp-text);  // HSL: 226°, 64%, 88% - Texte principal
+$ctp-subtext1: var(--ctp-subtext1);  // HSL: 227°, 35%, 80% - Sous-titres, labels
+$ctp-subtext0: var(--ctp-subtext0);  // HSL: 228°, 24%, 72% - Texte secondaire
 
 // --- Overlay Colors (pour éléments flottants, hovers) ---
-$ctp-overlay2:  #9399b2;  // HSL: 228°, 17%, 64% - Overlay le plus visible
-$ctp-overlay1:  #7f849c;  // HSL: 230°, 13%, 55% - Texte subtil, placeholders
-$ctp-overlay0:  #6c7086;  // HSL: 231°, 11%, 47% - Bordures légères
+$ctp-overlay2: var(--ctp-overlay2);  // HSL: 228°, 17%, 64% - Overlay le plus visible
+$ctp-overlay1: var(--ctp-overlay1);  // HSL: 230°, 13%, 55% - Texte subtil, placeholders
+$ctp-overlay0: var(--ctp-overlay0);  // HSL: 231°, 11%, 47% - Bordures légères
 
 // --- Surface Colors (fonds de composants, du plus clair au plus sombre) ---
-$ctp-surface2:  #585b70;  // HSL: 233°, 12%, 39% - Surface la plus claire
-$ctp-surface1:  #45475a;  // HSL: 234°, 13%, 31% - Cards, panels
-$ctp-surface0:  #313244;  // HSL: 237°, 16%, 23% - Inputs, surfaces élevées
+$ctp-surface2: var(--ctp-surface2);  // HSL: 233°, 12%, 39% - Surface la plus claire
+$ctp-surface1: var(--ctp-surface1);  // HSL: 234°, 13%, 31% - Cards, panels
+$ctp-surface0: var(--ctp-surface0);  // HSL: 237°, 16%, 23% - Inputs, surfaces élevées
 
 // --- Base Colors (fonds principaux, du plus clair au plus sombre) ---
-$ctp-base:      #1e1e2e;  // HSL: 240°, 21%, 15% - Fond standard
-$ctp-mantle:    #181825;  // HSL: 240°, 21%, 12% - Sidebars, panels secondaires
-$ctp-crust:     #11111b;  // HSL: 240°, 23%, 9%  - Fond le plus sombre
+$ctp-base: var(--ctp-base);  // HSL: 240°, 21%, 15% - Fond standard
+$ctp-mantle: var(--ctp-mantle);  // HSL: 240°, 21%, 12% - Sidebars, panels secondaires
+$ctp-crust: var(--ctp-crust);  // HSL: 240°, 23%, 9%  - Fond le plus sombre
 
 
 // ============================================================================
@@ -62,11 +176,11 @@ $ctp-crust:     #11111b;  // HSL: 240°, 23%, 9%  - Fond le plus sombre
 // Peach comme accent principal = look chaleureux et unique
 // Évite le bleu/violet generic "AI dashboard"
 
-$color-accent: $ctp-peach;
-$color-accent-hover: #fcbf9a;      // Peach plus clair au hover
-$color-accent-active: #f8a66e;     // Peach plus saturé au clic
-$color-accent-muted: rgba($ctp-peach, 0.15);
-$color-accent-subtle: rgba($ctp-peach, 0.08);
+$color-accent: $ctp-teal;
+$color-accent-hover: $ctp-teal;      // Peach plus clair au hover
+$color-accent-active: $ctp-teal;     // Peach plus saturé au clic
+$color-accent-muted: rgba(var(--ctp-teal-rgb), 0.15);
+$color-accent-subtle: rgba(var(--ctp-teal-rgb), 0.08);
 
 // Alias pour compatibilité
 $color-primary: $color-accent;
@@ -86,30 +200,30 @@ $color-success: $ctp-green;
 $color-success-dark: $ctp-teal;
 $color-success-light: #b8ebb5;
 $color-success-hover: #b8ebb5;
-$color-success-muted: rgba($ctp-green, 0.15);
-$color-success-subtle: rgba($ctp-green, 0.08);
+$color-success-muted: rgba(var(--ctp-green-rgb), 0.15);
+$color-success-subtle: rgba(var(--ctp-green-rgb), 0.08);
 
 // --- Error (rouge) ---
 $color-error: $ctp-red;
 $color-error-dark: $ctp-maroon;
 $color-error-light: #f6a0b8;
 $color-error-hover: #f6a0b8;
-$color-error-muted: rgba($ctp-red, 0.15);
-$color-error-subtle: rgba($ctp-red, 0.08);
+$color-error-muted: rgba(var(--ctp-red-rgb), 0.15);
+$color-error-subtle: rgba(var(--ctp-red-rgb), 0.08);
 
 // --- Warning (jaune) ---
 $color-warning: $ctp-yellow;
 $color-warning-dark: $ctp-peach;
 $color-warning-light: #fbecc5;
 $color-warning-hover: #fbecc5;
-$color-warning-muted: rgba($ctp-yellow, 0.15);
-$color-warning-subtle: rgba($ctp-yellow, 0.08);
+$color-warning-muted: rgba(var(--ctp-yellow-rgb), 0.15);
+$color-warning-subtle: rgba(var(--ctp-yellow-rgb), 0.08);
 
 // --- Info (bleu) - selon style guide, liens = blue ---
 $color-info: $ctp-blue;
 $color-info-hover: #a4c5fb;
-$color-info-muted: rgba($ctp-blue, 0.15);
-$color-info-subtle: rgba($ctp-blue, 0.08);
+$color-info-muted: rgba(var(--ctp-blue-rgb), 0.15);
+$color-info-subtle: rgba(var(--ctp-blue-rgb), 0.08);
 
 // --- Liens (toujours bleu selon style guide) ---
 $color-link: $ctp-blue;
@@ -137,18 +251,19 @@ $bg-input-focus: $ctp-surface1;   // Input au focus
 
 // --- Interactive states ---
 $bg-hover: $ctp-surface0;         // Hover sur éléments
-$bg-hover-subtle: rgba($ctp-text, 0.04);
+$bg-hover-subtle: rgba(var(--ctp-text-rgb), 0.04);
 $bg-active: $ctp-surface1;        // État actif/sélectionné
-$bg-selected: rgba($ctp-peach, 0.12);
+$bg-selected: rgba(var(--ctp-teal-rgb), 0.12);
 
 // --- Overlays ---
-$bg-overlay: rgba($ctp-crust, 0.90);
+$bg-overlay: rgba(var(--ctp-crust-rgb), 0.90);
 $bg-modal: $ctp-base;
 $bg-dropdown: $ctp-surface0;
 $bg-tooltip: $ctp-surface1;
 
 // --- Selection (selon style guide: overlay2 à 20-30%) ---
-$bg-selection: rgba($ctp-overlay2, 0.25);
+// $bg-selection: rgba(var(--ctp-overlay2-rgb), 0.25);
+$bg-selection: rgba(240, 11, 11, 0.25);
 
 // --- Legacy aliases (compatibilité) ---
 $bg-dark: $ctp-crust;
@@ -156,9 +271,9 @@ $bg-darker: $ctp-crust;
 $bg-darkest: $ctp-crust;
 $bg-card-alt: $ctp-mantle;
 $bg-card-hover: $ctp-surface0;
-$bg-hover-light: rgba($ctp-text, 0.03);
-$bg-hover-medium: rgba($ctp-text, 0.05);
-$bg-hover-strong: rgba($ctp-text, 0.08);
+$bg-hover-light: rgba(var(--ctp-text-rgb), 0.03);
+$bg-hover-medium: rgba(var(--ctp-text-rgb), 0.05);
+$bg-hover-strong: rgba(var(--ctp-text-rgb), 0.08);
 $bg-input-dark: $ctp-mantle;
 
 
@@ -169,7 +284,7 @@ $bg-input-dark: $ctp-mantle;
 $border-default: $ctp-surface0;   // Bordure standard (plus subtile)
 $border-subtle: $ctp-mantle;      // Bordure très discrète
 $border-strong: $ctp-surface1;    // Bordure visible
-$border-focus: $ctp-peach;        // Bordure au focus
+$border-focus: $ctp-teal;        // Bordure au focus
 $border-error: $ctp-red;
 $border-success: $ctp-green;
 
@@ -177,7 +292,7 @@ $border-success: $ctp-green;
 $border-color: $border-default;
 $border-light: $border-strong;
 $border-lighter: $ctp-overlay0;
-$border-primary: rgba($ctp-peach, 0.4);
+$border-primary: rgba(var(--ctp-teal-rgb), 0.4);
 
 
 // ============================================================================
@@ -311,20 +426,20 @@ $radius-full: 9999px;    // Cercle/pill
 // ============================================================================
 // Ombres sombres pour thème dark, basées sur $ctp-crust
 
-$shadow-xs:  0 1px 2px rgba($ctp-crust, 0.5);
-$shadow-sm:  0 1px 3px rgba($ctp-crust, 0.5), 0 1px 2px rgba($ctp-crust, 0.4);
-$shadow-md:  0 4px 6px rgba($ctp-crust, 0.4), 0 2px 4px rgba($ctp-crust, 0.3);
-$shadow-lg:  0 10px 15px rgba($ctp-crust, 0.4), 0 4px 6px rgba($ctp-crust, 0.3);
-$shadow-xl:  0 20px 25px rgba($ctp-crust, 0.4), 0 10px 10px rgba($ctp-crust, 0.3);
-$shadow-2xl: 0 25px 50px rgba($ctp-crust, 0.5);
-$shadow-inner: inset 0 2px 4px rgba($ctp-crust, 0.4);
+$shadow-xs:  0 1px 2px rgba(var(--ctp-crust-rgb), 0.5);
+$shadow-sm:  0 1px 3px rgba(var(--ctp-crust-rgb), 0.5), 0 1px 2px rgba(var(--ctp-crust-rgb), 0.4);
+$shadow-md:  0 4px 6px rgba(var(--ctp-crust-rgb), 0.4), 0 2px 4px rgba(var(--ctp-crust-rgb), 0.3);
+$shadow-lg:  0 10px 15px rgba(var(--ctp-crust-rgb), 0.4), 0 4px 6px rgba(var(--ctp-crust-rgb), 0.3);
+$shadow-xl:  0 20px 25px rgba(var(--ctp-crust-rgb), 0.4), 0 10px 10px rgba(var(--ctp-crust-rgb), 0.3);
+$shadow-2xl: 0 25px 50px rgba(var(--ctp-crust-rgb), 0.5);
+$shadow-inner: inset 0 2px 4px rgba(var(--ctp-crust-rgb), 0.4);
 $shadow-none: none;
 
 // Ombres colorées (glow effects)
-$shadow-accent: 0 0 20px rgba($ctp-peach, 0.2), 0 0 40px rgba($ctp-peach, 0.1);
-$shadow-success: 0 0 20px rgba($ctp-green, 0.2);
-$shadow-error: 0 0 20px rgba($ctp-red, 0.2);
-$shadow-info: 0 0 20px rgba($ctp-blue, 0.2);
+$shadow-accent: 0 0 20px rgba(var(--ctp-teal-rgb), 0.2), 0 0 40px rgba(var(--ctp-teal-rgb), 0.1);
+$shadow-success: 0 0 20px rgba(var(--ctp-green-rgb), 0.2);
+$shadow-error: 0 0 20px rgba(var(--ctp-red-rgb), 0.2);
+$shadow-info: 0 0 20px rgba(var(--ctp-blue-rgb), 0.2);
 
 // Legacy aliases
 $shadow-base: $shadow-sm;
@@ -451,7 +566,7 @@ $button-height-lg: 48px;
 
 $scrollbar-width: 8px;
 $scrollbar-width-thin: 6px;
-$scrollbar-track: rgba($ctp-surface0, 0.5);
+$scrollbar-track: rgba(var(--ctp-surface0-rgb), 0.5);
 $scrollbar-thumb: $ctp-surface2;
 $scrollbar-thumb-hover: $ctp-overlay0;
 $scrollbar-thumb-active: $ctp-overlay1;
@@ -481,16 +596,16 @@ $status-error: $ctp-red;
 // --- Signaux (EDA plots) ---
 $signal-default-color: $ctp-overlay1;
 $signal-active-color: $ctp-green;
-$signal-highlight-color: $ctp-peach;
+$signal-highlight-color: $ctp-teal;
 
 // --- Tags/Pills (selon style guide: blue) ---
-$tag-bg: rgba($ctp-blue, 0.15);
+$tag-bg: rgba(var(--ctp-blue-rgb), 0.15);
 $tag-color: $ctp-blue;
-$tag-border: rgba($ctp-blue, 0.3);
+$tag-border: rgba(var(--ctp-blue-rgb), 0.3);
 
 // --- Progress bars ---
 $progress-bg: $ctp-surface0;
-$progress-fill: $ctp-peach;
+$progress-fill: $ctp-teal;
 $progress-fill-success: $ctp-green;
 
 // --- Badges ---
@@ -574,8 +689,8 @@ $opacity-focus: 0.15;
 // ============================================================================
 
 // --- Gradients d'accent ---
-$gradient-accent: linear-gradient(135deg, $ctp-peach, $ctp-yellow);
-$gradient-accent-hover: linear-gradient(135deg, #fcbf9a, #fbecc5);
+$gradient-accent: linear-gradient(135deg, $ctp-teal, $ctp-green);
+$gradient-accent-hover: linear-gradient(135deg, $ctp-teal, $ctp-green);
 
 // --- Gradients sémantiques ---
 $gradient-success: linear-gradient(135deg, $ctp-green, $ctp-teal);
@@ -585,15 +700,15 @@ $gradient-info: linear-gradient(135deg, $ctp-blue, $ctp-sapphire);
 
 // --- Gradients de fond (très subtils) ---
 $gradient-surface: linear-gradient(180deg, $ctp-base, $ctp-mantle);
-$gradient-card: linear-gradient(180deg, $ctp-surface0, rgba($ctp-base, 0.8));
-$gradient-toolbar: linear-gradient(180deg, $ctp-mantle, rgba($ctp-crust, 0.5));
+$gradient-card: linear-gradient(180deg, $ctp-surface0, rgba(var(--ctp-base-rgb), 0.8));
+$gradient-toolbar: linear-gradient(180deg, $ctp-mantle, rgba(var(--ctp-crust-rgb), 0.5));
 
 // --- Gradient radial pour effets de lumière ---
-$gradient-glow: radial-gradient(ellipse at center, rgba($ctp-peach, 0.1) 0%, transparent 70%);
+$gradient-glow: radial-gradient(ellipse at center, rgba(var(--ctp-teal-rgb), 0.1) 0%, transparent 70%);
 
 // Legacy
 $gradient-primary: $gradient-accent;
-$gradient-progress: linear-gradient(90deg, $ctp-peach, $ctp-yellow);
+$gradient-progress: linear-gradient(90deg, $ctp-teal, $ctp-green);
 $gradient-progress-success: linear-gradient(90deg, $ctp-green, $ctp-teal);
 $gradient-accent-warm: $gradient-accent;
 
@@ -626,7 +741,7 @@ $gradient-accent-warm: $gradient-accent;
 @mixin focus-ring-subtle {
   outline: none;
   border-color: $border-focus;
-  box-shadow: 0 0 0 3px rgba($color-accent, 0.15);
+  box-shadow: 0 0 0 3px rgba(var(--ctp-teal-rgb), 0.15);
 }
 
 /// Style de carte standard
@@ -691,9 +806,9 @@ $gradient-accent-warm: $gradient-accent;
 
 /// Effet glassmorphism
 @mixin glass {
-  background: rgba($ctp-base, 0.75);
+  background: rgba(var(--ctp-base-rgb), 0.75);
   backdrop-filter: blur(12px);
-  border: 1px solid rgba($ctp-text, 0.06);
+  border: 1px solid rgba(var(--ctp-text-rgb), 0.06);
 }
 
 /// Effet de glow/lueur
@@ -776,4 +891,46 @@ $gradient-accent-warm: $gradient-accent;
   mask-size: 100% 100%;
   -webkit-mask-repeat: no-repeat;
   mask-repeat: no-repeat;
+}
+
+// ============================================================================
+// THEME RUNTIME - tokens dedies aux graphes uPlot (lus par app.js)
+// ============================================================================
+:root {
+    --chart-axis: #b6b6b6;
+    --chart-grid: #2d2d5a;
+}
+:root[data-theme="light"] {
+    --chart-axis: #6c6f85;
+    --chart-grid: #ccd0da;
+}
+
+
+// ============================================================================
+// THEME RUNTIME - identite couleur des curseurs (source unique: ligne, label temps,
+// et valeurs de legende partagent ces tokens). A = vert, B = rose.
+// Dark: couleurs vives d'origine. Light: versions foncees lisibles sur fond clair.
+// ============================================================================
+:root {
+    --cursor-a: rgba(0, 255, 100, 0.9);
+    --cursor-b: rgba(255, 100, 150, 0.9);
+}
+:root[data-theme="light"] {
+    --cursor-a: #2f9e44;
+    --cursor-b: #d6336c;
+}
+
+
+
+// ============================================================================
+// THEME RUNTIME - fond des labels de curseur (valeurs par courbe, temps, delta).
+// Dark: fond sombre d'origine. Light: fond clair pour lisibilite du texte colore.
+// ============================================================================
+:root {
+    --cursor-label-bg: rgba(0, 0, 0, 0.88);
+    --cursor-delta-bg: rgba(70, 70, 70, 0.95);
+}
+:root[data-theme="light"] {
+    --cursor-label-bg: rgba(255, 255, 255, 0.92);
+    --cursor-delta-bg: rgba(220, 224, 232, 0.95);
 }

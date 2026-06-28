@@ -210,7 +210,7 @@
 }
 
 .report-item-delete:hover {
-    background: rgba($ctp-red, 0.15);
+    background: rgba(var(--ctp-red-rgb), 0.15);
     color: $color-error;
 }
 
@@ -340,17 +340,17 @@
 
 .reports-action-btn.primary:hover {
     transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba($color-primary, 0.4);
+    box-shadow: 0 4px 12px rgba(var(--ctp-teal-rgb), 0.4);
     filter: brightness(1.05);
 }
 
 .reports-action-btn.danger {
     color: $color-error;
-    border-color: rgba($ctp-red, 0.3);
+    border-color: rgba(var(--ctp-red-rgb), 0.3);
 }
 
 .reports-action-btn.danger:hover {
-    background: rgba($ctp-red, 0.15);
+    background: rgba(var(--ctp-red-rgb), 0.15);
     border-color: $color-error;
     color: $color-error;
 }
@@ -360,7 +360,7 @@
     cursor: not-allowed;
     pointer-events: none;
     background: transparent;
-    border-color: rgba($ctp-red, 0.15);
+    border-color: rgba(var(--ctp-red-rgb), 0.15);
     color: $text-dark;
 }
 

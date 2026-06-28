@@ -8,6 +8,33 @@ body {
     color: $text-primary;
     height: 100vh;
     overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/* Chiffres tabulaires uniquement la ou des valeurs defilent (lectures stables
+   au survol), jamais sur body: applique globalement avec optimizeLegibility,
+   cela degradait la fluidite des curseurs uPlot (recalcul typographique a
+   chaque mise a jour des legendes sur mousemove) */
+.plot-legend,
+.toolbar-stats,
+.uplot .u-legend {
+    font-variant-numeric: tabular-nums;
+}
+
+::selection {
+    background: $bg-selection;
+}
+
+/* Focus clavier visible, sans anneau parasite a la souris */
+:focus {
+    outline: none;
+}
+
+:focus-visible {
+    outline: 2px solid $color-accent;
+    outline-offset: 2px;
+    border-radius: $radius-sm;
 }
 
 /* === APP CONTAINER === */
@@ -25,7 +52,7 @@ body {
     border-right: 1px solid $border-color;
     display: flex;
     flex-direction: column;
-    transition: all 0.3s ease;
+    transition: width $transition-slow $ease-in-out, min-width $transition-slow $ease-in-out;
     z-index: 100;
 }
 
@@ -49,9 +76,18 @@ body {
 }
 
 .logo-icon {
-    font-size: 20px;
+    width: 22px;
+    height: 22px;
     color: $color-primary;
     flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    svg {
+        width: 100%;
+        height: 100%;
+    }
 }
 
 .logo-text {
@@ -114,18 +150,29 @@ body {
 }
 
 .nav-item:hover {
-    background: $bg-card;
-    color: $text-white;
+    background: $bg-hover-subtle;
+    color: $text-primary;
 }
 
 .nav-item.active {
-    background: $ctp-teal;
-    color: $ctp-crust;
+    background: $bg-selected;
+    color: $color-accent;
     font-weight: $font-weight-semibold;
+    box-shadow: inset 3px 0 0 $color-accent;
 }
 
 .nav-item.active .nav-icon {
-    color: $ctp-crust;
+    color: $color-accent;
+}
+
+.nav-item.locked {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.nav-item.locked:hover {
+    background: transparent;
+    color: $text-muted;
 }
 
 .nav-icon {
@@ -177,8 +224,8 @@ body {
     gap: 12px;
     width: 100%;
     padding: 10px 12px;
-    background: rgba($color-primary, 0.1);
-    border: 1px solid rgba($color-primary, 0.2);
+    background: rgba(var(--ctp-teal-rgb), 0.1);
+    border: 1px solid rgba(var(--ctp-teal-rgb), 0.2);
     border-radius: 8px;
     color: $color-primary;
     font-size: 14px;
@@ -190,8 +237,8 @@ body {
 }
 
 .nav-support-btn:hover {
-    background: rgba($color-primary, 0.2);
-    border-color: rgba($color-primary, 0.3);
+    background: rgba(var(--ctp-teal-rgb), 0.2);
+    border-color: rgba(var(--ctp-teal-rgb), 0.3);
     color: $color-primary-light;
 }
 
@@ -214,6 +261,37 @@ body {
 .nav-menu.collapsed .nav-support-btn span {
     display: none;
 }
+
+/* === BASCULE DE THEME (nav) - swap minimaliste sun / moon === */
+.nav-theme-toggle {
+    display: grid;
+    place-items: center;
+    width: 36px;
+    height: 36px;
+    margin: 0 auto 6px;
+    padding: 0;
+    background: transparent;
+    border: none;
+    color: $text-muted;
+    cursor: pointer;
+    transition: color 0.15s;
+}
+
+.nav-theme-toggle:hover { color: $text-primary; }
+
+.nav-theme-toggle.active { color: $color-accent; }
+
+.nav-theme-toggle .theme-icon {
+    grid-area: 1 / 1;
+    width: 20px;
+    height: 20px;
+    transition: transform 0.3s ease, opacity 0.3s ease;
+}
+
+.nav-theme-toggle .theme-icon-sun { opacity: 0; transform: rotate(-45deg) scale(0.6); }
+.nav-theme-toggle .theme-icon-moon { opacity: 1; transform: rotate(0) scale(1); }
+.nav-theme-toggle.active .theme-icon-sun { opacity: 1; transform: rotate(0) scale(1); }
+.nav-theme-toggle.active .theme-icon-moon { opacity: 0; transform: rotate(45deg) scale(0.6); }
 
 /* === MAIN CONTENT === */
 .main-content {
@@ -448,8 +526,8 @@ body {
     gap: 16px;
     margin-top: 20px;
     padding: 16px;
-    background: rgba($ctp-green, 0.05);
-    border: 1px solid rgba($ctp-green, 0.2);
+    background: rgba(var(--ctp-green-rgb), 0.05);
+    border: 1px solid rgba(var(--ctp-green-rgb), 0.2);
     border-radius: 8px;
 }
 
@@ -555,7 +633,7 @@ body {
 
 .file-input-display:hover {
     border-color: $color-primary;
-    background: rgba($color-primary, 0.05);
+    background: rgba(var(--ctp-teal-rgb), 0.05);
 }
 
 .file-input-display svg {
@@ -676,7 +754,7 @@ body {
 .format-options {
     margin-top: 16px;
     padding: 16px;
-    background: rgba($color-primary, 0.05);
+    background: rgba(var(--ctp-teal-rgb), 0.05);
     border: 1px solid $border-light;
     border-radius: 8px;
 }
@@ -713,7 +791,7 @@ body {
 
 .convert-button:hover:not(:disabled) {
     transform: translateY(-1px);
-    box-shadow: 0 4px 16px rgba($color-primary, 0.4);
+    box-shadow: 0 4px 16px rgba(var(--ctp-teal-rgb), 0.4);
     filter: brightness(1.05);
 }
 
@@ -774,8 +852,8 @@ body {
     align-items: center;
     gap: 10px;
     padding: 12px 16px;
-    background: rgba($ctp-green, 0.1);
-    border: 1px solid rgba($ctp-green, 0.3);
+    background: rgba(var(--ctp-green-rgb), 0.1);
+    border: 1px solid rgba(var(--ctp-green-rgb), 0.3);
     border-radius: 8px;
     color: $color-success;
     font-size: 14px;
@@ -806,7 +884,7 @@ body {
 
 .download-button:hover {
     transform: translateY(-1px);
-    box-shadow: 0 4px 16px rgba($ctp-green, 0.4);
+    box-shadow: 0 4px 16px rgba(var(--ctp-green-rgb), 0.4);
     filter: brightness(1.05);
 }
 
@@ -888,8 +966,8 @@ body {
     align-items: center;
     gap: 10px;
     padding: 12px 16px;
-    background: rgba($ctp-red, 0.1);
-    border: 1px solid rgba($ctp-red, 0.3);
+    background: rgba(var(--ctp-red-rgb), 0.1);
+    border: 1px solid rgba(var(--ctp-red-rgb), 0.3);
     border-radius: 8px;
     color: $color-error;
     font-size: 14px;
@@ -1034,7 +1112,7 @@ body {
 .concat-add-btn:hover {
     border-color: $color-primary;
     color: $text-white;
-    background: rgba($color-primary, 0.05);
+    background: rgba(var(--ctp-teal-rgb), 0.05);
 }
 
 .concat-add-btn svg {
@@ -1065,7 +1143,7 @@ body {
     font-size: 12px;
     color: $text-muted;
     padding: 10px 12px;
-    background: rgba($color-primary, 0.05);
+    background: rgba(var(--ctp-teal-rgb), 0.05);
     border: 1px solid $border-color;
     border-radius: 6px;
     margin-top: 12px;
@@ -1108,9 +1186,73 @@ body {
     flex-direction: column;
 }
 
+/* Zone fichiers (haut, redimensionnable via le splitter vertical) */
+.sidebar-files {
+    flex: 0 0 auto;
+    min-height: 60px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 14px;
+    overflow-y: auto;
+}
+
+/* Zone signaux (bas, prend la hauteur restante) */
+.sidebar-signals {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Splitter horizontal entre les deux zones */
+.sidebar-vsplitter {
+    position: relative;
+    flex: 0 0 9px;
+    cursor: row-resize;
+    background: transparent;
+}
+.sidebar-vsplitter::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 50%;
+    height: 1px;
+    transform: translateY(-50%);
+    background: $ctp-surface2;
+}
+.sidebar-vsplitter::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 28px;
+    height: 3px;
+    transform: translate(-50%, -50%);
+    border-radius: 2px;
+    background: $ctp-overlay1;
+    transition: background 0.15s;
+}
+.sidebar-vsplitter:hover::after {
+    background: $color-accent;
+}
+
+.sidebar-section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+.sidebar-section-title {
+    font-size: 11px;
+    font-weight: 600;
+    color: $ctp-overlay1;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
 .sidebar-header {
     padding: 14px;
-    border-bottom: 1px solid $border-color;
 }
 
 .sidebar-title {
@@ -1120,6 +1262,11 @@ body {
     text-transform: uppercase;
     letter-spacing: 1px;
     margin-bottom: 10px;
+}
+
+
+.sidebar-splitter:hover {
+    background: rgba(255, 255, 255, 0.12) !important;
 }
 
 .search-box {
@@ -1142,13 +1289,29 @@ body {
 .signal-list::-webkit-scrollbar-thumb { background: $border-light; border-radius: 3px; }
 
 .sidebar-footer {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 12px;
     padding: 10px 14px;
     border-top: 1px solid $border-color;
     font-size: 10px;
-    color: $text-dark;
-    background: rgba(0,0,0,0.2);
+    color: $text-tertiary;
+    background: var(--ctp-mantle);
 }
-.sidebar-footer span { color: $text-muted; }
+.sidebar-footer .stat {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+.sidebar-footer .stat-label { color: $text-secondary; }
+
+.signal-list-empty {
+    padding: 20px;
+    text-align: center;
+    color: $text-muted;
+    font-size: 12px;
+}
 
 /* === CREATE VARIABLE BUTTON === */
 .create-variable-btn {
@@ -1169,7 +1332,7 @@ body {
 }
 
 .create-variable-btn:hover {
-    background: rgba($color-primary, 0.08);
+    background: rgba(var(--ctp-teal-rgb), 0.08);
     border-color: $color-primary;
     color: $color-primary;
 }
@@ -1251,7 +1414,7 @@ body {
     margin-bottom: 20px;
     line-height: 1.5;
     padding: 12px;
-    background: rgba($color-primary, 0.05);
+    background: rgba(var(--ctp-teal-rgb), 0.05);
     border-radius: 8px;
     border-left: 3px solid $color-primary;
 }
@@ -1314,7 +1477,7 @@ body {
 .drawer-field textarea:focus {
     outline: none;
     border-color: $color-primary;
-    box-shadow: 0 0 0 3px rgba($color-primary, 0.1);
+    box-shadow: 0 0 0 3px rgba(var(--ctp-teal-rgb), 0.1);
 }
 
 .drawer-field input[type="text"]::placeholder,
@@ -1439,10 +1602,10 @@ body {
 }
 
 .var-mapping-dropzone.dragover {
-    background: rgba($color-primary, 0.15);
+    background: rgba(var(--ctp-teal-rgb), 0.15);
     border-color: $color-primary;
     border-style: solid;
-    box-shadow: 0 0 0 3px rgba($color-primary, 0.1);
+    box-shadow: 0 0 0 3px rgba(var(--ctp-teal-rgb), 0.1);
 }
 
 .var-mapping-dropzone .mapped-signal {
@@ -1482,7 +1645,7 @@ body {
 }
 
 .var-mapping-dropzone .mapped-signal .remove-mapped:hover {
-    background: rgba($ctp-red, 0.2);
+    background: rgba(var(--ctp-red-rgb), 0.2);
     color: $ctp-red;
 }
 
@@ -1506,7 +1669,7 @@ body {
 .formula-input:focus {
     outline: none;
     border-color: $color-primary;
-    box-shadow: 0 0 0 3px rgba($color-primary, 0.1);
+    box-shadow: 0 0 0 3px rgba(var(--ctp-teal-rgb), 0.1);
 }
 
 .formula-input::placeholder {
@@ -1563,7 +1726,7 @@ body {
     align-items: center;
     gap: 8px;
     padding: 12px 16px;
-    background: rgba($color-primary, 0.1);
+    background: rgba(var(--ctp-teal-rgb), 0.1);
     border-radius: 6px;
     margin-top: 16px;
     font-size: 13px;
@@ -1577,7 +1740,7 @@ body {
 .creating-indicator .spinner {
     width: 16px;
     height: 16px;
-    border: 2px solid rgba($color-primary, 0.3);
+    border: 2px solid rgba(var(--ctp-teal-rgb), 0.3);
     border-top-color: $color-primary;
     border-radius: 50%;
     animation: spin 0.8s linear infinite;
@@ -1717,7 +1880,7 @@ body {
     font-size: 9px;
     font-weight: 600;
     padding: 2px 6px;
-    background: rgba($ctp-sapphire, 0.2);
+    background: rgba(var(--ctp-sapphire-rgb), 0.2);
     color: $ctp-sapphire;
     border-radius: 4px;
     text-transform: uppercase;
@@ -1764,7 +1927,7 @@ body {
 }
 
 .btn-small.btn-danger:hover {
-    background: rgba($ctp-red, 0.1);
+    background: rgba(var(--ctp-red-rgb), 0.1);
     border-color: $ctp-red;
     color: $ctp-red;
 }
@@ -1774,9 +1937,13 @@ body {
     margin-top: 16px;
     padding-top: 16px;
     border-top: 1px solid $border-color;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
 }
 
-.layouts-save-trigger .btn-primary {
+.layouts-save-trigger .btn-primary,
+.layouts-save-trigger .btn-secondary {
     width: 100%;
     display: flex;
     align-items: center;
@@ -1784,7 +1951,8 @@ body {
     gap: 8px;
 }
 
-.layouts-save-trigger .btn-primary svg {
+.layouts-save-trigger .btn-primary svg,
+.layouts-save-trigger .btn-secondary svg {
     width: 16px;
     height: 16px;
 }
@@ -1819,8 +1987,8 @@ body {
 .layout-preview {
     margin-top: 20px;
     padding: 16px;
-    background: rgba($ctp-sapphire, 0.08);
-    border: 1px solid rgba($ctp-sapphire, 0.2);
+    background: rgba(var(--ctp-sapphire-rgb), 0.08);
+    border: 1px solid rgba(var(--ctp-sapphire-rgb), 0.2);
     border-radius: 8px;
 }
 
@@ -1843,6 +2011,17 @@ body {
     color: $ctp-sapphire;
 }
 
+.layout-guest-hint {
+    margin-top: 16px;
+    padding: 12px 14px;
+    background: rgba(var(--ctp-teal-rgb), 0.08);
+    border: 1px solid rgba(var(--ctp-teal-rgb), 0.25);
+    border-radius: 8px;
+    font-size: 12px;
+    line-height: 1.6;
+    color: $text-light;
+}
+
 .signal-item {
     position: relative;
     display: flex;
@@ -1863,6 +2042,9 @@ body {
     border-radius: 8px;
     // Smooth corners - supporté dans Safari/Chrome récents
     -webkit-mask-image: -webkit-radial-gradient(white, black);
+
+    content-visibility: auto;
+    contain-intrinsic-size: auto 36px;
 }
 
 .signal-item:hover { 
@@ -1964,7 +2146,7 @@ body {
 
 /* Variables calculées - style distinct avec Teal */
 .signal-item.computed {
-    background: rgba($ctp-teal, 0.08);
+    background: rgba(var(--ctp-teal-rgb), 0.08);
     border-left: 3px solid $ctp-teal;
     position: relative;
     
@@ -1984,7 +2166,7 @@ body {
     }
     
     &:hover {
-        background: rgba($ctp-teal, 0.15);
+        background: rgba(var(--ctp-teal-rgb), 0.15);
         border-color: $ctp-teal;
         cursor: pointer;
         
@@ -2008,7 +2190,7 @@ body {
 
 .signal-item.computed.active {
     border-left-color: var(--signal-color, $ctp-teal);
-    background: rgba($ctp-teal, 0.12);
+    background: rgba(var(--ctp-teal-rgb), 0.12);
     
     .signal-dot {
         background: var(--signal-color, $ctp-teal);
@@ -2120,6 +2302,36 @@ button {
 .toolbar-btn.disabled {
     opacity: 0.5;
     cursor: not-allowed;
+}
+
+/* Séparateur vertical entre groupes de la toolbar EDA */
+.toolbar-divider {
+    align-self: center;
+    width: 1px;
+    height: 24px;
+    background: $ctp-surface2;
+    margin: 0 -4px;
+}
+
+.toolbar-btn.active {
+    background: $color-accent;
+    border-color: $color-accent;
+    color: $ctp-crust;
+}
+
+.toolbar-btn.active:hover {
+    background: $ctp-teal;
+    border-color: $ctp-teal;
+    color: $ctp-crust;
+}
+
+// Masquage des infos de curseur quand le bouton est inactif: temps en haut, ligne et
+// valeur de delta, valeurs par courbe. Les lignes de curseur restent visibles.
+body.hide-cursor-labels .cursor-time-label,
+body.hide-cursor-labels .cursor-delta-line,
+body.hide-cursor-labels .cursor-delta-label,
+body.hide-cursor-labels .cursor-label {
+    display: none !important;
 }
 
 .toolbar-btn svg {
@@ -2308,7 +2520,7 @@ button {
 
 .btn-primary:hover:not(:disabled) {
     transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba($color-primary, 0.4);
+    box-shadow: 0 4px 12px rgba(var(--ctp-teal-rgb), 0.4);
     filter: brightness(1.05);
 }
 
@@ -2468,7 +2680,7 @@ input[type="number"] {
 .tab-add:hover {
     border-color: $color-primary;
     color: $color-primary;
-    background: rgba($color-primary, 0.1);
+    background: rgba(var(--ctp-teal-rgb), 0.1);
 }
 
 .tabs-actions {
@@ -2499,7 +2711,7 @@ input[type="number"] {
 .tab-action-btn:hover {
     border-color: $color-primary;
     color: $text-white;
-    background: rgba($color-primary, 0.1);
+    background: rgba(var(--ctp-teal-rgb), 0.1);
 }
 
 .tab-action-btn svg {
@@ -2525,7 +2737,7 @@ input[type="number"] {
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    padding: 4px 16px 12px 16px; /* Réduit le padding top de 12px à 4px */
+    padding: 4px 8px 8px 8px; /* Réduit le padding top de 12px à 4px */
 }
 
 .plots-wrapper {
@@ -2544,11 +2756,13 @@ input[type="number"] {
     flex-direction: column;
     min-height: 100px;
     overflow: hidden;
+    position: relative;
 }
 .plot-container.drop-target {
-    border-color: rgba($text-darker, 0.5);
+    border-color: rgba(var(--ctp-overlay0-rgb), 0.5);
     box-shadow: 0 0 10px rgba(85, 85, 204, 0.3);
 }
+//box-shadow: 0 0 10px rgba(85, 85, 204, 0.3); $bg-card
 
 .plot-main {
     flex: 1;
@@ -2572,13 +2786,24 @@ input[type="number"] {
 .plot-legend {
     width: 150px;
     flex-shrink: 0;
-    background: rgba(0,0,0,0.2);
+    background: var(--ctp-mantle);
     border-left: 1px solid $border-color;
     padding: 8px;
     overflow-y: auto;
     display: flex;
     flex-direction: column;
     gap: 6px;
+    transition: width $transition-base $ease-in-out;
+}
+
+.u-select {
+    background: rgba(99, 179, 237, .12);
+}
+// background: rgba(var(--ctp-teal-rgb), .12);
+
+/* Curseurs actifs: la zone s'elargit pour les colonnes de mesure */
+.plot-legend.has-cursor-table {
+    width: 430px;
 }
 
 .plot-legend::-webkit-scrollbar { width: 4px; }
@@ -2654,7 +2879,7 @@ input[type="number"] {
 .legend-controls {
     display: none;
     padding: 6px;
-    background: rgba(0,0,0,0.2);
+    background: var(--ctp-mantle);
     border-top: 1px solid $border-color;
 }
 
@@ -2668,16 +2893,20 @@ input[type="number"] {
     display: flex;
     align-items: center;
     gap: 6px;
+    min-width: 0; /* autorise les enfants flex a retrecir dans la legende etroite */
 }
 
 .legend-control-row label {
     color: $text-muted;
     font-size: 9px;
     min-width: 35px;
+    flex-shrink: 0;       /* le label garde sa taille, c'est le controle qui cede */
+    white-space: nowrap;
 }
 
 .legend-control-row input[type="range"] {
     flex: 1;
+    min-width: 0;
     height: 4px;
     -webkit-appearance: none;
     background: $border-color;
@@ -2689,13 +2918,14 @@ input[type="number"] {
     -webkit-appearance: none;
     width: 10px;
     height: 10px;
-    background: rgba($text-darker, 0.5);
+    background: rgba(var(--ctp-overlay0-rgb), 0.5);
     border-radius: 50%;
     cursor: pointer;
 }
 
 .legend-control-row select {
     flex: 1;
+    min-width: 0;         /* idem: le select se cale dans la largeur disponible */
     background: $bg-card;
     border: 1px solid $border-color;
     color: $text-light;
@@ -2707,7 +2937,7 @@ input[type="number"] {
 
 .legend-control-row select:focus {
     outline: none;
-    border-color: rgba($text-darker, 0.5);
+    border-color: rgba(var(--ctp-overlay0-rgb), 0.5);
 }
 
 .legend-width-value {
@@ -2718,24 +2948,13 @@ input[type="number"] {
 }
 
 .plot-stats {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 2px 10px;
-    font-size: 9px;
-    color: $text-darker;
-    font-family: monospace;
-    flex-shrink: 0;
-    border-top: 1px solid $border-color;
-    background: rgba(0,0,0,0.2);
-}
-
-.plot-stats-text {
-    flex: 1;
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    position: absolute;
+    bottom: 4px;
+    right: 6px;
+    padding: 0;
+    border-top: none;
+    background: transparent;
+    z-index: 5;
 }
 
 .plot-stats .plot-delete {
@@ -2781,21 +3000,21 @@ input[type="number"] {
 }
 
 .splitter:hover::after, .splitter.active::after {
-    background: rgba($text-darker, 0.5);
+    background: rgba(var(--ctp-overlay0-rgb), 0.5);
 }
 
 /* Drop zone at bottom */
 .drop-zone {
     border: 2px dashed $border-light;
     border-radius: 6px;
-    padding: 12px;
+    padding: 8px;
     text-align: center;
     color: $text-darker;
     font-size: 12px;
     flex-shrink: 0;
-    margin-top: 8px;
+    margin-top: 4px;
 }
-.drop-zone.active { border-color: rgba($text-darker, 0.5); background: rgba(85,85,204,0.1); color: rgba($text-muted, 0.8); }
+.drop-zone.active { border-color: rgba(var(--ctp-overlay0-rgb), 0.5); background: rgba(85,85,204,0.1); color: rgba(var(--ctp-overlay1-rgb), 0.8); }
 
 .empty-plot {
     flex: 1;
@@ -2811,12 +3030,17 @@ input[type="number"] {
 /* Cursors */
 .cursor-line {
     position: absolute;
+    left: 0;
     top: 0; bottom: 0;
     width: 6px;
     margin-left: -3px;
     pointer-events: auto;
     z-index: 50;
     cursor: ew-resize;
+    /* Pas de will-change ici: promouvoir les lignes sur leur propre couche de
+       composition les desynchronise de la ligne delta (dont la largeur change
+       a chaque frame, donc paint sur le thread principal). Sans promotion,
+       tout l'overlay se presente dans la meme frame. */
 }
 .cursor-line::after {
     content: '';
@@ -2831,8 +3055,8 @@ input[type="number"] {
     width: 4px;
     left: 1px;
 }
-.cursor-1 { --cursor-color: rgba(0, 255, 100, 0.7); }
-.cursor-2 { --cursor-color: rgba(255, 100, 150, 0.7); }
+.cursor-1 { --cursor-color: var(--cursor-a); }
+.cursor-2 { --cursor-color: var(--cursor-b); }
 .cursor-line.dragging::after {
     width: 4px;
     left: 1px;
@@ -2840,6 +3064,8 @@ input[type="number"] {
 
 .cursor-label {
     position: absolute;
+    left: 0;
+    top: 0;
     font-size: 10px;
     font-family: monospace;
     padding: 2px 5px;
@@ -2848,7 +3074,7 @@ input[type="number"] {
     z-index: 60;
     white-space: nowrap;
     transform: translateY(-50%);
-    background: rgba(0, 0, 0, 0.85);
+    background: var(--cursor-label-bg);
     border: 1px solid var(--sig-color);
     color: var(--sig-color);
 }
@@ -2864,16 +3090,17 @@ input[type="number"] {
     pointer-events: none;
     z-index: 70;
     white-space: nowrap;
-    background: rgba(0, 0, 0, 0.9);
+    background: var(--cursor-label-bg);
     border: 1px solid var(--cursor-color);
     color: var(--cursor-color);
     transform: translateX(-50%);
-    left: 50%;
+    left: 0;
 }
 
 /* Delta connection line between cursors */
 .cursor-delta-line {
     position: absolute;
+    left: 0;
     top: 8px;
     height: 2px;
     background: repeating-linear-gradient(
@@ -2897,9 +3124,10 @@ input[type="number"] {
     pointer-events: none;
     z-index: 70;
     white-space: nowrap;
-    background: rgba(70, 70, 70, 0.95);
+    background: var(--cursor-delta-bg);
     color: $cursor-delta-color;
     transform: translateX(-50%);
+    left: 0;
 }
 
 /* =========================================================================
@@ -2913,7 +3141,7 @@ input[type="number"] {
     --scrollbar-track: rgba(255, 255, 255, 0.03);
     --scrollbar-thumb: rgba(100, 100, 140, 0.3);
     --scrollbar-thumb-hover: rgba(100, 100, 140, 0.5);
-    --scrollbar-thumb-active: rgba($color-primary, 0.6);
+    --scrollbar-thumb-active: rgba(var(--ctp-teal-rgb), 0.6);
 }
 
 /* === WebKit (Chrome, Safari, Edge) - Global === */
@@ -3041,4 +3269,207 @@ pre::-webkit-scrollbar-thumb:hover {
 .nav-items:hover::-webkit-scrollbar-thumb,
 .palette-blocks:hover::-webkit-scrollbar-thumb {
     background: var(--scrollbar-thumb);
+}
+
+/* =========================================================================
+   ACCESSIBILITE - Mouvement reduit
+   ========================================================================= */
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}
+
+.upload-guest-note {
+    margin: 0 0 $spacing-5;
+    padding: $spacing-2-5 $spacing-3;
+    font-size: $font-size-sm;
+    color: $text-secondary;
+    background: $color-info-subtle;
+    border-left: 3px solid $color-info;
+    border-radius: $radius-sm;
+    line-height: $line-height-normal;
+}
+
+/* La note suit directement la description: resserre le couple */
+.modal-description + .upload-guest-note {
+    margin-top: -$spacing-2;
+}
+
+/* =========================================================================
+   TABLE DE LEGENDE UNIFIEE (modele desktop)
+   Chaque ligne = entree de legende + mesures curseurs. Une seule grille:
+   colonnes Name | A | B | delta | unite alignees sur toutes les lignes.
+   Sans curseurs, seules les cellules nom sont visibles (legende classique).
+   ========================================================================= */
+
+.legend-table {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: 2px;
+    align-items: stretch;
+    font-family: $font-mono;
+    font-size: 10px;
+}
+
+.legend-table.cursors-active {
+    grid-template-columns: minmax(0, 1.3fr) repeat(3, minmax(46px, auto)) minmax(22px, auto);
+}
+
+/* Les cellules de mesure n'existent visuellement qu'avec un curseur pose.
+   :not() porte la specificite au-dessus des regles display propres des
+   cellules (.ct-val en flex, etc.), qui reprennent la main en mode actif. */
+.legend-table:not(.cursors-active) .lt-measure {
+    display: none;
+}
+
+.legend-row {
+    display: contents;
+}
+
+.legend-table .ct-h {
+    font-size: 9px;
+    font-weight: $font-weight-semibold;
+    letter-spacing: 0.06em;
+    text-align: right;
+    color: $text-muted;
+    padding-bottom: 3px;
+    padding-left: $spacing-2;
+    padding-right: 2px;
+    border-bottom: 1px solid $border-color;
+    margin-bottom: 2px;
+
+    &:first-child {
+        text-align: left;
+        padding-left: $spacing-1;
+    }
+}
+
+.legend-table .ct-ha { color: var(--cursor-a); }
+.legend-table .ct-hb { color: var(--cursor-b); }
+.legend-table .ct-hd { color: $cursor-delta-color; }
+
+.legend-table .ct-time-label {
+    color: $text-muted;
+    font-style: italic;
+    padding-left: $spacing-1;
+    min-height: 20px;
+    display: flex;
+    align-items: center;
+}
+
+.legend-table .ct-val {
+    text-align: right;
+    white-space: nowrap;
+    color: $text-primary;
+    padding-left: $spacing-2;
+    padding-right: 2px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+}
+
+.legend-table .ct-val.ct-a { color: var(--cursor-a); }
+.legend-table .ct-val.ct-b { color: var(--cursor-b); }
+.legend-table .ct-val.ct-d { color: $cursor-delta-color; font-weight: $font-weight-semibold; }
+
+.legend-table .ct-unit {
+    text-align: left;
+    color: $text-muted;
+    font-size: 9px;
+    padding-left: $spacing-2;
+    display: flex;
+    align-items: center;
+}
+
+.legend-table .ct-unit.ct-unit-error {
+    color: $color-error;
+    font-weight: 600;
+}
+
+/* Cellule nom: entree de legende complete (couleur, nom, depliage, retrait) */
+.lt-name {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+    min-height: 24px;
+    padding: 0 $spacing-1;
+    border-radius: $radius-sm;
+    cursor: pointer;
+
+    &:hover {
+        background: $bg-hover-subtle;
+    }
+
+    .legend-name {
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-weight: $font-weight-medium;
+    }
+
+    .legend-toggle {
+        font-size: 11px;
+        line-height: 1;
+        padding: 2px 4px;
+        margin-left: auto;
+        border-radius: $radius-sm;
+        color: $text-muted;
+        transition: transform $transition-fast $ease-in-out;
+
+        &:hover {
+            color: $text-primary;
+            background: $bg-hover-subtle;
+        }
+    }
+}
+
+.legend-row.expanded .lt-name .legend-toggle {
+    transform: rotate(180deg);
+}
+
+/* Selection (clic sur la ligne): fond accentue continu sur toute la ligne
+   (cellules jointives, gap reporte en padding), suppression via Suppr */
+.legend-row.selected > * {
+    background: $bg-selected;
+}
+
+.legend-row.selected > :first-child {
+    border-radius: $radius-sm 0 0 $radius-sm;
+}
+
+.legend-row.selected > .ct-unit {
+    border-radius: 0 $radius-sm $radius-sm 0;
+}
+
+.legend-table:not(.cursors-active) .legend-row.selected > .lt-name {
+    border-radius: $radius-sm;
+}
+
+.legend-row.selected .lt-name .legend-name {
+    font-weight: $font-weight-semibold;
+}
+
+.legend-row > .ct-val,
+.legend-row > .ct-unit {
+    cursor: pointer;
+}
+
+/* Panneau de reglages: pleine largeur sous la ligne, visible si depliee */
+.legend-row .legend-controls {
+    grid-column: 1 / -1;
+    display: none;
+}
+
+.legend-row.expanded .legend-controls {
+    display: block;
 }

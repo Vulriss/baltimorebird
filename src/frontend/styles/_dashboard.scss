@@ -252,7 +252,7 @@
 
 .script-btn-edit:hover {
     border-color: $color-primary;
-    background: rgba($color-primary, 0.1);
+    background: rgba(var(--ctp-teal-rgb), 0.1);
     color: $text-white;
 }
 
@@ -264,7 +264,7 @@
 
 .script-btn-run:hover {
     transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba($ctp-green, 0.4);
+    box-shadow: 0 4px 12px rgba(var(--ctp-green-rgb), 0.4);
     filter: brightness(1.05);
 }
 
@@ -547,7 +547,7 @@
 
 .script-status-indicator.saved {
     color: $color-success;
-    background: rgba($ctp-green, 0.1);
+    background: rgba(var(--ctp-green-rgb), 0.1);
 }
 
 .edition-canvas-toolbar-right {
@@ -592,7 +592,7 @@
 
 .edition-toolbar-btn.primary:hover {
     transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba($color-primary, 0.4);
+    box-shadow: 0 4px 12px rgba(var(--ctp-teal-rgb), 0.4);
     filter: brightness(1.05);
 }
 
@@ -604,7 +604,7 @@
 
 .edition-toolbar-btn.success:hover {
     transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba($ctp-green, 0.4);
+    box-shadow: 0 4px 12px rgba(var(--ctp-green-rgb), 0.4);
     filter: brightness(1.05);
 }
 
@@ -631,7 +631,7 @@
 
 .edition-canvas-empty.drag-over {
     border-color: $color-primary;
-    background: rgba($color-primary, 0.05);
+    background: rgba(var(--ctp-teal-rgb), 0.05);
 }
 
 .edition-canvas-empty svg {
@@ -678,13 +678,13 @@
 
 .canvas-block.highlighted {
     border-color: $color-primary;
-    box-shadow: 0 0 0 3px rgba($color-primary, 0.3);
+    box-shadow: 0 0 0 3px rgba(var(--ctp-teal-rgb), 0.3);
     animation: highlight-pulse 1.5s ease-out;
 }
 
 @keyframes highlight-pulse {
-    0% { box-shadow: 0 0 0 3px rgba($color-primary, 0.5); }
-    100% { box-shadow: 0 0 0 3px rgba($color-primary, 0); }
+    0% { box-shadow: 0 0 0 3px rgba(var(--ctp-teal-rgb), 0.5); }
+    100% { box-shadow: 0 0 0 3px rgba(var(--ctp-teal-rgb), 0); }
 }
 
 /* Block Header */
@@ -776,7 +776,7 @@
 }
 
 .canvas-block-action.delete:hover {
-    background: rgba($ctp-red, 0.2);
+    background: rgba(var(--ctp-red-rgb), 0.2);
     color: $color-error;
 }
 
@@ -862,7 +862,7 @@
 
 .code-editor-container:focus-within {
     border-color: $color-primary;
-    box-shadow: 0 0 0 3px rgba($color-primary, 0.15);
+    box-shadow: 0 0 0 3px rgba(var(--ctp-teal-rgb), 0.15);
 }
 
 /* CodeMirror overrides for perfect integration */
@@ -904,7 +904,7 @@
 .code-editor-fallback:focus {
     outline: none;
     border-color: $color-primary;
-    box-shadow: 0 0 0 3px rgba($color-primary, 0.15);
+    box-shadow: 0 0 0 3px rgba(var(--ctp-teal-rgb), 0.15);
 }
 
 .block-config-color {
@@ -1126,7 +1126,7 @@
 
 .canvas-drop-zone.drag-over {
     height: 40px;
-    background: rgba($color-primary, 0.1);
+    background: rgba(var(--ctp-teal-rgb), 0.1);
     border: 2px dashed $color-primary;
     border-radius: 6px;
 }
@@ -1146,7 +1146,7 @@
 
 .canvas-drop-zone.empty-section.drag-over {
     border-color: $color-primary;
-    background: rgba($color-primary, 0.05);
+    background: rgba(var(--ctp-teal-rgb), 0.05);
     color: $color-primary;
 }
 
@@ -1256,7 +1256,7 @@
 }
 
 .outline-item.active {
-    background: rgba($color-primary, 0.15);
+    background: rgba(var(--ctp-teal-rgb), 0.15);
     color: $text-white;
 }
 
@@ -1284,16 +1284,16 @@
 .outline-item.h1 {
     font-weight: 600;
     color: $text-white;
-    background: rgba($color-primary, 0.1);
+    background: rgba(var(--ctp-teal-rgb), 0.1);
     border-left: 3px solid $color-primary-dark;
 }
 
 .outline-item.h1:hover {
-    background: rgba($color-primary, 0.2);
+    background: rgba(var(--ctp-teal-rgb), 0.2);
 }
 
 .outline-item.h1.active {
-    background: rgba($color-primary, 0.25);
+    background: rgba(var(--ctp-teal-rgb), 0.25);
 }
 
 .outline-item.h1 .outline-item-icon {
@@ -1304,16 +1304,16 @@
 .outline-item.h2 {
     padding-left: 24px;
     font-weight: 500;
-    background: rgba($color-primary, 0.08);
+    background: rgba(var(--ctp-teal-rgb), 0.08);
     border-left: 3px solid $color-primary;
 }
 
 .outline-item.h2:hover {
-    background: rgba($color-primary, 0.15);
+    background: rgba(var(--ctp-teal-rgb), 0.15);
 }
 
 .outline-item.h2.active {
-    background: rgba($color-primary, 0.2);
+    background: rgba(var(--ctp-teal-rgb), 0.2);
 }
 
 .outline-item.h2 .outline-item-icon {
@@ -1425,7 +1425,7 @@
 
 .mapping-btn.primary:hover {
     transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba($color-primary, 0.4);
+    box-shadow: 0 4px 12px rgba(var(--ctp-teal-rgb), 0.4);
     filter: brightness(1.05);
 }
 

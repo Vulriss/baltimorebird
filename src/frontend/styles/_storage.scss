@@ -137,8 +137,8 @@
 }
 
 .storage-tab.active {
-    background: rgba($color-primary, 0.1);
-    border-color: rgba($color-primary, 0.3);
+    background: rgba(var(--ctp-teal-rgb), 0.1);
+    border-color: rgba(var(--ctp-teal-rgb), 0.3);
     color: $color-primary;
 }
 
@@ -156,7 +156,7 @@
 }
 
 .storage-tab.active .storage-tab-count {
-    background: rgba($color-primary, 0.2);
+    background: rgba(var(--ctp-teal-rgb), 0.2);
 }
 
 /* =============================================================================
@@ -269,8 +269,8 @@
 }
 
 .storage-file-item.default {
-    background: rgba($color-primary, 0.03);
-    border-color: rgba($color-primary, 0.15);
+    background: rgba(var(--ctp-teal-rgb), 0.03);
+    border-color: rgba(var(--ctp-teal-rgb), 0.15);
 }
 
 .storage-file-icon {
@@ -355,8 +355,8 @@
 }
 
 .storage-file-btn.danger:hover {
-    background: rgba($ctp-red, 0.1);
-    border-color: rgba($ctp-red, 0.3);
+    background: rgba(var(--ctp-red-rgb), 0.1);
+    border-color: rgba(var(--ctp-red-rgb), 0.3);
     color: $color-error;
 }
 
@@ -514,13 +514,13 @@
 .storage-upload-zone:hover,
 .storage-upload-zone.dragover {
     border-color: $color-primary;
-    background: rgba($color-primary, 0.05);
+    background: rgba(var(--ctp-teal-rgb), 0.05);
 }
 
 .storage-upload-icon {
     width: 56px;
     height: 56px;
-    background: rgba($color-primary, 0.1);
+    background: rgba(var(--ctp-teal-rgb), 0.1);
     border-radius: 50%;
     display: flex;
     align-items: center;
@@ -608,7 +608,7 @@
 }
 
 .storage-upload-remove:hover {
-    background: rgba($ctp-red, 0.1);
+    background: rgba(var(--ctp-red-rgb), 0.1);
     color: $color-error;
 }
 
