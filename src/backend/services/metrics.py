@@ -1,14 +1,16 @@
-"""
-Baltimore Bird - Collecteur de métriques anonymes.
+"""Baltimore Bird - Collecteur de métriques anonymes.
 
-Suivi d'utilisation pour monitoring infrastructure.
-Aucune donnée personnelle stockée, IPs hashées pour anonymat.
+Suivi d'utilisation pour le monitoring de l'infrastructure. Aucune donnée personnelle
+stockée : les adresses IP sont hachées avec sel. L'état journalier est persisté dans
+daily_stats.json et rechargé au démarrage ; toutes les structures rechargées sont
+normalisées (defaultdict, ensembles, clés obligatoires) afin que l'agrégation reste
+uniforme quel que soit le cycle de redémarrage du service.
 """
 
 import hashlib
 import json
+import logging
 import random
-import statistics
 import threading
 import time
 import uuid
@@ -19,6 +21,12 @@ from pathlib import Path
 from typing import Dict, List, Optional
 
 from config import METRICS_DATA_DIR, METRICS_IP_SALT
+
+logger = logging.getLogger(__name__)
+
+SESSION_TIMEOUT_S = 1800
+CLEANUP_INTERVAL_S = 300
+LATENCY_MAX_SAMPLES = 500
 
 
 def hash_ip(ip: str) -> str:
@@ -51,13 +59,13 @@ class RequestMetrics:
 
 @dataclass
 class LatencyStats:
-    """Statistiques de latence agrégées."""
+    """Statistiques de latence agrégées, avec réservoir d'échantillons pour les percentiles."""
     count: int = 0
     total: float = 0.0
     min: float = float("inf")
     max: float = 0.0
     samples: List[float] = field(default_factory=list)
-    max_samples: int = 500
+    max_samples: int = LATENCY_MAX_SAMPLES
 
     def add(self, latency: float) -> None:
         self.count += 1
@@ -72,36 +80,65 @@ class LatencyStats:
             if idx < self.max_samples:
                 self.samples[idx] = latency
 
+    def merged_with(self, other: "LatencyStats") -> "LatencyStats":
+        """Combinaison sans effet de bord, pour enrichir une lecture des requêtes en buffer."""
+        return LatencyStats(
+            count=self.count + other.count,
+            total=self.total + other.total,
+            min=min(self.min, other.min),
+            max=max(self.max, other.max),
+            samples=(self.samples + other.samples)[-self.max_samples:],
+        )
+
+    def _percentile(self, ordered: List[float], quantile: float) -> float:
+        idx = min(len(ordered) - 1, int(len(ordered) * quantile))
+        return round(ordered[idx], 2)
+
     def to_dict(self) -> dict:
+        """Forme publique (API), sans les échantillons bruts."""
         if self.count == 0:
             return {"count": 0}
 
-        sorted_samples = sorted(self.samples)
-        n = len(sorted_samples)
-
+        ordered = sorted(self.samples)
+        has_samples = bool(ordered)
         return {
             "count": self.count,
             "min": round(self.min, 2),
             "max": round(self.max, 2),
             "avg": round(self.total / self.count, 2),
-            "p50": round(sorted_samples[n // 2], 2) if n > 0 else 0,
-            "p95": round(sorted_samples[int(n * 0.95)], 2) if n > 0 else 0,
-            "p99": round(sorted_samples[int(n * 0.99)], 2) if n > 0 else 0,
+            "p50": self._percentile(ordered, 0.50) if has_samples else 0,
+            "p95": self._percentile(ordered, 0.95) if has_samples else 0,
+            "p99": self._percentile(ordered, 0.99) if has_samples else 0,
         }
+
+    def to_persistable(self) -> dict:
+        """Forme de persistance : la forme publique plus le réservoir d'échantillons.
+
+        Sans lui, les percentiles retomberaient à zéro à chaque redémarrage du service.
+        """
+        payload = self.to_dict()
+        if self.count > 0:
+            payload["samples"] = [round(sample, 2) for sample in self.samples]
+        return payload
 
     @classmethod
     def from_dict(cls, data: dict) -> "LatencyStats":
         stats = cls()
-        stats.count = data.get("count", 0)
+        stats.count = int(data.get("count", 0))
         if stats.count > 0:
-            stats.total = data.get("avg", 0) * stats.count
-            stats.min = data.get("min", float("inf"))
-            stats.max = data.get("max", 0)
+            stats.total = float(data.get("avg", 0)) * stats.count
+            stats.min = float(data.get("min", float("inf")))
+            stats.max = float(data.get("max", 0))
+            stats.samples = [float(sample) for sample in data.get("samples", [])][:stats.max_samples]
         return stats
 
 
 class MetricsCollector:
-    """Collecteur et stockage de métriques anonymes."""
+    """Collecteur et stockage de métriques anonymes.
+
+    Discipline de verrouillage : les méthodes publiques prennent le verrou, les méthodes
+    suffixées `_locked` supposent le verrou détenu par l'appelant et ne le prennent jamais.
+    """
 
     def __init__(self, storage_path: Optional[Path] = None):
         self.storage_path = storage_path or METRICS_DATA_DIR
@@ -117,6 +154,28 @@ class MetricsCollector:
         self._load_stats()
         self._start_cleanup_thread()
 
+    @staticmethod
+    def _normalized_day(raw: dict) -> dict:
+        """Structure journalière canonique à partir de données brutes (fichier ou vide).
+
+        Les compteurs sont des defaultdict et les utilisateurs un ensemble : l'agrégation
+        peut alors incrémenter n'importe quelle clé sans distinguer un jour rechargé du
+        fichier d'un jour créé en mémoire.
+        """
+        sessions = raw.get("sessions", {})
+        return {
+            "unique_users": set(raw.get("unique_users", [])),
+            "total_requests": int(raw.get("total_requests", 0)),
+            "endpoints": defaultdict(int, raw.get("endpoints", {})),
+            "status_codes": defaultdict(int, raw.get("status_codes", {})),
+            "sessions": {
+                "count": int(sessions.get("count", 0)),
+                "total_duration": float(sessions.get("total_duration", 0)),
+                "max_duration": float(sessions.get("max_duration", 0)),
+            },
+            "events": defaultdict(int, raw.get("events", {})),
+        }
+
     def _load_stats(self) -> None:
         stats_file = self.storage_path / "daily_stats.json"
         if not stats_file.exists():
@@ -124,127 +183,95 @@ class MetricsCollector:
 
         try:
             with open(stats_file, "r") as f:
-                self.daily_stats = json.load(f)
-
-            for date_str, stats in self.daily_stats.items():
-                if isinstance(stats.get("unique_users"), list):
-                    stats["unique_users"] = set(stats["unique_users"])
-
-                if isinstance(stats.get("latencies"), list):
-                    old_latencies = stats["latencies"]
-                    if old_latencies:
-                        stats["latency"] = {
-                            "count": len(old_latencies),
-                            "min": round(min(old_latencies), 2),
-                            "max": round(max(old_latencies), 2),
-                            "avg": round(statistics.mean(old_latencies), 2),
-                            "p50": round(statistics.median(old_latencies), 2),
-                            "p95": round(sorted(old_latencies)[int(len(old_latencies) * 0.95)], 2)
-                            if len(old_latencies) > 20 else round(max(old_latencies), 2),
-                            "p99": round(sorted(old_latencies)[int(len(old_latencies) * 0.99)], 2)
-                            if len(old_latencies) > 100 else round(max(old_latencies), 2),
-                        }
-                    del stats["latencies"]
-
-                if "latency" in stats:
-                    self.latency_stats[date_str] = LatencyStats.from_dict(stats["latency"])
-
-            print(f"  Metrics loaded: {len(self.daily_stats)} days")
-
-        except Exception as e:
-            print(f"  Failed to load metrics: {e}")
+                raw_stats = json.load(f)
+        except Exception:
+            logger.exception("Chargement des métriques impossible, repartir d'un état vide")
             self.daily_stats = {}
+            return
 
-    def _save_stats(self) -> None:
-        stats_file = self.storage_path / "daily_stats.json"
-        try:
-            serializable_stats = {}
-            for date_str, stats in self.daily_stats.items():
-                serializable_stats[date_str] = self._make_serializable(date_str, stats)
+        for date_str, raw in raw_stats.items():
+            self.daily_stats[date_str] = self._normalized_day(raw)
+            if "latency" in raw:
+                self.latency_stats[date_str] = LatencyStats.from_dict(raw["latency"])
 
-            with open(stats_file, "w") as f:
-                json.dump(serializable_stats, f, indent=2)
+        logger.info("Métriques chargées : %d jours", len(self.daily_stats))
 
-        except Exception as e:
-            print(f"  Failed to save metrics: {e}")
-
-    def _make_serializable(self, date_str: str, stats: dict) -> dict:
-        result = {}
-        for key, value in stats.items():
-            if key == "latencies":
-                continue
-            elif key == "latency":
-                result[key] = value
-            elif isinstance(value, set):
-                result[key] = list(value)
-            else:
-                result[key] = value
-
+    def _serializable_day_locked(self, date_str: str) -> dict:
+        stats = self.daily_stats[date_str]
+        result = {
+            "unique_users": sorted(stats["unique_users"]),
+            "total_requests": stats["total_requests"],
+            "endpoints": dict(stats["endpoints"]),
+            "status_codes": dict(stats["status_codes"]),
+            "sessions": dict(stats["sessions"]),
+            "events": dict(stats["events"]),
+        }
         if date_str in self.latency_stats:
-            result["latency"] = self.latency_stats[date_str].to_dict()
-
+            result["latency"] = self.latency_stats[date_str].to_persistable()
         return result
 
-    def _start_cleanup_thread(self) -> None:
-        def cleanup_loop():
-            while True:
-                time.sleep(300)
-                self._cleanup_sessions()
-                self._flush_buffer()
-                self._save_stats()
+    def _save_stats(self) -> None:
+        with self._lock:
+            snapshot = {date_str: self._serializable_day_locked(date_str) for date_str in self.daily_stats}
 
-        thread = threading.Thread(target=cleanup_loop, daemon=True)
-        thread.start()
+        stats_file = self.storage_path / "daily_stats.json"
+        try:
+            with open(stats_file, "w") as f:
+                json.dump(snapshot, f, indent=2)
+        except Exception:
+            logger.exception("Sauvegarde des métriques en échec")
+
+    def _start_cleanup_thread(self) -> None:
+        def cleanup_loop() -> None:
+            while True:
+                time.sleep(CLEANUP_INTERVAL_S)
+                try:
+                    self._cleanup_sessions()
+                    self.flush()
+                    self._save_stats()
+                except Exception:
+                    logger.exception("Cycle de maintenance des métriques en échec")
+
+        threading.Thread(target=cleanup_loop, daemon=True, name="metrics-maintenance").start()
 
     def _cleanup_sessions(self) -> None:
         now = time.time()
-        session_timeout = 1800
-
         with self._lock:
-            expired = []
-            for sid, session in self.sessions.items():
-                if now - session.last_activity > session_timeout:
-                    expired.append(sid)
-                    duration = session.last_activity - session.started_at
-                    self._record_session_end(session, duration)
-
+            expired = [
+                sid for sid, session in self.sessions.items()
+                if now - session.last_activity > SESSION_TIMEOUT_S
+            ]
             for sid in expired:
-                del self.sessions[sid]
+                session = self.sessions.pop(sid)
+                self._record_session_end_locked(session, session.last_activity - session.started_at)
 
-    def _flush_buffer(self) -> None:
+    def flush(self) -> None:
+        """Vide le buffer de requêtes vers les agrégats journaliers."""
         with self._lock:
-            if not self.request_buffer:
-                return
+            self._flush_buffer_locked()
 
-            by_date: Dict[str, List[RequestMetrics]] = defaultdict(list)
-            for req in self.request_buffer:
-                date_str = datetime.fromtimestamp(req.timestamp).strftime("%Y-%m-%d")
-                by_date[date_str].append(req)
+    def _flush_buffer_locked(self) -> None:
+        if not self.request_buffer:
+            return
 
-            for date_str, requests in by_date.items():
-                self._aggregate_requests(date_str, requests)
+        by_date: Dict[str, List[RequestMetrics]] = defaultdict(list)
+        for req in self.request_buffer:
+            date_str = datetime.fromtimestamp(req.timestamp).strftime("%Y-%m-%d")
+            by_date[date_str].append(req)
 
-            self.request_buffer = []
+        for date_str, requests in by_date.items():
+            self._aggregate_requests_locked(date_str, requests)
 
-    def _ensure_stats_structure(self, date_str: str) -> None:
+        self.request_buffer = []
+
+    def _ensure_stats_structure_locked(self, date_str: str) -> None:
         if date_str not in self.daily_stats:
-            self.daily_stats[date_str] = {
-                "unique_users": set(),
-                "total_requests": 0,
-                "endpoints": defaultdict(int),
-                "status_codes": defaultdict(int),
-                "sessions": {"count": 0, "total_duration": 0, "max_duration": 0},
-            }
+            self.daily_stats[date_str] = self._normalized_day({})
         if date_str not in self.latency_stats:
-            if "latency" in self.daily_stats[date_str]:
-                self.latency_stats[date_str] = LatencyStats.from_dict(
-                    self.daily_stats[date_str]["latency"]
-                )
-            else:
-                self.latency_stats[date_str] = LatencyStats()
+            self.latency_stats[date_str] = LatencyStats()
 
-    def _aggregate_requests(self, date_str: str, requests: List[RequestMetrics]) -> None:
-        self._ensure_stats_structure(date_str)
+    def _aggregate_requests_locked(self, date_str: str, requests: List[RequestMetrics]) -> None:
+        self._ensure_stats_structure_locked(date_str)
         stats = self.daily_stats[date_str]
         latency = self.latency_stats[date_str]
 
@@ -255,9 +282,9 @@ class MetricsCollector:
             stats["status_codes"][str(req.status_code)] += 1
             latency.add(req.latency_ms)
 
-    def _record_session_end(self, session: SessionInfo, duration: float) -> None:
+    def _record_session_end_locked(self, session: SessionInfo, duration: float) -> None:
         date_str = datetime.fromtimestamp(session.started_at).strftime("%Y-%m-%d")
-        self._ensure_stats_structure(date_str)
+        self._ensure_stats_structure_locked(date_str)
 
         sessions = self.daily_stats[date_str]["sessions"]
         sessions["count"] += 1
@@ -274,157 +301,148 @@ class MetricsCollector:
                     return sid
 
             new_sid = session_id or str(uuid.uuid4())[:12]
-
             self.sessions[new_sid] = SessionInfo(
                 session_id=new_sid,
                 user_hash=user_hash,
                 started_at=time.time(),
-                last_activity=time.time()
+                last_activity=time.time(),
             )
-
             return new_sid
 
-    def record_request(
-        self,
-        ip: str,
-        endpoint: str,
-        method: str,
-        latency_ms: float,
-        status_code: int
-    ) -> None:
-        user_hash = hash_ip(ip)
-
+    def record_request(self, ip: str, endpoint: str, method: str, latency_ms: float, status_code: int) -> None:
         metric = RequestMetrics(
             timestamp=time.time(),
             endpoint=endpoint,
             method=method,
             latency_ms=latency_ms,
             status_code=status_code,
-            user_hash=user_hash
+            user_hash=hash_ip(ip),
         )
 
         with self._lock:
             self.request_buffer.append(metric)
             if len(self.request_buffer) >= self.buffer_max_size:
-                self._flush_buffer()
+                self._flush_buffer_locked()
 
     def record_action(self, session_id: str, action: str) -> None:
         with self._lock:
-            if session_id in self.sessions:
-                session = self.sessions[session_id]
+            session = self.sessions.get(session_id)
+            if session:
                 session.last_activity = time.time()
                 session.actions[action] = session.actions.get(action, 0) + 1
+
+    def record_event(self, event: str) -> None:
+        today = datetime.now().strftime("%Y-%m-%d")
+        with self._lock:
+            self._ensure_stats_structure_locked(today)
+            self.daily_stats[today]["events"][event] += 1
 
     def get_current_stats(self) -> dict:
         today = datetime.now().strftime("%Y-%m-%d")
 
         with self._lock:
-            active_sessions = len(self.sessions)
             today_stats = self.daily_stats.get(today, {})
 
-            latency = self.latency_stats.get(today, LatencyStats())
-            latency_dict = latency.to_dict()
-
             buffer_today = [
-                r for r in self.request_buffer
-                if datetime.fromtimestamp(r.timestamp).strftime("%Y-%m-%d") == today
+                req for req in self.request_buffer
+                if datetime.fromtimestamp(req.timestamp).strftime("%Y-%m-%d") == today
             ]
 
-            unique_users_set = today_stats.get("unique_users", set())
-            if isinstance(unique_users_set, list):
-                unique_users_set = set(unique_users_set)
+            unique_users = set(today_stats.get("unique_users", set()))
+            unique_users.update(req.user_hash for req in buffer_today)
+
+            live_latency = LatencyStats()
             for req in buffer_today:
-                unique_users_set.add(req.user_hash)
+                live_latency.add(req.latency_ms)
+            latency_view = self.latency_stats.get(today, LatencyStats()).merged_with(live_latency)
+
+            events_today = dict(today_stats.get("events", {}))
+            top_events = dict(sorted(events_today.items(), key=lambda kv: kv[1], reverse=True)[:10])
 
             return {
                 "timestamp": datetime.now().isoformat(),
-                "active_sessions": active_sessions,
+                "active_sessions": len(self.sessions),
                 "today": {
-                    "unique_users": len(unique_users_set),
+                    "unique_users": len(unique_users),
                     "total_requests": today_stats.get("total_requests", 0) + len(buffer_today),
-                    "sessions_completed": today_stats.get("sessions", {}).get("count", 0)
+                    "sessions_completed": today_stats.get("sessions", {}).get("count", 0),
+                    "events": top_events,
                 },
-                "latency": latency_dict
+                "latency": latency_view.to_dict(),
             }
+
+    def _daily_report_locked(self, date_str: str) -> dict:
+        stats = self.daily_stats.get(date_str)
+        if not stats:
+            return {"date": date_str, "no_data": True}
+
+        sessions = stats["sessions"]
+        session_count = sessions["count"]
+
+        return {
+            "date": date_str,
+            "unique_users": len(stats["unique_users"]),
+            "total_requests": stats["total_requests"],
+            "sessions": {
+                "count": session_count,
+                "avg_duration_min": round(sessions["total_duration"] / session_count / 60, 1)
+                if session_count > 0 else 0,
+                "max_duration_min": round(sessions["max_duration"] / 60, 1),
+            },
+            "latency": self.latency_stats.get(date_str, LatencyStats()).to_dict(),
+            "top_endpoints": dict(sorted(stats["endpoints"].items(), key=lambda kv: kv[1], reverse=True)[:10]),
+            "status_codes": dict(stats["status_codes"]),
+            "events": dict(sorted(stats["events"].items(), key=lambda kv: kv[1], reverse=True)),
+        }
 
     def get_daily_report(self, date_str: Optional[str] = None) -> dict:
         if date_str is None:
             date_str = datetime.now().strftime("%Y-%m-%d")
 
-        self._flush_buffer()
-
+        self.flush()
         with self._lock:
-            stats = self.daily_stats.get(date_str, {})
-
-            if not stats:
-                return {"date": date_str, "no_data": True}
-
-            unique_users = stats.get("unique_users", set())
-            if isinstance(unique_users, list):
-                unique_users = set(unique_users)
-
-            latency = self.latency_stats.get(date_str, LatencyStats()).to_dict()
-
-            sessions = stats.get("sessions", {})
-            session_count = sessions.get("count", 0)
-            total_duration = sessions.get("total_duration", 0)
-
-            return {
-                "date": date_str,
-                "unique_users": len(unique_users),
-                "total_requests": stats.get("total_requests", 0),
-                "sessions": {
-                    "count": session_count,
-                    "avg_duration_min": round(total_duration / session_count / 60, 1)
-                    if session_count > 0 else 0,
-                    "max_duration_min": round(sessions.get("max_duration", 0) / 60, 1)
-                },
-                "latency": latency,
-                "top_endpoints": dict(sorted(
-                    dict(stats.get("endpoints", {})).items(),
-                    key=lambda x: x[1],
-                    reverse=True
-                )[:10]),
-                "status_codes": dict(stats.get("status_codes", {}))
-            }
+            return self._daily_report_locked(date_str)
 
     def get_weekly_summary(self) -> dict:
-        self._flush_buffer()
+        self.flush()
 
-        summaries = []
-        for i in range(7):
-            date = datetime.now() - timedelta(days=i)
-            date_str = date.strftime("%Y-%m-%d")
-            report = self.get_daily_report(date_str)
-            if not report.get("no_data"):
-                summaries.append(report)
+        with self._lock:
+            reports: List[dict] = []
+            period_users: set = set()
+            for i in range(7):
+                date_str = (datetime.now() - timedelta(days=i)).strftime("%Y-%m-%d")
+                if date_str not in self.daily_stats:
+                    continue
+                reports.append(self._daily_report_locked(date_str))
+                period_users |= self.daily_stats[date_str]["unique_users"]
 
-        if not summaries:
+        if not reports:
             return {"no_data": True}
 
         return {
-            "period": f"{summaries[-1]['date']} to {summaries[0]['date']}",
-            "days": len(summaries),
-            "total_unique_users": sum(s["unique_users"] for s in summaries),
-            "total_requests": sum(s["total_requests"] for s in summaries),
-            "total_sessions": sum(s["sessions"]["count"] for s in summaries),
-            "avg_daily_users": round(sum(s["unique_users"] for s in summaries) / len(summaries), 1),
-            "daily_breakdown": summaries
+            "period": f"{reports[-1]['date']} to {reports[0]['date']}",
+            "days": len(reports),
+            # Union des hashs sur la période : un même visiteur présent plusieurs jours
+            # compte pour un, contrairement à la somme des uniques journaliers.
+            "total_unique_users": len(period_users),
+            "total_requests": sum(report["total_requests"] for report in reports),
+            "total_sessions": sum(report["sessions"]["count"] for report in reports),
+            "avg_daily_users": round(sum(report["unique_users"] for report in reports) / len(reports), 1),
+            "daily_breakdown": reports,
         }
 
     def cleanup_old_data(self, keep_days: int = 30) -> None:
         cutoff = (datetime.now() - timedelta(days=keep_days)).strftime("%Y-%m-%d")
 
         with self._lock:
-            old_dates = [d for d in self.daily_stats.keys() if d < cutoff]
+            old_dates = [date_str for date_str in self.daily_stats if date_str < cutoff]
             for date_str in old_dates:
                 del self.daily_stats[date_str]
-                if date_str in self.latency_stats:
-                    del self.latency_stats[date_str]
+                self.latency_stats.pop(date_str, None)
 
-            if old_dates:
-                print(f"  Cleaned up metrics for {len(old_dates)} old days")
-                self._save_stats()
+        if old_dates:
+            logger.info("Métriques purgées pour %d anciens jours", len(old_dates))
+            self._save_stats()
 
 
 metrics = MetricsCollector()
