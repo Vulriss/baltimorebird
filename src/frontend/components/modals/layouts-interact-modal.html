@@ -69,6 +69,8 @@
             </ul>
         </div>
 
+        <div class="layout-update-hint" id="layoutUpdateHint" style="display: none;"></div>
+
         <div class="layout-guest-hint" id="layoutGuestHint" style="display: none;">
             Vous n'êtes pas connecté : le layout sera téléchargé sous forme de fichier LXF (.lxf).
             Reconnectez-vous pour le conserver dans votre compte, ou réimportez-le ensuite via « Importer un layout ».
@@ -77,6 +79,7 @@
     
     <div class="drawer-footer">
         <button class="btn-secondary footer-list" onclick="closeLayoutsDrawer()">Fermer</button>
+        <button class="btn-secondary footer-save-as" onclick="saveLayoutAsNew()">Enregistrer une copie</button>
         <button class="btn-primary footer-save" onclick="saveCurrentLayout()">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <polyline points="20 6 9 17 4 12"></polyline>
