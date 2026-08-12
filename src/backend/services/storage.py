@@ -497,4 +497,69 @@ class StorageManager:
             return None
 
 
+    def update_json(
+        self,
+        file_id: str,
+        user_id: str,
+        data: Any,
+        description: Optional[str] = None,
+    ) -> Optional[StoredFile]:
+        """Remplace le contenu JSON d'un fichier existant, en conservant son id.
+
+        Permet de sauvegarder les modifications d'un layout deja enregistre sans
+        creer de doublon (store_json genere un nouvel uuid a chaque appel).
+        Renvoie None si le fichier est introuvable; leve ValueError si le contenu
+        est invalide ou si le quota serait depasse.
+        """
+        stored_file = self.get_file(file_id, user_id)
+        if not stored_file or stored_file.is_default:
+            return None
+
+        if not validate_json_depth(data, max_depth=MAX_JSON_DEPTH):
+            raise ValueError("Structure JSON trop profonde")
+
+        json_bytes = json.dumps(data, indent=2).encode("utf-8")
+        if len(json_bytes) > MAX_JSON_SIZE_BYTES:
+            raise ValueError(
+                f"Données JSON trop volumineuses (max {MAX_JSON_SIZE_BYTES // 1024 // 1024} MB)"
+            )
+
+        # Seul le DELTA de taille compte: le fichier remplace libere sa propre place.
+        delta = len(json_bytes) - stored_file.size_bytes
+        if delta > 0 and self.get_used_space(user_id) + delta > self.get_quota(user_id):
+            raise ValueError("Quota de stockage dépassé")
+
+        file_path = USERS_ROOT / stored_file.user_id / stored_file.category / stored_file.filename
+        # Ecriture via un fichier temporaire puis remplacement atomique: une coupure
+        # en cours d'ecriture laisserait sinon un layout tronque, donc illisible.
+        tmp_path = file_path.with_suffix(file_path.suffix + ".tmp")
+        tmp_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(tmp_path, "wb") as f:
+            f.write(json_bytes)
+        tmp_path.replace(file_path)
+
+        now = utc_now_iso()
+        metadata = dict(stored_file.metadata or {})
+        # Pas de colonne updated_at au schema: on la porte dans le blob metadata
+        # pour eviter une migration.
+        metadata["updated_at"] = now
+
+        conn = self._get_conn()
+        cursor = conn.cursor()
+        if description is None:
+            cursor.execute(
+                "UPDATE stored_files SET size_bytes = ?, metadata = ? WHERE id = ? AND user_id = ?",
+                (len(json_bytes), json.dumps(metadata), file_id, user_id),
+            )
+        else:
+            cursor.execute(
+                "UPDATE stored_files SET size_bytes = ?, metadata = ?, description = ?"
+                " WHERE id = ? AND user_id = ?",
+                (len(json_bytes), json.dumps(metadata), description[:500], file_id, user_id),
+            )
+        conn.commit()
+
+        return self.get_file(file_id, user_id)
+
+
 storage = StorageManager()
