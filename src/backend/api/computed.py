@@ -1,5 +1,6 @@
 """Baltimore Bird - API des variables calculées."""
 
+import ast
 import re
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -23,6 +24,10 @@ ALLOWED_FUNCTIONS: Dict[str, Any] = {
     "floor": np.floor, "ceil": np.ceil, "round": np.round, "trunc": np.trunc,
     "clip": np.clip, "sign": np.sign, "minimum": np.minimum, "maximum": np.maximum,
     "pi": np.pi, "e": np.e,
+    # Logique element-wise (cibles de la reecriture AST, utilisables aussi en direct)
+    "logical_and": np.logical_and, "logical_or": np.logical_or,
+    "logical_not": np.logical_not, "logical_xor": np.logical_xor,
+    "where": np.where,
 }
 
 FORBIDDEN_PATTERNS: List[str] = [
@@ -53,6 +58,91 @@ def get_formula_variables(formula: str) -> List[str]:
     return sorted(variables)
 
 
+def normalize_formula(formula: str) -> str:
+    """Traduit les notations logiques usuelles en Python évaluable (mode eval).
+
+    - ``&&`` / ``||``          -> ``and`` / ``or``
+    - ``!`` (hors ``!=``)      -> ``not``
+    - ``=`` seul               -> ``==`` (égalité; aucune affectation possible en mode eval)
+    - ``AND`` / ``OR`` / ``NOT`` (mots, toute casse) -> mots-clés minuscules
+
+    Les mots AND/OR/NOT ne peuvent pas être confondus avec des variables: celles-ci
+    sont des lettres A-Z isolées (``\\b[A-Z]\\b``), jamais des mots de plusieurs lettres.
+    """
+    f = formula
+    f = re.sub(r"&&", " and ", f)
+    f = re.sub(r"\|\|", " or ", f)
+    f = re.sub(r"!(?!=)", " not ", f)
+    f = re.sub(r"(?<![=<>!])=(?!=)", "==", f)
+    f = re.sub(r"\b(AND|OR|NOT)\b", lambda m: m.group(1).lower(), f, flags=re.IGNORECASE)
+    return f
+
+
+class _LogicalTransformer(ast.NodeTransformer):
+    """Réécrit les opérateurs logiques en appels numpy element-wise.
+
+    Deux pièges de l'eval numpy brut sont neutralisés ici plutôt que documentés:
+    - ``A > 3 and B < 5`` lève "truth value is ambiguous" sur des tableaux; ``and``/
+      ``or``/``not`` (précédence correcte, plus faible que les comparaisons) deviennent
+      logical_and / logical_or / logical_not.
+    - ``&``/``|``/``^``/``~`` échouent sur des float64 et, en Python, lient PLUS fort
+      que les comparaisons (``A > 3 & B`` parserait ``A > (3 & B)``): on les traite
+      comme logique element-wise, en recommandant and/or dans l'UI pour la précédence.
+    Les comparaisons chaînées ``0 < A < 5`` (invalides sur tableaux) deviennent
+    ``logical_and(0 < A, A < 5)``.
+    """
+
+    @staticmethod
+    def _call(name: str, args: List[ast.expr]) -> ast.Call:
+        return ast.Call(func=ast.Name(id=name, ctx=ast.Load()), args=args, keywords=[])
+
+    def visit_BoolOp(self, node: ast.BoolOp) -> ast.expr:
+        self.generic_visit(node)
+        name = "logical_and" if isinstance(node.op, ast.And) else "logical_or"
+        expr = node.values[0]
+        for value in node.values[1:]:
+            expr = self._call(name, [expr, value])
+        return expr
+
+    def visit_UnaryOp(self, node: ast.UnaryOp) -> ast.expr:
+        self.generic_visit(node)
+        if isinstance(node.op, (ast.Not, ast.Invert)):
+            return self._call("logical_not", [node.operand])
+        return node
+
+    def visit_BinOp(self, node: ast.BinOp) -> ast.expr:
+        self.generic_visit(node)
+        name = {ast.BitAnd: "logical_and", ast.BitOr: "logical_or",
+                ast.BitXor: "logical_xor"}.get(type(node.op))
+        return self._call(name, [node.left, node.right]) if name else node
+
+    def visit_Compare(self, node: ast.Compare) -> ast.expr:
+        self.generic_visit(node)
+        if len(node.ops) <= 1:
+            return node
+        parts: List[ast.expr] = []
+        left = node.left
+        for op, comparator in zip(node.ops, node.comparators):
+            parts.append(ast.Compare(left=left, ops=[op], comparators=[comparator]))
+            left = comparator
+        expr = parts[0]
+        for part in parts[1:]:
+            expr = self._call("logical_and", [expr, part])
+        return expr
+
+
+def compile_formula(formula: str):
+    """Normalise, parse (mode eval: expressions seules), transforme et compile."""
+    normalized = normalize_formula(formula).strip()
+    try:
+        tree = ast.parse(normalized, mode="eval")
+    except SyntaxError as exc:
+        raise ValueError(f"Formule invalide: {exc.msg}")
+    tree = _LogicalTransformer().visit(tree)
+    ast.fix_missing_locations(tree)
+    return compile(tree, "<formula>", "eval")
+
+
 def compute_formula(
     formula: str,
     signal_data: Dict[str, np.ndarray],
@@ -76,13 +166,16 @@ def compute_formula(
     namespace: Dict[str, Any] = {**ALLOWED_FUNCTIONS, **signal_data}
 
     try:
-        result = eval(formula, {"__builtins__": {}}, namespace)
+        code = compile_formula(formula)
+        result = eval(code, {"__builtins__": {}}, namespace)
 
-        if isinstance(result, (int, float)):
-            result = np.full(len(reference_timestamps), result, dtype=np.float64)
+        # bool est un sous-type d'int; np.bool_/np.float64 scalaires passent par np.generic.
+        if isinstance(result, (int, float, np.generic)):
+            result = np.full(len(reference_timestamps), float(result), dtype=np.float64)
         elif not isinstance(result, np.ndarray):
             result = np.array(result, dtype=np.float64)
         else:
+            # Les comparaisons et la logique produisent des tableaux bool -> 0/1.
             result = result.astype(np.float64)
 
         result = np.where(np.isposinf(result), np.finfo(np.float64).max, result)
@@ -90,10 +183,25 @@ def compute_formula(
 
         return reference_timestamps.copy(), result
 
+    except ValueError:
+        raise
     except ZeroDivisionError:
         raise ValueError("Division par zéro dans la formule")
     except Exception as e:
         raise ValueError(f"Erreur d'évaluation: {str(e)}")
+
+
+def coerce_boolean_result(values: np.ndarray, unit: str) -> np.ndarray:
+    """Pour une variable déclarée en unité bool, force un 0/1 propre.
+
+    Convention validée: entre ensembles booléens, ``*`` est un ET (0/1 x 0/1 reste 0/1)
+    mais ``+`` (OU) peut produire 2 là où les deux opérandes sont vrais. Le seuillage
+    de la visualisation (> 0.5) l'absorberait, mais les mesures de légende afficheraient
+    2: on normalise donc en (valeur != 0) dès que l'utilisateur déclare l'unité bool.
+    """
+    if unit == "bool":
+        return (values != 0).astype(np.float64)
+    return values
 
 
 def _resolve_session(session_id: str):
@@ -119,12 +227,61 @@ def _resolve_session(session_id: str):
     return session, None
 
 
+def _is_step_signal(unit: Optional[str], has_string_map: bool, is_state: bool = False) -> bool:
+    """Signaux en escalier (bool / états): interpolation par maintien de valeur.
+
+    Une interpolation linéaire entre deux échantillons d'un booléen ou d'un état
+    fabriquerait des valeurs fractionnaires sans sens physique (0.37 entre OFF et
+    ON); on maintient la dernière valeur connue, sémantique native de ces voies.
+    """
+    return bool(has_string_map or is_state or (unit or "").strip().lower() == "bool")
+
+
+def _align_on_common_raster(entries: List[Dict[str, Any]]):
+    """Aligne des signaux de rasters différents sur une base de temps commune.
+
+    entries: [{letter, name, ts, vals, step}]. La référence est le signal le plus
+    dense (nombre d'échantillons maximal; à égalité, le premier mappé): aligner sur
+    le plus dense préserve tout le détail — l'inverse sous-échantillonnerait la voie
+    rapide et pourrait manquer des transitions dans les conditions. Les autres voies
+    sont ramenées sur ce raster: interpolation linéaire (analogique) ou maintien de
+    la dernière valeur (escalier). La comparaison porte sur les timestamps réels,
+    pas seulement les longueurs: deux voies de même taille mais de rasters décalés
+    seraient sinon combinées désalignées en silence.
+
+    Retourne (signal_data, reference_timestamps, resample_info|None).
+    """
+    ref = max(entries, key=lambda e: len(e["ts"]))
+    ref_ts = np.asarray(ref["ts"], dtype=np.float64)
+
+    signal_data: Dict[str, np.ndarray] = {}
+    resampled: List[str] = []
+    for e in entries:
+        ts = np.asarray(e["ts"], dtype=np.float64)
+        vals = np.asarray(e["vals"], dtype=np.float64)
+        if ts.shape == ref_ts.shape and (ts is ref_ts or np.array_equal(ts, ref_ts)):
+            signal_data[e["letter"]] = vals
+            continue
+        if e["step"]:
+            # Maintien de valeur: index du dernier échantillon <= t (clippé aux bords).
+            idx = np.searchsorted(ts, ref_ts, side="right") - 1
+            idx = np.clip(idx, 0, len(vals) - 1)
+            signal_data[e["letter"]] = vals[idx]
+        else:
+            signal_data[e["letter"]] = np.interp(ref_ts, ts, vals)
+        resampled.append(e["name"])
+
+    info = None
+    if resampled:
+        info = {"resampled": resampled, "raster_of": ref["name"], "n_samples": int(len(ref_ts))}
+    return signal_data, ref_ts, info
+
+
 def _resolve_mapped_lazy_signals(session_id: str, mapping: Dict[str, str]):
     """Pour une session lazy, résout chaque signal mappé en données alignées.
-    Retourne ((signal_data, reference_timestamps), None) ou (None, réponse_erreur)."""
-    signal_data: Dict[str, np.ndarray] = {}
-    reference_timestamps: Optional[np.ndarray] = None
-    reference_length: Optional[int] = None
+    Retourne ((signal_data, reference_timestamps, resample_info), None)
+    ou (None, réponse_erreur)."""
+    entries: List[Dict[str, Any]] = []
 
     for var_letter, signal_name in mapping.items():
         if not re.match(r"^[A-Z]$", var_letter):
@@ -138,20 +295,59 @@ def _resolve_mapped_lazy_signals(session_id: str, mapping: Dict[str, str]):
         if not lazy_sig or not lazy_sig.is_loaded:
             return None, (jsonify({"error": f"Signal '{signal_name}' non chargeable"}), 404)
 
-        values = lazy_sig.values
-        if reference_timestamps is None:
-            reference_timestamps = np.asarray(lazy_sig.timestamps, dtype=np.float64)
-            reference_length = len(values)
+        entries.append({
+            "letter": var_letter,
+            "name": signal_name,
+            "ts": lazy_sig.timestamps,
+            "vals": lazy_sig.values,
+            "step": _is_step_signal(
+                lazy_sig.metadata.unit,
+                bool(lazy_sig.string_map),
+                bool(getattr(lazy_sig.metadata, "rust_is_state", False)),
+            ),
+        })
 
-        if len(values) != reference_length:
-            return None, (jsonify({"error": f"Le signal '{signal_name}' a une longueur différente"}), 400)
-
-        signal_data[var_letter] = np.asarray(values, dtype=np.float64)
-
-    if reference_timestamps is None:
+    if not entries:
         return None, (jsonify({"error": "Aucun signal mappé"}), 400)
 
-    return (signal_data, reference_timestamps), None
+    signal_data, reference_timestamps, resample_info = _align_on_common_raster(entries)
+    return (signal_data, reference_timestamps, resample_info), None
+
+
+def _resolve_mapped_eager_signals(mapping: Dict[str, str]):
+    """Équivalent de _resolve_mapped_lazy_signals pour le datastore eager (sources démo).
+    Retourne ((signal_data, reference_timestamps, resample_info), None)
+    ou (None, réponse_erreur)."""
+    entries: List[Dict[str, Any]] = []
+
+    for var_letter, signal_name in mapping.items():
+        if not re.match(r"^[A-Z]$", var_letter):
+            return None, (jsonify({"error": f"'{var_letter}' n'est pas une lettre de variable valide (A-Z)"}), 400)
+
+        signal_index: Optional[int] = None
+        for i, m in enumerate(datastore.metadata):
+            if m["name"] == signal_name:
+                signal_index = i
+                break
+
+        if signal_index is None:
+            return None, (jsonify({"error": f"Signal '{signal_name}' non trouvé"}), 404)
+
+        sig = datastore.signals[signal_index]
+        meta = datastore.metadata[signal_index]
+        entries.append({
+            "letter": var_letter,
+            "name": signal_name,
+            "ts": sig["timestamps"],
+            "vals": sig["values"],
+            "step": _is_step_signal(meta.get("unit"), bool(meta.get("string_map") or meta.get("is_categorical"))),
+        })
+
+    if not entries:
+        return None, (jsonify({"error": "Aucun signal mappé"}), 400)
+
+    signal_data, reference_timestamps, resample_info = _align_on_common_raster(entries)
+    return (signal_data, reference_timestamps, resample_info), None
 
 
 @computed_vars_bp.route("/api/create-variable", methods=["POST"])
@@ -193,18 +389,22 @@ def create_variable():
             resolved, err = _resolve_mapped_lazy_signals(safe_id, mapping)
             if err:
                 return err
-            signal_data, reference_timestamps = resolved
+            signal_data, reference_timestamps, resample_info = resolved
             try:
                 new_ts, new_vals = compute_formula(formula, signal_data, reference_timestamps)
             except ValueError as e:
                 return jsonify({"error": str(e)}), 400
+            new_vals = coerce_boolean_result(new_vals, unit)
 
             result = lazy_eda.add_computed_signal(
                 safe_id, name, unit, description, formula, list(mapping.values()), new_ts, new_vals
             )
             if result is None:
                 return jsonify({"error": "Session introuvable"}), 404
-            return jsonify({"success": True, "signal": result})
+            payload = {"success": True, "signal": result}
+            if resample_info:
+                payload["resample"] = resample_info
+            return jsonify(payload)
 
         # Branche source classique (datastore eager).
         if not datastore.loaded:
@@ -214,43 +414,16 @@ def create_variable():
             if existing_meta["name"] == name:
                 return jsonify({"error": f"Un signal nommé '{name}' existe déjà"}), 409
 
-        signal_data: Dict[str, np.ndarray] = {}
-        reference_timestamps: Optional[np.ndarray] = None
-        reference_length: Optional[int] = None
-
-        for var_letter, signal_name in mapping.items():
-            if not re.match(r"^[A-Z]$", var_letter):
-                return jsonify({"error": f"'{var_letter}' n'est pas une lettre de variable valide (A-Z)"}), 400
-
-            signal_index: Optional[int] = None
-            for i, m in enumerate(datastore.metadata):
-                if m["name"] == signal_name:
-                    signal_index = i
-                    break
-
-            if signal_index is None:
-                return jsonify({"error": f"Signal '{signal_name}' non trouvé"}), 404
-
-            sig = datastore.signals[signal_index]
-            timestamps = sig["timestamps"]
-            values = sig["values"]
-
-            if reference_timestamps is None:
-                reference_timestamps = np.asarray(timestamps, dtype=np.float64)
-                reference_length = len(timestamps)
-
-            if len(values) != reference_length:
-                return jsonify({"error": f"Le signal '{signal_name}' a une longueur différente"}), 400
-
-            signal_data[var_letter] = np.asarray(values, dtype=np.float64)
-
-        if reference_timestamps is None:
-            return jsonify({"error": "Aucun signal mappé"}), 400
+        resolved, err = _resolve_mapped_eager_signals(mapping)
+        if err:
+            return err
+        signal_data, reference_timestamps, resample_info = resolved
 
         try:
             new_timestamps, new_values = compute_formula(formula, signal_data, reference_timestamps)
         except ValueError as e:
             return jsonify({"error": str(e)}), 400
+        new_values = coerce_boolean_result(new_values, unit)
 
         hue = (len(datastore.metadata) * 37) % 360
         color = f"hsl({hue}, 70%, 55%)"
@@ -269,10 +442,13 @@ def create_variable():
             "source_signals": list(mapping.values())
         })
 
-        return jsonify({
+        payload = {
             "success": True,
             "signal": {"name": name, "unit": unit, "index": new_index, "color": color}
-        })
+        }
+        if resample_info:
+            payload["resample"] = resample_info
+        return jsonify(payload)
 
     except Exception as e:
         return jsonify({"error": f"Erreur interne: {str(e)}"}), 500
@@ -369,11 +545,12 @@ def update_computed_variable(index: int):
             resolved, err = _resolve_mapped_lazy_signals(safe_id, mapping)
             if err:
                 return err
-            signal_data, reference_timestamps = resolved
+            signal_data, reference_timestamps, resample_info = resolved
             try:
                 new_ts, new_vals = compute_formula(formula, signal_data, reference_timestamps)
             except ValueError as e:
                 return jsonify({"error": str(e)}), 400
+            new_vals = coerce_boolean_result(new_vals, unit)
 
             result = lazy_eda.update_computed_signal(
                 safe_id, index, unit, description, formula, list(mapping.values()), new_ts, new_vals
@@ -382,7 +559,10 @@ def update_computed_variable(index: int):
                 return jsonify({"error": "Index invalide"}), 404
             if result is False:
                 return jsonify({"error": "Seules les variables calculées peuvent être modifiées"}), 403
-            return jsonify({"success": True, "signal": result})
+            payload = {"success": True, "signal": result}
+            if resample_info:
+                payload["resample"] = resample_info
+            return jsonify(payload)
 
         # Branche source classique (datastore eager).
         if not datastore.loaded:
@@ -398,43 +578,16 @@ def update_computed_variable(index: int):
         unit = data.get("unit", meta.get("unit", "")).strip()
         description = data.get("description", meta.get("description", "")).strip()
 
-        signal_data: Dict[str, np.ndarray] = {}
-        reference_timestamps: Optional[np.ndarray] = None
-        reference_length: Optional[int] = None
-
-        for var_letter, signal_name in mapping.items():
-            if not re.match(r"^[A-Z]$", var_letter):
-                return jsonify({"error": f"'{var_letter}' n'est pas une lettre de variable valide (A-Z)"}), 400
-
-            signal_index: Optional[int] = None
-            for i, m in enumerate(datastore.metadata):
-                if m["name"] == signal_name:
-                    signal_index = i
-                    break
-
-            if signal_index is None:
-                return jsonify({"error": f"Signal '{signal_name}' non trouvé"}), 404
-
-            sig = datastore.signals[signal_index]
-            timestamps = sig["timestamps"]
-            values = sig["values"]
-
-            if reference_timestamps is None:
-                reference_timestamps = np.asarray(timestamps, dtype=np.float64)
-                reference_length = len(timestamps)
-
-            if len(values) != reference_length:
-                return jsonify({"error": f"Le signal '{signal_name}' a une longueur différente"}), 400
-
-            signal_data[var_letter] = np.asarray(values, dtype=np.float64)
-
-        if reference_timestamps is None:
-            return jsonify({"error": "Aucun signal mappé"}), 400
+        resolved, err = _resolve_mapped_eager_signals(mapping)
+        if err:
+            return err
+        signal_data, reference_timestamps, resample_info = resolved
 
         try:
             new_timestamps, new_values = compute_formula(formula, signal_data, reference_timestamps)
         except ValueError as e:
             return jsonify({"error": str(e)}), 400
+        new_values = coerce_boolean_result(new_values, unit)
 
         datastore.signals[index] = {"timestamps": new_timestamps, "values": new_values}
 
@@ -447,10 +600,13 @@ def update_computed_variable(index: int):
 
         name = meta["name"]
 
-        return jsonify({
+        payload = {
             "success": True,
             "signal": {"name": name, "unit": unit, "index": index, "color": meta["color"]}
-        })
+        }
+        if resample_info:
+            payload["resample"] = resample_info
+        return jsonify(payload)
 
     except Exception as e:
         return jsonify({"error": f"Erreur interne: {str(e)}"}), 500

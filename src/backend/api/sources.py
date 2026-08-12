@@ -214,6 +214,30 @@ def get_view():
     return jsonify(result) if result else (jsonify({"error": "No data in range"}), 404)
 
 
+def _encode_signals_binary(header_extra: dict, signals: list[dict]) -> Response:
+    """Encode des signaux au format binaire commun à /raw et /view.
+
+    Format : [uint32 little-endian = longueur d'entête][entête JSON UTF-8][blocs binaires].
+    Chaque entrée de `signals` porte ses tableaux numpy sous 'timestamps' et 'values' ; les
+    autres clés sont recopiées telles quelles dans l'entête, avec 'n' (nombre d'échantillons)
+    ajouté. Les blocs suivent dans le même ordre : horodatages float64 puis valeurs float32.
+    """
+    header_signals = []
+    chunks: list[bytes] = []
+    for sig in signals:
+        timestamps = np.ascontiguousarray(sig["timestamps"], dtype="<f8")
+        values = np.ascontiguousarray(sig["values"], dtype="<f4")
+        meta = {key: value for key, value in sig.items() if key not in ("timestamps", "values")}
+        meta["n"] = int(timestamps.size)
+        header_signals.append(meta)
+        chunks.append(timestamps.tobytes())
+        chunks.append(values.tobytes())
+
+    header = json.dumps({**header_extra, "signals": header_signals}, ensure_ascii=False).encode("utf-8")
+    body = b"".join([struct.pack("<I", len(header)), header, *chunks])
+    return Response(body, mimetype="application/octet-stream")
+
+
 def _get_lazy_view(session_id: str):
     """Vue pour les sessions lazy EDA."""
     signals_param = request.args.get("signals", "0")
@@ -242,7 +266,20 @@ def _get_lazy_view(session_id: str):
         max_points = 2000
 
     result = lazy_eda.get_view(session_id, signal_indices, start, end, max_points)
-    return jsonify(result) if result else (jsonify({"error": "No data in range"}), 404)
+    if not result:
+        return jsonify({"error": "No data in range"}), 404
+
+    # Binaire par defaut pour l'application (format=bin): supprime tolist + jsonify cote
+    # serveur et JSON.parse cote client, un float64 pesant 8 octets contre ~18 caracteres.
+    # Le JSON reste disponible pour les consommateurs externes de l'API.
+    if request.args.get("format") == "bin":
+        signals = result.pop("signals")
+        return _encode_signals_binary(result, signals)
+
+    for sig in result["signals"]:
+        sig["timestamps"] = sig["timestamps"].tolist()
+        sig["values"] = sig["values"].tolist()
+    return jsonify(result)
 
 
 @sources_bp.route("/api/raw")
@@ -279,33 +316,27 @@ def _get_lazy_raw(session_id: str):
     if not indices:
         return jsonify({"error": "Aucun signal demandé"}), 400
 
-    header_signals = []
-    chunks: list[bytes] = []
+    signals = []
     for index in indices:
         signal = lazy_eda.get_signal_data(session_id, index)
         if not signal or not signal.is_loaded:
             continue
-        timestamps = np.ascontiguousarray(signal.timestamps, dtype="<f8")
-        values = np.ascontiguousarray(signal.values, dtype="<f4")
         meta = signal.metadata
-        header_signals.append({
+        signals.append({
             "index": index,
             "name": meta.name,
             "unit": meta.unit,
             "color": meta.color,
-            "n": int(timestamps.size),
             "is_categorical": signal.string_map is not None,
             "string_map": signal.string_map or None,
+            "timestamps": signal.timestamps,
+            "values": signal.values,
         })
-        chunks.append(timestamps.tobytes())
-        chunks.append(values.tobytes())
 
-    if not header_signals:
+    if not signals:
         return jsonify({"error": "No data"}), 404
 
-    header = json.dumps({"signals": header_signals}, ensure_ascii=False).encode("utf-8")
-    body = b"".join([struct.pack("<I", len(header)), header, *chunks])
-    return Response(body, mimetype="application/octet-stream")
+    return _encode_signals_binary({}, signals)
 
 
 @sources_bp.route("/health")

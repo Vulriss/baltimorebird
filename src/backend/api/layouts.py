@@ -1,7 +1,9 @@
 """Baltimore Bird - API de gestion des layouts de visualisation EDA."""
 
 import json
+import os
 import re
+import tempfile
 import uuid
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
@@ -11,6 +13,7 @@ from flask import Blueprint, g, jsonify, request
 from api.auth import login_required, optional_auth
 from config import BASE_DIR
 from core import utc_now_iso, is_safe_path
+from mda.layout_import import parse_mda_layout
 
 layouts_bp = Blueprint("layouts", __name__)
 
@@ -318,3 +321,49 @@ def delete_layout(layout_id: str):
         return jsonify({"success": True})
     except Exception as e:
         return jsonify({"error": f"Erreur de suppression: {str(e)}"}), 500
+
+
+@layouts_bp.route("/api/layouts/import-mda", methods=["POST"])
+@optional_auth
+def import_mda_layout():
+    """Importe un layout ETAS MDA (.xdx) et renvoie le layout Baltimore Bird.
+
+    Le fichier est parse en memoire et n'est pas sauvegarde cote serveur; c'est le
+    frontend qui applique le layout (resolution des noms de signaux vers le fichier
+    courant via applyLayout).
+    """
+    if "file" not in request.files:
+        return jsonify({"error": "Fichier .xdx requis"}), 400
+
+    upload = request.files["file"]
+    if not upload.filename:
+        return jsonify({"error": "Nom de fichier vide"}), 400
+    if not upload.filename.lower().endswith(".xdx"):
+        return jsonify({"error": "Extension .xdx attendue"}), 400
+
+    tmp_path: Optional[str] = None
+    try:
+        fd, tmp_path = tempfile.mkstemp(suffix=".xdx")
+        os.close(fd)
+        upload.save(tmp_path)
+
+        with open(tmp_path, "rb") as fh:
+            if fh.read(16) != b"SQLite format 3\x00":
+                return jsonify({"error": "Le fichier n'est pas une base MDA valide"}), 400
+
+        layout = parse_mda_layout(tmp_path)
+        n_plots = sum(len(t["plots"]) for t in layout["tabs"])
+        n_sigs = sum(len(p["signals"]) for t in layout["tabs"] for p in t["plots"])
+        return jsonify({
+            "success": True,
+            "layout": layout,
+            "stats": {"tabs": len(layout["tabs"]), "plots": n_plots, "signals": n_sigs},
+        })
+    except Exception as e:  # noqa: BLE001 - on renvoie l'erreur au client
+        return jsonify({"error": f"Import MDA echoue: {str(e)}"}), 400
+    finally:
+        if tmp_path and os.path.exists(tmp_path):
+            try:
+                os.remove(tmp_path)
+            except OSError:
+                pass

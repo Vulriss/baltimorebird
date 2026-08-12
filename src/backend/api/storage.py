@@ -219,11 +219,37 @@ def update_file(file_id: str):
     if not stored_file:
         return jsonify({"error": "Fichier introuvable"}), 404
 
+    if stored_file.is_default:
+        return jsonify({"error": "Fichier par défaut non modifiable"}), 403
+
     data = request.get_json()
     if not data:
         return jsonify({"error": "Données JSON requises"}), 400
 
-    return jsonify({"success": True, "message": "Mise à jour non implémentée pour le moment"})
+    content = data.get("content")
+    if content is None:
+        return jsonify({"error": "Contenu JSON requis"}), 400
+
+    description = data.get("description")
+    if description is not None:
+        description = str(description).strip()[:500]
+
+    try:
+        updated = storage.update_json(
+            file_id=file_id,
+            user_id=user.id,
+            data=content,
+            description=description,
+        )
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    except Exception as e:
+        return jsonify({"error": f"Erreur lors de la mise à jour: {str(e)}"}), 500
+
+    if not updated:
+        return jsonify({"error": "Fichier introuvable"}), 404
+
+    return jsonify({"success": True, "file": updated.to_dict()})
 
 
 @storage_bp.route("/api/storage/files/<file_id>", methods=["DELETE"])
