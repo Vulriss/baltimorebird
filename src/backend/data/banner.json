@@ -1,0 +1,9 @@
+{
+  "id": "banner-20260731174902",
+  "active": false,
+  "severity": "critical",
+  "message": "Mise a jour prevue ce soir a 18h UTC. Le service sera momentanement indisponible.",
+  "dismissible": true,
+  "starts_at": null,
+  "ends_at": null
+}
