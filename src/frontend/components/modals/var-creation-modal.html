@@ -43,10 +43,13 @@
         <!-- Formula -->
         <div class="drawer-field formula-field">
             <label>Formule <span class="required">*</span></label>
-            <input type="text" class="formula-input" id="newVarFormula" placeholder="ex: A + B * 2.5">
+            <input type="text" class="formula-input" id="newVarFormula" placeholder="ex: A + B * 2.5 ou (A > 100) and (B == 2)">
             <div class="formula-hint">
                 Opérateurs: <code>+</code> <code>-</code> <code>*</code> <code>/</code> <code>**</code><br>
-                Fonctions: <code>abs()</code> <code>sqrt()</code> <code>sin()</code> <code>cos()</code> <code>log()</code> <code>exp()</code>
+                Comparaisons: <code>&lt;</code> <code>&gt;</code> <code>&lt;=</code> <code>&gt;=</code> <code>==</code> (ou <code>=</code>) <code>!=</code> · Logique: <code>and</code> <code>or</code> <code>not</code><br>
+                Entre booléens: <code>A * B</code> = ET, <code>A + B</code> = OU · Une condition passe l'unité en <code>bool</code><br>
+                Rasters différents (ex. 10 Hz et 100 Hz): alignement automatique sur la voie la plus dense<br>
+                Fonctions: <code>abs()</code> <code>sqrt()</code> <code>sin()</code> <code>cos()</code> <code>log()</code> <code>exp()</code> <code>where(cond, x, y)</code>
             </div>
         </div>
         
