@@ -1,4 +1,71 @@
-import { S } from './state.js';
+import { S } from '../core/state.js';
+
+// Identifiant de l'onglet en cours de deplacement. Distinct de S.draggedSignal: les zones
+// de drop de signaux et le reordonnancement d'onglets s'ignorent mutuellement.
+let draggedTabId = null;
+
+function clearTabDropMarkers() {
+    document.querySelectorAll('.tab-item.drop-before, .tab-item.drop-after')
+        .forEach(el => el.classList.remove('drop-before', 'drop-after'));
+}
+
+function moveTab(sourceId, targetId, before) {
+    const from = S.tabs.findIndex(t => t.id === sourceId);
+    if (from === -1 || sourceId === targetId) return;
+
+    const [moved] = S.tabs.splice(from, 1);
+    const to = S.tabs.findIndex(t => t.id === targetId);
+    if (to === -1) {
+        S.tabs.splice(from, 0, moved);
+        return;
+    }
+    S.tabs.splice(before ? to : to + 1, 0, moved);
+    renderTabs();
+}
+
+// Reorganisation des onglets par glisser-deposer: indicateur d'insertion avant/apres
+// selon la position du curseur par rapport au milieu de l'onglet survole.
+function setupTabDrag(tabItem, tab) {
+    tabItem.draggable = true;
+
+    tabItem.addEventListener('dragstart', (e) => {
+        draggedTabId = tab.id;
+        tabItem.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', tab.id);  // requis par Firefox pour initier le drag
+    });
+
+    tabItem.addEventListener('dragend', () => {
+        draggedTabId = null;
+        tabItem.classList.remove('dragging');
+        clearTabDropMarkers();
+    });
+
+    tabItem.addEventListener('dragover', (e) => {
+        if (!draggedTabId || draggedTabId === tab.id) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        const rect = tabItem.getBoundingClientRect();
+        const before = e.clientX < rect.left + rect.width / 2;
+        tabItem.classList.toggle('drop-before', before);
+        tabItem.classList.toggle('drop-after', !before);
+    });
+
+    tabItem.addEventListener('dragleave', () => {
+        tabItem.classList.remove('drop-before', 'drop-after');
+    });
+
+    tabItem.addEventListener('drop', (e) => {
+        if (!draggedTabId || draggedTabId === tab.id) return;
+        e.preventDefault();
+        const rect = tabItem.getBoundingClientRect();
+        const before = e.clientX < rect.left + rect.width / 2;
+        const sourceId = draggedTabId;
+        draggedTabId = null;
+        clearTabDropMarkers();
+        moveTab(sourceId, tab.id, before);
+    });
+}
 
 function createTab(name = null, activate = true) {
     const id = `tab-${S.tabIdCounter++}`;
@@ -86,6 +153,8 @@ function renderTabs() {
             closeTab(tab.id);
         });
         
+        setupTabDrag(tabItem, tab);
+        
         tabsList.appendChild(tabItem);
     });
 }
@@ -101,6 +170,13 @@ function switchTab(tabId) {
             currentTab.plots = S.plots;
             currentTab.cursor1 = S.cursor1;
             currentTab.cursor2 = S.cursor2;
+            // Fenetre temporelle affichee par cet onglet au moment ou on le quitte.
+            // Ses graphes sont rendus sur cette fenetre: c'est a la fois ce qu'il faut
+            // restaurer en mode desynchronise, et la reference pour savoir s'il faudra
+            // le re-fenetrer au retour.
+            if (typeof window.getGlobalView === 'function') {
+                currentTab.view = window.getGlobalView();
+            }
         }
     }
     
@@ -118,7 +194,37 @@ function switchTab(tabId) {
     S.plots = tab.plots || [];
     S.cursor1 = tab.cursor1;
     S.cursor2 = tab.cursor2;
-    
+
+    // Vues desynchronisees: l'onglet retrouve SA fenetre. Synchronisees: on garde
+    // globalView, l'onglet adopte la fenetre courante.
+    if (!S.syncTabViews && tab.view && typeof window.setGlobalView === 'function') {
+        window.setGlobalView(tab.view);
+    }
+
+    // Hydratation paresseuse d'un onglet importe: ses graphes ne sont construits qu'au
+    // premier affichage (le contenu est deja visible ici, le dimensionnement est correct).
+    let hydrated = false;
+    if (typeof window.hydrateTabIfNeeded === 'function') {
+        hydrated = window.hydrateTabIfNeeded(tabId);
+    }
+
+    // Re-fenetrage seulement si necessaire. Les graphes de l'onglet sont rendus sur
+    // tab.view (la fenetre qu'il affichait quand on l'a quitte): si elle differe de la
+    // fenetre courante, il faut les rejouer depuis le cache. Desynchronise, elles sont
+    // egales par construction -> aucun travail, le changement d'onglet reste instantane.
+    // Une hydratation vient deja de tout rendre sur la fenetre courante.
+    if (!hydrated && tab.view && typeof window.getGlobalView === 'function') {
+        const cur = window.getGlobalView();
+        if ((tab.view.min !== cur.min || tab.view.max !== cur.max)
+                && typeof window.applyGlobalViewLocal === 'function') {
+            window.applyGlobalViewLocal();
+        } else if (typeof window.replayPendingRenders === 'function') {
+            // Meme fenetre: rien a re-fenetrer, mais un fetch/full-send peut avoir
+            // abouti pendant que l'onglet etait cache (son rendu a alors ete saute).
+            window.replayPendingRenders();
+        }
+    }
+
     // Update tab buttons
     renderTabs();
     
@@ -182,6 +288,11 @@ function startEditTabName(tabId) {
     const nameSpan = tabItem.querySelector('.tab-name');
     if (!nameSpan) return;
     
+    // Drag desactive pendant l'edition: sinon le parent draggable capture les
+    // mouvements de souris et empeche la selection de texte dans l'input.
+    // renderTabs (via finishEditTabName) reconstruira l'onglet avec le drag actif.
+    tabItem.draggable = false;
+    
     const input = document.createElement('input');
     input.type = 'text';
     input.className = 'tab-name-input';
@@ -223,11 +334,12 @@ function setupTabDropZones(tabId) {
             e.preventDefault();
             dropZone.classList.remove('active');
             if (S.draggedSignal !== null) {
-                const sigIdx = S.draggedSignal;
+                const group = (S.draggedSignalGroup && S.draggedSignalGroup.length)
+                    ? S.draggedSignalGroup : [S.draggedSignal];
                 const fromPlotId = S.draggedFromPlotId;
-                const destId = window.dropSignal(sigIdx);
+                const destId = window.dropSignalGroup(group);
                 if (fromPlotId !== null && fromPlotId !== destId) {
-                    window.removeSignalFromPlot(fromPlotId, sigIdx);
+                    group.forEach(idx => window.removeSignalFromPlot(fromPlotId, idx));
                 }
                 setTimeout(window.resizePlotCharts, 100);
             }
@@ -250,11 +362,12 @@ function setupEmptyPlotDropZone(tabId) {
         e.preventDefault();
         emptyPlot.classList.remove('drop-target');
         if (S.draggedSignal !== null) {
-            const sigIdx = S.draggedSignal;
+            const group = (S.draggedSignalGroup && S.draggedSignalGroup.length)
+                ? S.draggedSignalGroup : [S.draggedSignal];
             const fromPlotId = S.draggedFromPlotId;
-            const destId = window.dropSignal(sigIdx);
+            const destId = window.dropSignalGroup(group);
             if (fromPlotId !== null && fromPlotId !== destId) {
-                window.removeSignalFromPlot(fromPlotId, sigIdx);
+                group.forEach(idx => window.removeSignalFromPlot(fromPlotId, idx));
             }
             setTimeout(window.resizePlotCharts, 100);
         }

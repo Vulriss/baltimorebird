@@ -27,6 +27,7 @@ const SettingsManager = (() => {
             case 'storage': StorageManager.init(); break;
             case 'users': loadUsersList(); break;
             case 'metrics': loadMetrics(); break;
+            case 'banner': loadBanner(); break;
         }
     }
 
@@ -207,6 +208,137 @@ const SettingsManager = (() => {
         return `${day}/${month}`;
     }
 
+    // =====================================================================
+    // Gestion de la banniere (admin)
+    // =====================================================================
+    let bannerListenersBound = false;
+
+    function authHeaders(extra) {
+        const h = { ...(extra || {}) };
+        const token = sessionStorage.getItem('auth_token');
+        if (token) h['Authorization'] = 'Bearer ' + token;
+        return h;
+    }
+
+    // Convertit un ISO 8601 UTC (stocke) <-> valeur d'un <input datetime-local>
+    // (heure LOCALE, sans zone). On passe par l'objet Date pour la conversion.
+    function isoToLocalInput(iso) {
+        if (!iso) return '';
+        const d = new Date(iso);
+        if (isNaN(d)) return '';
+        const pad = (n) => String(n).padStart(2, '0');
+        return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    }
+    function localInputToIso(local) {
+        if (!local) return null;
+        const d = new Date(local);          // interprete comme heure locale
+        if (isNaN(d)) return null;
+        return d.toISOString();             // renvoie en UTC (Z)
+    }
+
+    function updateBannerPreview() {
+        const preview = $('bannerPreview');
+        if (!preview) return;
+        const msg = ($('bannerMessage')?.value || '').trim();
+        const severity = $('bannerSeverity')?.value || 'info';
+        if (!msg) {
+            preview.className = 'banner-preview-empty';
+            preview.textContent = 'Aucun message';
+            return;
+        }
+        preview.className = 'banner-preview bb-banner bb-banner-' + severity;
+        preview.textContent = (severity === 'info' ? 'ℹ ' : '⚠ ') + msg;
+    }
+
+    function bindBannerListeners() {
+        if (bannerListenersBound) return;
+        const msg = $('bannerMessage');
+        const sev = $('bannerSeverity');
+        const count = $('bannerCharCount');
+        if (msg) {
+            msg.addEventListener('input', () => {
+                if (count) count.textContent = msg.value.length;
+                updateBannerPreview();
+            });
+        }
+        if (sev) sev.addEventListener('change', updateBannerPreview);
+        bannerListenersBound = true;
+    }
+
+    async function loadBanner() {
+        bindBannerListeners();
+        setBannerStatus('');
+        try {
+            const res = await fetch('/api/admin/banner', { headers: authHeaders() });
+            if (!res.ok) throw new Error('load failed');
+            const { banner } = await res.json();
+            const b = banner || {};
+            const set = (id, val) => { const el = $(id); if (el) el.value = val ?? ''; };
+            const check = (id, val) => { const el = $(id); if (el) el.checked = !!val; };
+            check('bannerActive', b.active);
+            set('bannerMessage', b.message || '');
+            set('bannerSeverity', b.severity || 'info');
+            check('bannerDismissible', b.dismissible !== false);
+            set('bannerStartsAt', isoToLocalInput(b.starts_at));
+            set('bannerEndsAt', isoToLocalInput(b.ends_at));
+            const count = $('bannerCharCount');
+            if (count) count.textContent = (b.message || '').length;
+            updateBannerPreview();
+        } catch (e) {
+            console.error('Failed to load banner:', e);
+            setBannerStatus('Erreur de chargement', 'error');
+        }
+    }
+
+    function setBannerStatus(text, kind) {
+        const el = $('bannerSaveStatus');
+        if (!el) return;
+        el.textContent = text;
+        el.className = 'banner-save-status' + (kind ? ' ' + kind : '');
+    }
+
+    async function saveBanner() {
+        const btn = $('bannerSaveBtn');
+        const payload = {
+            active: $('bannerActive')?.checked || false,
+            message: ($('bannerMessage')?.value || '').trim(),
+            severity: $('bannerSeverity')?.value || 'info',
+            dismissible: $('bannerDismissible')?.checked || false,
+            starts_at: localInputToIso($('bannerStartsAt')?.value),
+            ends_at: localInputToIso($('bannerEndsAt')?.value),
+        };
+
+        // Garde-fou cote client (le serveur revalide de toute facon).
+        if (payload.active && !payload.message) {
+            setBannerStatus('Un message est requis pour activer la bannière', 'error');
+            return;
+        }
+
+        if (btn) btn.disabled = true;
+        setBannerStatus('Enregistrement...');
+        try {
+            const res = await fetch('/api/admin/banner', {
+                method: 'PUT',
+                headers: authHeaders({ 'Content-Type': 'application/json' }),
+                body: JSON.stringify(payload),
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Échec');
+            // Recharge l'id genere par le serveur (pour la coherence du rejet client).
+            if (data.banner) {
+                const sa = $('bannerStartsAt'), ea = $('bannerEndsAt');
+                if (sa) sa.value = isoToLocalInput(data.banner.starts_at);
+                if (ea) ea.value = isoToLocalInput(data.banner.ends_at);
+            }
+            setBannerStatus('Enregistré ✓', 'success');
+            setTimeout(() => setBannerStatus(''), 3000);
+        } catch (e) {
+            setBannerStatus(e.message || 'Erreur', 'error');
+        } finally {
+            if (btn) btn.disabled = false;
+        }
+    }
+
     async function loadMetrics() {
         try {
             await Promise.all([
@@ -260,8 +392,13 @@ const SettingsManager = (() => {
             setText('metricTodayUsers', data.today?.unique_users || 0);
             setText('metricTodayRequests', formatNumber(data.today?.total_requests || 0));
 
-            const latency = data.latency?.avg || 0;
-            setText('metricAvgLatency', latency > 0 ? `${Math.round(latency)}ms` : '-');
+            // p50 (mediane) plutot que la moyenne: la moyenne melange requetes
+            // legeres et lourdes (upload, ouverture MDF4) tous endpoints confondus,
+            // une seule requete lente la fait exploser. La mediane reflete la
+            // latence reellement ressentie sur la majorite des requetes. Repli sur
+            // avg si percentiles absents (coherent avec le tableau par jour).
+            const p50 = data.latency?.p50 ?? data.latency?.avg ?? 0;
+            setText('metricAvgLatency', p50 > 0 ? `${Math.round(p50)}ms` : '-');
         } catch (e) {
             console.error('Failed to load current metrics:', e);
         }
@@ -316,6 +453,7 @@ const SettingsManager = (() => {
             `;
 
             renderDailyBreakdown(data.daily_breakdown || []);
+            renderMetricsCharts(data.daily_breakdown || []);
         } catch (e) {
             console.error('Failed to load weekly metrics:', e);
             container.innerHTML = `
@@ -329,6 +467,167 @@ const SettingsManager = (() => {
                 </div>
             `;
         }
+    }
+
+    // Instances uPlot vivantes, detruites/recreees a chaque rendu (le panneau se
+    // recharge sur "Actualiser" et au changement d'onglet). Sans destroy(), les
+    // anciennes instances fuiraient et empileraient des listeners de resize.
+    let metricsChartInstances = [];
+
+    function destroyMetricsCharts() {
+        metricsChartInstances.forEach(u => { try { u.destroy(); } catch (_) {} });
+        metricsChartInstances = [];
+    }
+
+    function renderMetricsCharts(days) {
+        const container = $('metricsCharts');
+        if (!container || typeof uPlot === 'undefined') return;
+
+        // Le layout de la grille peut ne pas etre pret a l'appel synchrone (panneau
+        // fraichement affiche). On rend au frame suivant, quand les largeurs sont
+        // calculees - sinon uPlot part sur une largeur nulle et empile les labels.
+        requestAnimationFrame(() => renderMetricsChartsNow(container, days));
+    }
+
+    function renderMetricsChartsNow(container, days) {
+        if (typeof uPlot === 'undefined') return;
+        destroyMetricsCharts();
+        container.innerHTML = '';
+
+        // Les jours arrivent du plus recent au plus ancien: on inverse pour un axe
+        // temporel croissant (gauche = ancien, droite = aujourd'hui).
+        const ordered = [...days].reverse().filter(d => !d.no_data);
+        if (ordered.length < 2) {
+            container.innerHTML = '<div class="metrics-no-data"><p>Pas assez de jours pour tracer une tendance (minimum 2).</p></div>';
+            return;
+        }
+
+        const xs = ordered.map(d => new Date(d.date + 'T00:00:00').getTime() / 1000);
+
+        // Couleurs lues sur le theme courant (coherence sombre/clair).
+        const cs = getComputedStyle(document.documentElement);
+        const cssVar = (name, fallback) => (cs.getPropertyValue(name) || fallback).trim();
+        const axisColor = cssVar('--ctp-overlay1', '#9399b2');
+        const gridColor = 'rgba(127,127,127,0.12)';
+        const teal = cssVar('--ctp-teal', '#94e2d5');
+        const blue = cssVar('--ctp-blue', '#89b4fa');
+        const peach = cssVar('--ctp-peach', '#fab387');
+        const red = cssVar('--ctp-red', '#f38ba8');
+
+        // Largeur = celle du conteneur des graphes, mesuree maintenant (on est
+        // dans un requestAnimationFrame, le layout est fait). Les graphes sont
+        // empiles en pleine largeur (voir CSS): plus lisible pour 7 points et
+        // surtout aucun conflit largeur-fixe / cellule-de-grille qui faisait
+        // deborder le canvas a droite.
+        const chartWidth = () => Math.max(280, Math.floor(container.clientWidth) - 2);
+
+        // Fabrique un graphe uPlot pleine largeur.
+        function makeChart(title, series, yFormat) {
+            const wrap = document.createElement('div');
+            wrap.className = 'metrics-chart';
+            const heading = document.createElement('div');
+            heading.className = 'metrics-chart-title';
+            heading.textContent = title;
+            wrap.appendChild(heading);
+            container.appendChild(wrap);
+
+            const data = [xs, ...series.map(s => s.data)];
+            const opts = {
+                width: chartWidth(),
+                height: 200,
+                cursor: { y: false },
+                legend: { show: series.length > 1 },
+                scales: { x: { time: true } },
+                axes: [
+                    {
+                        stroke: axisColor,
+                        grid: { stroke: gridColor, width: 1 },
+                        ticks: { stroke: gridColor, width: 1 },
+                        // Un tick par jour reel (nos xs), pas la grille auto de uPlot
+                        // qui, avec peu de points sur une large zone, duplique les
+                        // dates (22/7 22/7 22/7...).
+                        splits: () => xs,
+                        values: (u, splits) => splits.map(v => {
+                            const d = new Date(v * 1000);
+                            return `${d.getDate()}/${d.getMonth() + 1}`;
+                        }),
+                        font: '11px Inter, sans-serif',
+                    },
+                    {
+                        stroke: axisColor,
+                        grid: { stroke: gridColor, width: 1 },
+                        ticks: { stroke: gridColor, width: 1 },
+                        values: (u, splits) => splits.map(yFormat),
+                        size: 52,
+                        font: '11px Inter, sans-serif',
+                    },
+                ],
+                series: [
+                    {},
+                    ...series.map(s => ({
+                        label: s.label,
+                        stroke: s.color,
+                        width: s.width || 2,
+                        points: { show: ordered.length <= 10, size: 5, stroke: s.color, fill: s.color },
+                    })),
+                ],
+            };
+
+            const u = new uPlot(opts, data, wrap);
+            metricsChartInstances.push(u);
+            return u;
+        }
+
+        const nInt = (v) => (v == null ? null : Math.round(v));
+
+        // 1) Activite: utilisateurs uniques + requetes (deux echelles trop
+        // differentes pour partager un axe -> deux graphes cote a cote).
+        makeChart('Utilisateurs uniques',
+            [{ label: 'Utilisateurs', data: ordered.map(d => nInt(d.unique_users)), color: teal }],
+            v => `${v}`);
+
+        makeChart('Requêtes',
+            [{ label: 'Requêtes', data: ordered.map(d => nInt(d.total_requests)), color: blue }],
+            v => v >= 1000 ? `${(v / 1000).toFixed(1)}k` : `${v}`);
+
+        // 2) Latence: p50 vs p95 sur le meme graphe. C'est LE graphe qui raconte
+        // l'histoire - l'ecart p50/p95 montre la dispersion que la moyenne cachait.
+        const p50 = ordered.map(d => nInt(d.latency?.p50 ?? d.latency?.avg));
+        const p95 = ordered.map(d => nInt(d.latency?.p95));
+        const hasP95 = p95.some(v => v != null && v > 0);
+        makeChart('Latence (médiane vs P95)',
+            hasP95
+                ? [
+                    { label: 'P50 (médiane)', data: p50, color: teal },
+                    { label: 'P95', data: p95, color: peach },
+                ]
+                : [{ label: 'P50 (médiane)', data: p50, color: teal }],
+            v => `${v}ms`);
+
+        observeMetricsContainer();
+    }
+
+    // Reflow des graphes quand leur conteneur change de largeur. Un ResizeObserver
+    // sur le conteneur est plus fiable que l'evenement window: il capte aussi le
+    // repli de la sidebar, l'apparition d'une scrollbar, etc. Tous les graphes
+    // etant pleine largeur, ils suivent la meme mesure.
+    let metricsResizeTimer = null;
+    function reflowMetricsCharts() {
+        const container = $('metricsCharts');
+        if (!container || !metricsChartInstances.length) return;
+        const w = Math.max(280, Math.floor(container.clientWidth) - 2);
+        metricsChartInstances.forEach(u => u.setSize({ width: w, height: 200 }));
+    }
+
+    let metricsResizeObserver = null;
+    function observeMetricsContainer() {
+        const container = $('metricsCharts');
+        if (!container || metricsResizeObserver || typeof ResizeObserver === 'undefined') return;
+        metricsResizeObserver = new ResizeObserver(() => {
+            clearTimeout(metricsResizeTimer);
+            metricsResizeTimer = setTimeout(reflowMetricsCharts, 120);
+        });
+        metricsResizeObserver.observe(container);
     }
 
     function renderDailyBreakdown(days) {
@@ -349,7 +648,7 @@ const SettingsManager = (() => {
                 <div style="text-align: center;">Utilisateurs</div>
                 <div style="text-align: center;">Requêtes</div>
                 <div style="text-align: center;">Sessions</div>
-                <div style="text-align: center;">Latence moy.</div>
+                <div style="text-align: center;" title="Latence médiane (p50) : moitié des requêtes plus rapides. Plus représentative que la moyenne, qui est gonflée par les requêtes lourdes (upload, ouverture de fichier).">Latence méd.</div>
                 <div>Activité</div>
             </div>
         `;
@@ -359,7 +658,10 @@ const SettingsManager = (() => {
             const dayName = dayNames[date.getDay()];
             const formattedDate = formatDate(day.date);
             const barWidth = maxRequests > 0 ? (day.total_requests / maxRequests * 100) : 0;
-            const avgLatency = day.latency?.avg || 0;
+            // Colonne latence: mediane (p50) et non moyenne. Repli sur avg pour
+            // les jours anciens dont les echantillons de percentiles n'ont pas ete
+            // persistes (retro-compat des donnees deja stockees).
+            const p50 = day.latency?.p50 ?? day.latency?.avg ?? 0;
 
             html += `
                 <div class="metrics-day-row">
@@ -367,7 +669,7 @@ const SettingsManager = (() => {
                     <div class="metrics-day-value highlight">${day.unique_users || 0}</div>
                     <div class="metrics-day-value">${formatNumber(day.total_requests || 0)}</div>
                     <div class="metrics-day-value">${day.sessions?.count || 0}</div>
-                    <div class="metrics-day-value">${avgLatency > 0 ? Math.round(avgLatency) + 'ms' : '-'}</div>
+                    <div class="metrics-day-value">${p50 > 0 ? Math.round(p50) + 'ms' : '-'}</div>
                     <div class="metrics-day-bar">
                         <div class="metrics-day-bar-fill" style="width: ${barWidth}%"></div>
                     </div>
@@ -433,6 +735,16 @@ const SettingsManager = (() => {
 
         const getClass = (v) => v < 100 ? 'good' : v < 500 ? 'warning' : 'bad';
 
+        // Ordre par percentiles croissants (lecture de distribution), la moyenne
+        // mise a l'ecart et annotee: c'est l'indicateur trompeur ici, on la garde
+        // pour reference mais on ne la met plus en avant. L'ecart p50 <-> avg <-> p95
+        // raconte l'histoire: si avg >> p50, quelques requetes lourdes tirent la
+        // moyenne, la majorite du trafic est en realite au niveau du p50.
+        const gap = latency.avg && latency.p50 ? latency.avg / Math.max(latency.p50, 1) : 1;
+        const gapNote = gap >= 2
+            ? `<div class="metrics-latency-note">La moyenne est ${gap.toFixed(1)}× la médiane : quelques requêtes lourdes (upload, ouverture de fichier) la gonflent. La médiane reflète l'expérience réelle.</div>`
+            : '';
+
         container.innerHTML = `
             <div class="metrics-latency-grid">
                 <div class="metrics-latency-item">
@@ -443,11 +755,7 @@ const SettingsManager = (() => {
                     <div class="metrics-latency-value ${getClass(latency.min)}">${Math.round(latency.min)}ms</div>
                     <div class="metrics-latency-label">Min</div>
                 </div>
-                <div class="metrics-latency-item">
-                    <div class="metrics-latency-value ${getClass(latency.avg)}">${Math.round(latency.avg)}ms</div>
-                    <div class="metrics-latency-label">Moyenne</div>
-                </div>
-                <div class="metrics-latency-item">
+                <div class="metrics-latency-item highlight">
                     <div class="metrics-latency-value ${getClass(latency.p50)}">${Math.round(latency.p50)}ms</div>
                     <div class="metrics-latency-label">P50 (médiane)</div>
                 </div>
@@ -456,10 +764,19 @@ const SettingsManager = (() => {
                     <div class="metrics-latency-label">P95</div>
                 </div>
                 <div class="metrics-latency-item">
+                    <div class="metrics-latency-value ${getClass(latency.p99 ?? latency.p95)}">${Math.round(latency.p99 ?? latency.p95)}ms</div>
+                    <div class="metrics-latency-label">P99</div>
+                </div>
+                <div class="metrics-latency-item">
                     <div class="metrics-latency-value ${getClass(latency.max)}">${Math.round(latency.max)}ms</div>
                     <div class="metrics-latency-label">Max</div>
                 </div>
+                <div class="metrics-latency-item muted">
+                    <div class="metrics-latency-value">${Math.round(latency.avg)}ms</div>
+                    <div class="metrics-latency-label">Moyenne (indicatif)</div>
+                </div>
             </div>
+            ${gapNote}
         `;
     }
 
@@ -481,6 +798,7 @@ const SettingsManager = (() => {
                 case 'savePreferences': savePreferences(); break;
                 case 'refreshUsers': loadUsersList(); break;
                 case 'refreshMetrics': refreshMetrics(target); break;
+                case 'saveBanner': saveBanner(); break;
                 case 'editUser': editUser(userId); break;
                 case 'toggleUserActive': toggleUserActive(userId, active === 'true'); break;
                 case 'showLogin': showLoginModal?.(); break;

@@ -1,5 +1,5 @@
 import { layoutToLxf, lxfToLayout } from './lxf.js';
-import { S } from './state.js';
+import { S } from '../core/state.js';
 
 /**
  * Baltimore Bird - Gestion des layouts (UI, persistance, format de fichier LXF).
@@ -11,12 +11,36 @@ import { S } from './state.js';
 
 const API = '/api';
 
+// Layout actuellement charge, pour pouvoir enregistrer les modifications par-dessus
+// plutot que de creer un doublon a chaque sauvegarde.
+//   { id, name, description, isStorageFile }
+// id === null => provenance sans emplacement serveur (import .lxf, layout de demo):
+// on pre-remplit le nom mais l'enregistrement cree une nouvelle entree.
+let currentLayout = null;
+
+function setCurrentLayout(info) {
+    currentLayout = info;
+}
+
+// Un layout n'est PAS lie a une acquisition: il est volontairement conserve au
+// changement de fichier (charger un layout, changer d'acquis, ajuster, enregistrer
+// est le cas d'usage principal). On ne l'oublie que si la mise en page est remise
+// a zero, ou l'ecraser n'aurait plus de sens.
+function clearCurrentLayout() {
+    currentLayout = null;
+}
+window.clearCurrentLayout = clearCurrentLayout;
+
 /**
  * Ouvre le drawer de gestion des layouts
  */
 function openLayoutsDrawer() {
     const drawer = document.getElementById('layoutsDrawer');
     if (drawer) {
+        // Le drawer partage son markup entre le mode liste et le mode sauvegarde
+        // (classe save-mode). L'ouverture en mode liste doit repartir de zero, sinon
+        // un save-mode residuel d'une sauvegarde precedente affiche le mauvais panneau.
+        drawer.classList.remove('save-mode');
         loadLayoutsList();
         drawer.classList.add('active');
     }
@@ -214,8 +238,19 @@ async function loadLayoutById(layoutId, isStorageFile = false, isLayoutsApi = fa
         
         const success = await window.applyLayout(layoutData);
         
-        if (success && typeof showNotification === 'function') {
-            showNotification(`Layout "${layoutName}" appliqué`, 'success');
+        if (success) {
+            // Memorise pour permettre "Mettre a jour" au lieu d'un doublon. Seuls les
+            // layouts du stockage utilisateur sont modifiables (les layouts de demo
+            // appartiennent a tout le monde: on les enregistre comme copie).
+            setCurrentLayout({
+                id: isStorageFile ? layoutId : null,
+                name: layoutData.name || 'Layout',
+                description: layoutData.description || '',
+                isStorageFile: Boolean(isStorageFile),
+            });
+            if (typeof showNotification === 'function') {
+                showNotification(`Layout "${layoutName}" appliqué`, 'success');
+            }
         }
         
     } catch (e) {
@@ -295,17 +330,38 @@ function openSaveLayoutDialog() {
     const guest = !isUserAuthenticated();
     drawer.classList.toggle('guest-mode', guest);
     const saveLabel = document.getElementById('footerSaveLabel');
-    if (saveLabel) saveLabel.textContent = guest ? 'Télécharger' : 'Sauvegarder';
     const guestHint = document.getElementById('layoutGuestHint');
     if (guestHint) guestHint.style.display = guest ? 'block' : 'none';
-    
+
+    // Un layout charge depuis l'espace utilisateur peut etre mis a jour en place.
+    // Sinon (import .lxf, layout de demo, invite) la sauvegarde cree une entree.
+    const canUpdate = Boolean(currentLayout && currentLayout.id && currentLayout.isStorageFile && !guest);
+    drawer.classList.toggle('update-mode', canUpdate);
+    if (saveLabel) {
+        saveLabel.textContent = guest ? 'Télécharger' : (canUpdate ? 'Mettre à jour' : 'Sauvegarder');
+    }
+    const updateHint = document.getElementById('layoutUpdateHint');
+    if (updateHint) {
+        updateHint.style.display = canUpdate ? 'block' : 'none';
+        if (canUpdate) updateHint.textContent = `Les modifications seront enregistrées dans « ${currentLayout.name} ».`;
+    }
+
+    // Pre-remplissage: evite de resaisir le nom a chaque enregistrement, et rend
+    // explicite le layout que l'on s'apprete a ecraser.
+    const nameInput = document.getElementById('saveLayoutName');
+    const descInput = document.getElementById('saveLayoutDesc');
+    if (currentLayout) {
+        if (nameInput && !nameInput.value) nameInput.value = currentLayout.name || '';
+        if (descInput && !descInput.value) descInput.value = currentLayout.description || '';
+    }
+
     drawer.classList.add('active');
     drawer.classList.add('save-mode');
     
     // Focus sur le champ nom
     setTimeout(() => {
-        const nameInput = document.getElementById('saveLayoutName');
-        if (nameInput) nameInput.focus();
+        const input = document.getElementById('saveLayoutName');
+        if (input) input.focus();
     }, 100);
 }
 
@@ -405,6 +461,16 @@ function importLayoutFromFile() {
 
         try {
             const success = await window.applyLayout(doc);
+            if (success) {
+                // Import fichier: pas d'emplacement serveur, donc pas de mise a jour
+                // en place possible. On retient le nom pour pre-remplir la sauvegarde.
+                setCurrentLayout({
+                    id: null,
+                    name: layoutName,
+                    description: '',
+                    isStorageFile: false,
+                });
+            }
             notify(
                 success ? `Layout "${layoutName}" appliqué` : "Échec de l'application du layout",
                 success ? 'success' : 'error'
@@ -425,7 +491,7 @@ function importLayoutFromFile() {
  * Utilisateur connecté : stockage dans son espace personnel.
  * Utilisateur non connecté : téléchargement du layout (aucun espace de stockage serveur).
  */
-async function saveCurrentLayout() {
+async function saveCurrentLayout(forceNew = false) {
     const nameInput = document.getElementById('saveLayoutName');
     const descInput = document.getElementById('saveLayoutDesc');
 
@@ -454,17 +520,25 @@ async function saveCurrentLayout() {
         return;
     }
 
+    // Mise a jour en place quand le layout provient de l'espace utilisateur: sans
+    // cela, chaque enregistrement creait une nouvelle entree (le serveur genere un
+    // identifiant a chaque envoi), et la liste se remplissait de doublons.
+    const doUpdate = !forceNew
+        && currentLayout && currentLayout.id && currentLayout.isStorageFile;
+
     try {
-        // Utilise l'API storage pour les layouts (compatible avec Settings > Stockage)
-        const response = await authFetch(`${API}/storage/json/layouts`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                name: name,
-                description: description,
-                content: window.exportCurrentLayout()
+        const content = window.exportCurrentLayout();
+        const response = doUpdate
+            ? await authFetch(`${API}/storage/files/${currentLayout.id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ content, description }),
             })
-        });
+            : await authFetch(`${API}/storage/json/layouts`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, description, content }),
+            });
 
         const result = await response.json();
 
@@ -472,8 +546,20 @@ async function saveCurrentLayout() {
             throw new Error(result.error || 'Erreur de sauvegarde');
         }
 
+        // La nouvelle entree devient le layout courant: un second enregistrement
+        // la met a jour au lieu d'empiler les copies.
+        setCurrentLayout({
+            id: doUpdate ? currentLayout.id : (result.file?.id || null),
+            name,
+            description,
+            isStorageFile: true,
+        });
+
         if (typeof showNotification === 'function') {
-            showNotification(`Layout "${name}" sauvegardé`, 'success');
+            showNotification(
+                doUpdate ? `Layout "${name}" mis à jour` : `Layout "${name}" sauvegardé`,
+                'success'
+            );
         }
 
         resetForm();
@@ -487,6 +573,11 @@ async function saveCurrentLayout() {
     }
 }
 
+// Enregistre une copie sans toucher au layout d'origine.
+function saveLayoutAsNew() {
+    return saveCurrentLayout(true);
+}
+
 // Exposition des fonctions publiques (onclick du modal + boutons de la toolbar EDA).
 window.saveLayout = saveLayout;
 window.loadLayout = loadLayout;
@@ -494,6 +585,7 @@ window.openLayoutsDrawer = openLayoutsDrawer;
 window.closeLayoutsDrawer = closeLayoutsDrawer;
 window.loadLayoutById = loadLayoutById;
 window.saveCurrentLayout = saveCurrentLayout;
+window.saveLayoutAsNew = saveLayoutAsNew;
 window.importLayoutFromFile = importLayoutFromFile;
 window.openSaveLayoutDialog = openSaveLayoutDialog;
 window.closeSaveMode = closeSaveMode;
