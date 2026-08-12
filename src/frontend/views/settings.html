@@ -71,6 +71,16 @@
                         </svg>
                         Métriques
                     </a>
+                    <a href="#"
+                       class="settings-nav-item"
+                       data-action="switchSection"
+                       data-section="banner">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M3 6h18M3 12h18M3 18h18"/>
+                            <rect x="2" y="4" width="20" height="6" rx="1"/>
+                        </svg>
+                        Bannière
+                    </a>
                 </div>
             </nav>
         </aside>
@@ -545,7 +555,7 @@
                     </div>
                     <div class="settings-stat-card">
                         <div class="settings-stat-value" id="metricAvgLatency">-</div>
-                        <div class="settings-stat-label">Latence moyenne</div>
+                        <div class="settings-stat-label">Latence médiane</div>
                     </div>
                 </div>
                 
@@ -573,6 +583,20 @@
                     <div class="metrics-weekly-summary" id="metricsWeeklySummary">
                         <div class="settings-loading">Chargement...</div>
                     </div>
+                </div>
+
+                <!-- Graphes de tendance (7 jours) -->
+                <div class="settings-card full-width">
+                    <div class="settings-card-header">
+                        <h4>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M3 3v18h18"/>
+                                <path d="M7 14l4-4 3 3 5-6"/>
+                            </svg>
+                            Tendances (7 derniers jours)
+                        </h4>
+                    </div>
+                    <div class="metrics-charts" id="metricsCharts"></div>
                 </div>
                 
                 <!-- Daily Breakdown -->
@@ -616,6 +640,75 @@
                     </div>
                     
                     <div class="metrics-latency-stats" id="metricsLatencyStats"></div>
+                </div>
+            </section>
+
+            <!-- Gestion de la bannière (admin) -->
+            <section class="settings-section" id="settings-banner">
+                <div class="settings-section-header">
+                    <h3>Bannière d'annonce</h3>
+                    <p class="">Affiche un ruban en haut de l'application pour tous les utilisateurs. Utile pour une maintenance planifiée ou une information importante.</p>
+                </div>
+
+                <div class="settings-card">
+                    <div class="banner-editor">
+                        <div class="banner-field banner-field-toggle">
+                            <label class="banner-switch">
+                                <input type="checkbox" id="bannerActive">
+                                <span class="banner-switch-slider"></span>
+                            </label>
+                            <div>
+                                <div class="banner-field-label">Bannière active</div>
+                                <div class="banner-field-hint">Désactivée, aucune bannière n'est affichée (le message est conservé).</div>
+                            </div>
+                        </div>
+
+                        <div class="banner-field">
+                            <label class="banner-field-label" for="bannerMessage">Message</label>
+                            <textarea id="bannerMessage" class="banner-textarea" rows="2" maxlength="500" placeholder="Ex : Maintenance prévue ce soir à 18h. Le service sera momentanément indisponible."></textarea>
+                            <div class="banner-char-count"><span id="bannerCharCount">0</span> / 500</div>
+                        </div>
+
+                        <div class="banner-field-row">
+                            <div class="banner-field">
+                                <label class="banner-field-label" for="bannerSeverity">Sévérité</label>
+                                <select id="bannerSeverity" class="banner-select">
+                                    <option value="info">Info</option>
+                                    <option value="warning">Avertissement</option>
+                                    <option value="critical">Critique</option>
+                                </select>
+                            </div>
+                            <div class="banner-field banner-field-checkbox">
+                                <label>
+                                    <input type="checkbox" id="bannerDismissible" checked>
+                                    <span>Peut être fermée par l'utilisateur</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="banner-field-row">
+                            <div class="banner-field">
+                                <label class="banner-field-label" for="bannerStartsAt">Début (optionnel)</label>
+                                <input type="datetime-local" id="bannerStartsAt" class="banner-input">
+                                <div class="banner-field-hint">Avant cette date, rien ne s'affiche.</div>
+                            </div>
+                            <div class="banner-field">
+                                <label class="banner-field-label" for="bannerEndsAt">Fin (optionnel)</label>
+                                <input type="datetime-local" id="bannerEndsAt" class="banner-input">
+                                <div class="banner-field-hint">Après cette date, la bannière disparaît.</div>
+                            </div>
+                        </div>
+
+                        <div class="banner-preview-block">
+                            <div class="banner-field-label">Aperçu</div>
+                            <div id="bannerPreview" class="banner-preview-empty">Aucun message</div>
+                        </div>
+
+                        <div class="banner-actions">
+                            <button class="settings-btn primary" id="bannerSaveBtn" data-action="saveBanner">Enregistrer</button>
+                            <span id="bannerSaveStatus" class="banner-save-status"></span>
+                        </div>
+                    </div>
                 </div>
             </section>
             

@@ -23,8 +23,8 @@
                     </button>
                 </div>
             </div>
-            <!-- Slots de comparaison: un selecteur de fichier par ligne. En v1 un seul
-                 slot (mono-fichier); le + et le - preparent le multi-fichiers. -->
+            <!-- Mono-fichier: selecteur de source actif (demo + uploads). En mode comparaison
+                 (opt-in via le bouton Comparer), ce slot se masque au profit du roster ci-dessous. -->
             <div class="run-slots" id="runSlots">
                 <div class="run-slot">
                     <span class="run-swatch"></span>
@@ -36,18 +36,16 @@
                             <circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/>
                         </svg>
                     </button>
-                    <button class="run-slot-remove" type="button" disabled title="Retirer ce fichier (multi-fichiers a venir)" aria-label="Retirer ce fichier">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <line x1="5" y1="12" x2="19" y2="12"/>
-                        </svg>
-                    </button>
                 </div>
             </div>
-            <button class="run-slot-add" type="button" disabled title="Ajouter un fichier a la comparaison (multi-fichiers a venir)">
+            <!-- Roster des runs en comparaison (rendu par run-list.js) -->
+            <div class="run-roster" id="runRoster"></div>
+            <!-- Entree / sortie du mode comparaison (opt-in), visible des deux fichiers uploades -->
+            <button class="run-compare-btn" id="runCompareBtn" type="button" style="display: none;">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+                    <rect x="3" y="4" width="8" height="16" rx="1"/><rect x="13" y="4" width="8" height="16" rx="1"/>
                 </svg>
-                <span>Ajouter un fichier</span>
+                <span>Comparer les fichiers</span>
             </button>
         </div>
 
@@ -58,7 +56,7 @@
         <div class="sidebar-signals" id="sidebarSignals">
             <div class="sidebar-header">
                 <div class="sidebar-title">Signaux</div>
-                <input type="text" class="search-box" id="search" placeholder="Rechercher..." autocomplete="off">
+                <input type="search" class="search-box" id="search" name="signal-filter" placeholder="Rechercher..." autocomplete="off" spellcheck="false">
             </div>
             <div class="signal-list" id="signalList">
                 <div class="signal-list-empty">Chargement...</div>
@@ -98,6 +96,25 @@
                 </svg>
             </button>
 
+            <span class="toolbar-divider" aria-hidden="true"></span>
+
+            <button class="toolbar-btn active" id="syncViewsToggle" aria-pressed="true" title="Synchroniser la fenetre temporelle entre les onglets : zoom et pan sont partages. Desactive, chaque onglet garde sa propre fenetre.">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+                    <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+                    <line class="icon-off-slash" x1="2" y1="2" x2="22" y2="22"/>
+                </svg>
+            </button>
+
+            <button class="toolbar-btn active" id="zoneTooltipToggle" aria-pressed="true" title="Tooltip de stats sur les zones booleennes etendues : apparait apres un court arret de la souris sur une zone (min / moy / max des signaux du panneau).">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                    <line x1="8" y1="9" x2="8" y2="12"/>
+                    <line x1="12" y1="7" x2="12" y2="12"/>
+                    <line x1="16" y1="10" x2="16" y2="12"/>
+                </svg>
+            </button>
+
             <button id="resetBtn">Reset Zoom</button>
             <span class="toolbar-divider" aria-hidden="true"></span>
             <button id="clearBtn">Effacer tout</button>
@@ -123,6 +140,31 @@
                             <line x1="12" y1="15" x2="12" y2="3"/>
                         </svg>
                         Load
+                    </button>
+                    <button class="tab-action-btn" id="importMdaBtn" title="Importer un layout ETAS MDA (.xdx)">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M14 3v4a1 1 0 0 0 1 1h4"/>
+                            <path d="M11.5 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v4"/>
+                            <path d="M15 18h6"/>
+                            <path d="M18 15l3 3-3 3"/>
+                        </svg>
+                        MDA
+                    </button>
+                    <input type="file" id="importMdaInput" accept=".xdx" style="display:none">
+                    <button class="tab-action-btn" id="shareViewBtn" title="Copier le lien de cette vue (fichier, layout, fenêtre, curseurs)">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+                            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+                        </svg>
+                        Lien
+                    </button>
+                    <button class="tab-action-btn" id="exportPngBtn" title="Exporter l'onglet en PNG (avec annotations)">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="3" y="3" width="18" height="18" rx="2"/>
+                            <circle cx="8.5" cy="8.5" r="1.5"/>
+                            <polyline points="21 15 16 10 5 21"/>
+                        </svg>
+                        PNG
                     </button>
                 </div>
             </div>
