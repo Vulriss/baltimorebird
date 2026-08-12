@@ -1,0 +1,111 @@
+// Baltimore Bird - Curseurs C1/C2 (lignes, labels, delta)
+// Partial extrait de _styles.scss (refactoring)
+@use '../abstracts/variables' as *;
+
+/* Cursors */
+.cursor-line {
+    position: absolute;
+    left: 0;
+    top: 0; bottom: 0;
+    width: 6px;
+    margin-left: -3px;
+    pointer-events: auto;
+    z-index: 50;
+    cursor: ew-resize;
+    /* Pas de will-change ici: promouvoir les lignes sur leur propre couche de
+       composition les desynchronise de la ligne delta (dont la largeur change
+       a chaque frame, donc paint sur le thread principal). Sans promotion,
+       tout l'overlay se presente dans la meme frame. */
+}
+
+.cursor-line::after {
+    content: '';
+    position: absolute;
+    left: 2px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: var(--cursor-color);
+}
+
+.cursor-line:hover::after {
+    width: 4px;
+    left: 1px;
+}
+
+.cursor-1 { --cursor-color: var(--cursor-a); }
+
+.cursor-2 { --cursor-color: var(--cursor-b); }
+
+.cursor-line.dragging::after {
+    width: 4px;
+    left: 1px;
+}
+
+.cursor-label {
+    position: absolute;
+    left: 0;
+    top: 0;
+    font-size: 10px;
+    font-family: monospace;
+    padding: 2px 5px;
+    border-radius: 3px;
+    pointer-events: none;
+    z-index: 60;
+    white-space: nowrap;
+    transform: translateY(-50%);
+    background: var(--cursor-label-bg);
+    border: 1px solid var(--sig-color);
+    color: var(--sig-color);
+}
+
+/* Cursor time labels (on each cursor line) */
+.cursor-time-label {
+    position: absolute;
+    top: 2px;
+    font-size: 10px;
+    font-family: monospace;
+    padding: 2px 6px;
+    border-radius: 3px;
+    pointer-events: none;
+    z-index: 70;
+    white-space: nowrap;
+    background: var(--cursor-label-bg);
+    border: 1px solid var(--cursor-color);
+    color: var(--cursor-color);
+    transform: translateX(-50%);
+    left: 0;
+}
+
+/* Delta connection line between cursors */
+.cursor-delta-line {
+    position: absolute;
+    left: 0;
+    top: 8px;
+    height: 2px;
+    background: repeating-linear-gradient(
+        90deg,
+        rgba(255, 170, 68, 0.6) 0px,
+        rgba(255, 170, 68, 0.6) 4px,
+        transparent 4px,
+        transparent 8px
+    );
+    pointer-events: none;
+    z-index: 45;
+}
+
+.cursor-delta-label {
+    position: absolute;
+    top: 2px;
+    font-size: 10px;
+    font-family: monospace;
+    padding: 2px 8px;
+    border-radius: 3px;
+    pointer-events: none;
+    z-index: 70;
+    white-space: nowrap;
+    background: var(--cursor-delta-bg);
+    color: var(--cursor-delta-fg);
+    transform: translateX(-50%);
+    left: 0;
+}

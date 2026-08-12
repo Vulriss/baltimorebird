@@ -1,0 +1,366 @@
+// Baltimore Bird - Panneaux de trace (strips bool/commentaires, splitter, dropzone)
+// Partial extrait de _styles.scss (refactoring)
+@use '../abstracts/variables' as *;
+
+/* === PLOTS === */
+.plots-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    padding: 0 8px 8px 0;
+}
+
+.plots-wrapper {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    overflow-x: hidden;
+    min-height: 0;
+}
+
+.plot-container {
+    background: $bg-card;
+    border: 1px solid $border-color;
+    border-radius: 6px;
+    display: flex;
+    flex-direction: column;
+    min-height: 100px;
+    overflow: hidden;
+    position: relative;
+}
+
+/* Strips booleen et commentaires: compacts, pas besoin de la hauteur d'un panneau analogique. */
+.plot-container.bool-strip { min-height: 56px; }
+
+.plot-container.comment-strip { min-height: 40px; }
+
+.plot-container.drop-target {
+    border-color: rgba(var(--ctp-overlay0-rgb), 0.5);
+    box-shadow: 0 0 10px rgba(85, 85, 204, 0.3);
+}
+
+//box-shadow: 0 0 10px rgba(85, 85, 204, 0.3); $bg-card
+
+.plot-main {
+    flex: 1;
+    display: flex;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.plot-body {
+    flex: 1;
+    min-height: 0;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.plot-body .chart {
+    width: 100%;
+    height: 100%;
+}
+
+/* Strip commentaires (events Ctrl+K): tooltip au survol d'un point d'event. */
+.comment-tooltip {
+    position: absolute;
+    top: 4px;
+    z-index: 20;
+    max-width: 280px;
+    padding: 6px 8px;
+    background: var(--ctp-crust);
+    border: 1px solid $border-light;
+    border-radius: 6px;
+    font-size: 11px;
+    line-height: 1.35;
+    color: var(--ctp-text);
+    pointer-events: none;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+}
+
+.comment-tooltip-text {
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.comment-tooltip-meta {
+    margin-top: 3px;
+    font-size: 10px;
+    color: var(--ctp-subtext0);
+}
+
+.comment-legend-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+}
+
+.plot-legend {
+    width: 150px;
+    flex-shrink: 0;
+    background: var(--ctp-mantle);
+    border-left: 1px solid $border-color;
+    padding: 8px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    transition: width $transition-base $ease-in-out;
+}
+
+.u-select {
+    background: rgba(99, 179, 237, .12);
+}
+
+// background: rgba(var(--ctp-teal-rgb), .12);
+
+/* Curseurs actifs: la zone s'elargit pour les colonnes de mesure */
+.plot-legend.has-cursor-table {
+    width: 430px;
+}
+
+.plot-legend::-webkit-scrollbar { width: 4px; }
+
+.plot-legend::-webkit-scrollbar-thumb { background: $border-light; border-radius: 2px; }
+
+.legend-item {
+    background: rgba(255,255,255,0.03);
+    border-radius: 4px;
+    font-size: 10px;
+    overflow: hidden;
+}
+
+.legend-item-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 6px;
+    cursor: pointer;
+    transition: background 0.1s;
+}
+
+.legend-item-header:hover {
+    background: rgba(255,255,255,0.05);
+}
+
+.legend-color-btn {
+    width: 16px;
+    height: 10px;
+    border-radius: 2px;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+}
+
+.legend-color-btn::-webkit-color-swatch-wrapper { padding: 0; }
+
+.legend-color-btn::-webkit-color-swatch { border: none; border-radius: 2px; }
+
+.legend-name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: $text-light;
+}
+
+.legend-toggle {
+    opacity: 0.4;
+    font-size: 8px;
+    transition: transform 0.2s;
+}
+
+.legend-item.expanded .legend-toggle {
+    transform: rotate(180deg);
+}
+
+.legend-remove {
+    opacity: 0;
+    cursor: pointer;
+    color: $text-dark;
+    font-size: 12px;
+    line-height: 1;
+    transition: opacity 0.1s;
+}
+
+.legend-item-header:hover .legend-remove {
+    opacity: 1;
+}
+
+.legend-remove:hover {
+    color: $ctp-red;
+}
+
+.legend-controls {
+    display: none;
+    padding: 6px;
+    background: var(--ctp-mantle);
+    border-top: 1px solid $border-color;
+}
+
+.legend-item.expanded .legend-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.legend-control-row {
+    display: grid;
+    grid-template-columns: 68px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 6px;
+    min-height: 24px;     /* rangees uniformes: les controles s'alignent verticalement */
+}
+
+.legend-control-row label {
+    color: $text-muted;
+    font-size: 9px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Separateur entre reglages d'apparence et mutateurs de donnees */
+.legend-controls-sep {
+    height: 1px;
+    margin: 3px 0;
+    background: $border-color;
+    opacity: 0.7;
+}
+
+.legend-analysis-group {
+    display: flex;
+    gap: 6px;
+}
+
+.legend-control-row input[type="range"] {
+    flex: 1;
+    min-width: 0;
+    height: 4px;
+    -webkit-appearance: none;
+    background: $border-color;
+    border-radius: 2px;
+    outline: none;
+}
+
+.legend-control-row input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 10px;
+    height: 10px;
+    background: rgba(var(--ctp-overlay0-rgb), 0.5);
+    border-radius: 50%;
+    cursor: pointer;
+}
+
+.legend-control-row select {
+    flex: 1;
+    min-width: 0;         /* idem: le select se cale dans la largeur disponible */
+    background: $bg-card;
+    border: 1px solid $border-color;
+    color: $text-light;
+    font-size: 9px;
+    padding: 2px 4px;
+    border-radius: 3px;
+    cursor: pointer;
+}
+
+.legend-control-row select:focus {
+    outline: none;
+    border-color: rgba(var(--ctp-overlay0-rgb), 0.5);
+}
+
+.legend-width-value {
+    color: $text-lighter;
+    font-size: 9px;
+    min-width: 20px;
+    text-align: right;
+}
+
+.plot-stats {
+    position: absolute;
+    bottom: 4px;
+    right: 6px;
+    padding: 0;
+    border-top: none;
+    background: transparent;
+    z-index: 5;
+}
+
+.plot-stats .plot-delete {
+    background: transparent;
+    border: none;
+    color: $ctp-red;
+    padding: 2px 6px;
+    font-size: 10px;
+    cursor: pointer;
+    border-radius: 3px;
+    transition: all 0.15s;
+    flex-shrink: 0;
+    margin-left: 8px;
+    // Revele au survol du panneau, comme la poignee et l'auto-Y: la zone utile
+    // du graphe reste prioritaire.
+    opacity: 0;
+}
+
+.plot-container:hover .plot-stats .plot-delete { opacity: 0.65; }
+
+.plot-stats .plot-delete:hover {
+    background: rgba(255, 100, 100, 0.15);
+    color: $ctp-red;
+    opacity: 1;
+}
+
+/* Splitter */
+.splitter {
+    height: 6px;
+    background: transparent;
+    cursor: row-resize;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s;
+}
+
+.splitter:hover, .splitter.active {
+    background: rgba(85, 85, 204, 0.2);
+}
+
+.splitter::after {
+    content: '';
+    width: 40px;
+    height: 3px;
+    background: $border-light;
+    border-radius: 2px;
+}
+
+.splitter:hover::after, .splitter.active::after {
+    background: rgba(var(--ctp-overlay0-rgb), 0.5);
+}
+
+/* Drop zone at bottom */
+.drop-zone {
+    border: 2px dashed $border-light;
+    border-radius: 6px;
+    padding: 8px;
+    text-align: center;
+    color: $text-darker;
+    font-size: 12px;
+    flex-shrink: 0;
+    margin-top: 4px;
+}
+
+.drop-zone.active { border-color: rgba(var(--ctp-overlay0-rgb), 0.5); background: rgba(85,85,204,0.1); color: rgba(var(--ctp-overlay1-rgb), 0.8); }
+
+.empty-plot {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: $text-darker;
+    background: $bg-card;
+    border: 1px solid $border-color;
+    border-radius: 6px;
+}

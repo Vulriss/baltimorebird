@@ -1,0 +1,512 @@
+// Baltimore Bird - Vue Data Converter (upload, formats, progression)
+// Partial extrait de _styles.scss (refactoring)
+@use '../abstracts/variables' as *;
+
+/* === DATA CONVERTER VIEW === */
+.converter-view {
+    flex: 1;
+    padding: 32px 40px;
+    overflow-y: auto;
+    max-width: 800px;
+}
+
+.converter-header {
+    margin-bottom: 32px;
+}
+
+.back-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: transparent;
+    border: none;
+    color: $text-muted;
+    font-size: 14px;
+    cursor: pointer;
+    padding: 8px 12px;
+    margin-left: -12px;
+    margin-bottom: 16px;
+    border-radius: 6px;
+    transition: all 0.2s;
+}
+
+.back-button:hover {
+    background: $bg-card;
+    color: $text-white;
+}
+
+.back-button svg {
+    width: 18px;
+    height: 18px;
+}
+
+.converter-title h1 {
+    font-size: 24px;
+    font-weight: 600;
+    color: $text-white;
+    margin-bottom: 8px;
+}
+
+.converter-title p {
+    font-size: 14px;
+    color: $text-muted;
+}
+
+.converter-notice {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-top: 20px;
+    padding: 16px;
+    background: rgba(var(--ctp-green-rgb), 0.05);
+    border: 1px solid rgba(var(--ctp-green-rgb), 0.2);
+    border-radius: 8px;
+}
+
+.notice-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    flex: 1;
+    min-width: 250px;
+}
+
+.notice-item svg {
+    width: 20px;
+    height: 20px;
+    color: $color-success;
+    flex-shrink: 0;
+    margin-top: 1px;
+}
+
+.notice-item span {
+    font-size: 13px;
+    color: $text-lighter;
+    line-height: 1.4;
+}
+
+.notice-item strong {
+    color: $color-success;
+}
+
+.converter-content {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.converter-card {
+    background: $bg-card;
+    border: 1px solid $border-color;
+    border-radius: 12px;
+    padding: 24px;
+}
+
+.converter-step {
+    display: flex;
+    gap: 16px;
+    padding: 20px 0;
+    border-bottom: 1px solid $border-color;
+}
+
+.converter-step:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.converter-step:first-child {
+    padding-top: 0;
+}
+
+.step-number {
+    width: 32px;
+    height: 32px;
+    background: $border-color;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: 600;
+    color: $text-muted;
+    flex-shrink: 0;
+}
+
+.step-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.step-label {
+    display: block;
+    font-size: 14px;
+    font-weight: 500;
+    color: $text-white;
+    margin-bottom: 12px;
+}
+
+/* File Input */
+.file-input-wrapper {
+    position: relative;
+}
+
+.file-input-wrapper input[type="file"] {
+    display: none;
+}
+
+.file-input-display {
+    border: 2px dashed $border-light;
+    border-radius: 8px;
+    padding: 24px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.file-input-display:hover {
+    border-color: $color-primary;
+    background: rgba(var(--ctp-teal-rgb), 0.05);
+}
+
+.file-input-display svg {
+    width: 32px;
+    height: 32px;
+    color: $text-dark;
+    margin-bottom: 12px;
+}
+
+.file-input-text {
+    display: block;
+    font-size: 14px;
+    color: $text-light;
+    margin-bottom: 4px;
+}
+
+.file-input-formats {
+    display: block;
+    font-size: 12px;
+    color: $text-dark;
+}
+
+.file-selected {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: $bg-hover;
+    border: 1px solid $border-light;
+    border-radius: 8px;
+    padding: 12px 16px;
+}
+
+.file-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+}
+
+.file-info svg {
+    width: 24px;
+    height: 24px;
+    color: $color-primary;
+    flex-shrink: 0;
+}
+
+.file-details {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.file-name {
+    font-size: 14px;
+    color: $text-white;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.file-size {
+    font-size: 12px;
+    color: $text-muted;
+}
+
+.file-remove {
+    background: transparent;
+    border: none;
+    color: $text-dark;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+    transition: all 0.2s;
+}
+
+.file-remove:hover {
+    background: rgba(255, 100, 100, 0.1);
+    color: $ctp-red;
+}
+
+.file-remove svg {
+    width: 18px;
+    height: 18px;
+}
+
+/* Format Select */
+.format-select {
+    width: 100%;
+    padding: 12px 16px;
+    background: $bg-hover;
+    border: 1px solid $border-light;
+    border-radius: 8px;
+    color: $text-white;
+    font-size: 14px;
+    cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+}
+
+.format-select:focus {
+    outline: none;
+    border-color: $color-primary;
+}
+
+.format-select option {
+    background: $bg-card;
+    color: $text-white;
+}
+
+.format-select.small {
+    padding: 8px 12px;
+    font-size: 13px;
+}
+
+/* Format Options */
+.format-options {
+    margin-top: 16px;
+    padding: 16px;
+    background: rgba(var(--ctp-teal-rgb), 0.05);
+    border: 1px solid $border-light;
+    border-radius: 8px;
+}
+
+.format-hint {
+    display: block;
+    margin-top: 8px;
+    font-size: 11px;
+    color: $text-dark;
+    font-style: italic;
+}
+
+/* Convert Button */
+.convert-state {
+    display: flex;
+}
+
+.convert-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    width: 100%;
+    padding: 14px 24px;
+    background: linear-gradient(135deg, $color-primary, $color-primary-dark);
+    border: none;
+    border-radius: 8px;
+    color: $ctp-crust;
+    font-size: 15px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.convert-button:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 16px rgba(var(--ctp-teal-rgb), 0.4);
+    filter: brightness(1.05);
+}
+
+.convert-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.convert-button svg {
+    width: 20px;
+    height: 20px;
+}
+
+/* Progress State */
+.progress-state {
+    padding: 8px 0;
+}
+
+.progress-info {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}
+
+.progress-info span {
+    font-size: 13px;
+    color: $text-muted;
+}
+
+#progressPercent {
+    color: $color-primary;
+    font-weight: 500;
+}
+
+.progress-bar {
+    height: 8px;
+    background: $border-color;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, $color-primary, $color-primary-dark);
+    border-radius: 4px;
+    transition: width 0.3s ease;
+}
+
+/* Complete State */
+.complete-state {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.complete-message {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    background: rgba(var(--ctp-green-rgb), 0.1);
+    border: 1px solid rgba(var(--ctp-green-rgb), 0.3);
+    border-radius: 8px;
+    color: $color-success;
+    font-size: 14px;
+}
+
+.complete-message svg {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+}
+
+.download-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    width: 100%;
+    padding: 14px 24px;
+    background: linear-gradient(135deg, $color-success, $color-success-dark);
+    border: none;
+    border-radius: 8px;
+    color: $ctp-crust;
+    font-size: 15px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.download-button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 16px rgba(var(--ctp-green-rgb), 0.4);
+    filter: brightness(1.05);
+}
+
+.download-button svg {
+    width: 20px;
+    height: 20px;
+}
+
+.reset-button {
+    background: transparent;
+    border: 1px solid $border-light;
+    border-radius: 8px;
+    padding: 10px 16px;
+    color: $text-muted;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.reset-button:hover {
+    border-color: $color-primary;
+    color: $text-white;
+}
+
+/* DBC Section */
+.dbc-section {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px dashed $border-color;
+}
+
+.step-label-small {
+    display: block;
+    font-size: 12px;
+    color: $text-muted;
+    margin-bottom: 8px;
+}
+
+.file-input-display.small {
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.file-input-display.small svg {
+    width: 20px;
+    height: 20px;
+    margin-bottom: 0;
+}
+
+.file-input-display.small .file-input-text {
+    margin-bottom: 0;
+    font-size: 13px;
+}
+
+.file-selected.small {
+    padding: 8px 12px;
+}
+
+.file-selected.small .file-info svg {
+    width: 18px;
+    height: 18px;
+}
+
+.file-selected.small .file-name {
+    font-size: 13px;
+}
+
+/* Error State */
+.error-state {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.error-message {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    background: rgba(var(--ctp-red-rgb), 0.1);
+    border: 1px solid rgba(var(--ctp-red-rgb), 0.3);
+    border-radius: 8px;
+    color: $color-error;
+    font-size: 14px;
+}
+
+.error-message svg {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+}

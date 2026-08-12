@@ -1,0 +1,56 @@
+// Baltimore Bird - Zone de contenu principale et vues placeholder
+// Partial extrait de _styles.scss (refactoring)
+@use '../abstracts/variables' as *;
+
+/* === MAIN CONTENT === */
+.main-content {
+    flex: 1;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.view-container {
+    display: none;
+    height: 100%;
+    overflow: hidden;
+}
+
+.view-container.active {
+    display: flex;
+}
+
+/* === PLACEHOLDER VIEWS === */
+.placeholder-view {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: $text-darker;
+    gap: 16px;
+}
+
+.placeholder-view svg {
+    opacity: 0.3;
+}
+
+.placeholder-view h2 {
+    font-size: 24px;
+    font-weight: 600;
+    color: $text-muted;
+}
+
+.placeholder-view p {
+    font-size: 14px;
+    color: $text-dark;
+}
+
+.coming-soon {
+    padding: 6px 16px;
+    background: $bg-hover;
+    border-radius: 20px;
+    font-size: 12px;
+    color: $color-primary;
+    margin-top: 8px;
+}

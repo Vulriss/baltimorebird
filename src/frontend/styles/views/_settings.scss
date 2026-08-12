@@ -1,4 +1,4 @@
-@use 'abstracts/variables' as *;
+@use '../abstracts/variables' as *;
 
 /* =============================================================================
    Settings Styles
@@ -641,8 +641,18 @@
     background: linear-gradient(135deg, $bg-card 0%, $bg-hover 100%);
 }
 
+// Highlight temps reel: teinte discrete + valeur teal, comme la highlight
+// generale. On a d'abord tente un fond teal PLEIN, mais le teal Catppuccin est
+// pastel-clair en Mocha et fonce en Latte: aucune couleur de texte fixe ne reste
+// lisible sur les deux (blanc = 1.5:1 en sombre, texte sombre = illisible en clair).
+// Un fond legerement teinte garde le texte teal contraste dans les deux themes.
 .metrics-realtime .settings-stat-card.highlight {
-    background: linear-gradient(135deg, $color-primary 0%, $color-primary-dark 100%);
+    background: rgba(var(--ctp-teal-rgb), 0.12);
+    border-color: $color-primary;
+}
+
+.metrics-realtime .settings-stat-card.highlight .settings-stat-value {
+    color: var(--stat-highlight-text);
 }
 
 /* Weekly Summary */
@@ -822,7 +832,7 @@
 
 .metrics-latency-grid {
     display: grid;
-    grid-template-columns: repeat(6, 1fr);
+    grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
     gap: 16px;
 }
 
@@ -831,6 +841,28 @@
     border-radius: 8px;
     padding: 16px;
     text-align: center;
+
+    // La mediane est l'indicateur a privilegier: on l'entoure discretement.
+    &.highlight {
+        outline: 1px solid $color-accent;
+        outline-offset: -1px;
+    }
+
+    // La moyenne, gardee pour reference mais deprioritisee visuellement.
+    &.muted {
+        opacity: 0.6;
+    }
+}
+
+.metrics-latency-note {
+    margin-top: 12px;
+    padding: 10px 12px;
+    background: $bg-darkest;
+    border-left: 3px solid $color-warning;
+    border-radius: 6px;
+    font-size: 12px;
+    line-height: 1.5;
+    color: $text-secondary;
 }
 
 .metrics-latency-value {
@@ -917,10 +949,6 @@
         grid-template-columns: repeat(2, 1fr);
     }
     
-    .metrics-latency-grid {
-        grid-template-columns: repeat(3, 1fr);
-    }
-    
     .metrics-day-row {
         grid-template-columns: 100px repeat(3, 1fr) 80px;
     }
@@ -992,5 +1020,212 @@
     
     .metrics-latency-grid {
         grid-template-columns: repeat(2, 1fr);
+    }
+}
+/* =============================================================================
+   Graphes de metriques (tendances 7 jours)
+   ============================================================================= */
+.metrics-charts {
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+    padding: 8px 4px;
+    // Barriere anti-debordement: uPlot dessine un canvas de largeur fixe; on
+    // borne la zone pour qu'un eventuel surplus soit masque plutot que d'elargir
+    // la page vers la droite.
+    max-width: 100%;
+    overflow: hidden;
+}
+
+.metrics-chart {
+    min-width: 0;      // autorise uPlot a retrecir sous le conteneur flex
+    max-width: 100%;
+    overflow: hidden;  // clippe un canvas trop large au lieu de deborder
+}
+
+.metrics-chart-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: $text-secondary;
+    margin-bottom: 8px;
+}
+
+/* uPlot: legende sobre, alignee au theme */
+.metrics-chart .u-legend {
+    font-size: 11px;
+    margin-top: 4px;
+}
+.metrics-chart .u-legend .u-marker {
+    width: 10px;
+    height: 10px;
+}
+
+/* =============================================================================
+   Editeur de banniere (admin)
+   ============================================================================= */
+.banner-editor {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    max-width: 640px;
+}
+
+.banner-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.banner-field-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: $text-secondary;
+}
+
+.banner-field-hint {
+    font-size: 12px;
+    color: $text-muted;
+}
+
+.banner-field-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+}
+
+.banner-field-toggle {
+    flex-direction: row;
+    align-items: center;
+    gap: 14px;
+}
+
+.banner-textarea,
+.banner-input,
+.banner-select {
+    width: 100%;
+    padding: 10px 12px;
+    background: $bg-darkest;
+    border: 1px solid $border-color;
+    border-radius: 8px;
+    color: $text-primary;
+    font-size: 14px;
+    font-family: inherit;
+
+    &:focus {
+        outline: none;
+        border-color: $color-accent;
+    }
+}
+
+.banner-textarea {
+    resize: vertical;
+    min-height: 52px;
+}
+
+.banner-char-count {
+    align-self: flex-end;
+    font-size: 11px;
+    color: $text-muted;
+}
+
+.banner-field-checkbox {
+    justify-content: flex-end;
+
+    label {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 13px;
+        color: $text-secondary;
+        cursor: pointer;
+    }
+}
+
+/* Interrupteur on/off */
+.banner-switch {
+    position: relative;
+    display: inline-block;
+    width: 44px;
+    height: 24px;
+    flex-shrink: 0;
+
+    input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+    }
+}
+
+.banner-switch-slider {
+    position: absolute;
+    inset: 0;
+    background: $bg-hover;
+    border: 1px solid $border-color;
+    border-radius: 24px;
+    cursor: pointer;
+    transition: background 0.2s;
+
+    &::before {
+        content: '';
+        position: absolute;
+        height: 18px;
+        width: 18px;
+        left: 2px;
+        top: 2px;
+        background: $text-muted;
+        border-radius: 50%;
+        transition: transform 0.2s, background 0.2s;
+    }
+}
+
+.banner-switch input:checked + .banner-switch-slider {
+    background: rgba(var(--ctp-teal-rgb), 0.25);
+    border-color: $color-accent;
+
+    &::before {
+        transform: translateX(20px);
+        background: $color-accent;
+    }
+}
+
+/* Apercu: reprend l'apparence reelle du ruban (.bb-banner-*) */
+.banner-preview-block {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.banner-preview {
+    position: static;
+    border-radius: 8px;
+    padding: 12px 16px;
+    font-size: 14px;
+}
+
+.banner-preview-empty {
+    padding: 12px 16px;
+    border: 1px dashed $border-color;
+    border-radius: 8px;
+    color: $text-muted;
+    font-size: 13px;
+    font-style: italic;
+}
+
+.banner-actions {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.banner-save-status {
+    font-size: 13px;
+
+    &.success { color: $color-success; }
+    &.error { color: $color-error; }
+}
+
+@media (max-width: 640px) {
+    .banner-field-row {
+        grid-template-columns: 1fr;
     }
 }

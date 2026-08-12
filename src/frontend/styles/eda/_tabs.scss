@@ -1,0 +1,198 @@
+// Baltimore Bird - Systeme d'onglets (drag & drop inclus)
+// Partial extrait de _styles.scss (refactoring)
+@use '../abstracts/variables' as *;
+
+/* === TABS SYSTEM === */
+.tabs-container {
+    display: flex;
+    align-items: center;
+    padding: 0 12px;
+    background: transparent; /* Même couleur que le fond */
+    gap: 4px;
+    min-height: 36px;
+    flex-shrink: 0;
+}
+
+.tabs-list {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    overflow-x: auto;
+    /* overflow-x seul force overflow-y de visible a auto: le decalage top de 1px des
+       onglets (jonction visuelle avec les plots) creait alors une scrollbar verticale
+       d'un pixel. */
+    overflow-y: hidden;
+    padding: 4px 0 0;
+    /* Supprimé: flex: 1; pour que le bouton + soit juste après */
+}
+
+.tabs-list::-webkit-scrollbar {
+    height: 3px;
+}
+
+.tabs-list::-webkit-scrollbar-thumb {
+    background: $border-light;
+    border-radius: 2px;
+}
+
+.tab-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 12px;
+    background: transparent;
+    border: 1px solid transparent;
+    border-bottom: none;
+    border-radius: 6px 6px 0 0;
+    color: $text-muted;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+    position: relative;
+    top: 1px;
+}
+
+.tab-item:hover {
+    background: rgba(255, 255, 255, 0.05);
+    color: $text-light;
+}
+
+.tab-item.active {
+    background: $bg-card;
+    border-color: $border-color;
+    color: $text-white;
+}
+
+.tab-name {
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.tab-name-input {
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid $color-primary;
+    color: $text-white;
+    font-size: 12px;
+    padding: 0;
+    width: 100px;
+    outline: none;
+}
+
+.tab-close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 16px;
+    width: 16px;
+    height: 16px;
+    background: transparent;
+    border: none;
+    border-radius: 3px;
+    color: $text-dark;
+    font-size: 14px;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0 2px; /* NSM j'arrive pas à faire la croix en entier :( */
+    transition: all 0.15s;
+    opacity: 0;
+    margin-left: 4px; /* Espace supplémentaire à gauche de la croix */
+}
+
+.tab-item:hover .tab-close,
+.tab-item.active .tab-close {
+    opacity: 1;
+}
+
+/* Reorganisation des onglets par glisser-deposer */
+.tab-item.dragging {
+    opacity: 0.5;
+}
+
+.tab-item.drop-before {
+    box-shadow: inset 2px 0 0 $color-accent;
+}
+
+.tab-item.drop-after {
+    box-shadow: inset -2px 0 0 $color-accent;
+}
+
+.tab-close:hover {
+    background: rgba(255, 100, 100, 0.2);
+    color: $ctp-red;
+}
+
+.tab-add {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    background: transparent;
+    border: 1px dashed $border-light;
+    border-radius: 4px;
+    color: $text-dark;
+    font-size: 16px;
+    cursor: pointer;
+    transition: all 0.15s;
+    flex-shrink: 0;
+    margin-left: 6px;
+    position: relative;
+    top: 1px; /* Même décalage que les tabs */
+}
+
+.tab-add:hover {
+    border-color: $color-primary;
+    color: $color-primary;
+    background: rgba(var(--ctp-teal-rgb), 0.1);
+}
+
+.tabs-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: auto;
+    padding-left: 12px;
+    border-left: 1px solid $border-color;
+    position: relative;
+    top: 1px; /* Même décalage que les tabs */
+}
+
+.tab-action-btn {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 5px 10px;
+    background: transparent;
+    border: 1px solid $border-light;
+    border-radius: 4px;
+    color: $text-muted;
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.tab-action-btn:hover {
+    border-color: $color-primary;
+    color: $text-white;
+    background: rgba(var(--ctp-teal-rgb), 0.1);
+}
+
+.tab-action-btn svg {
+    width: 14px;
+    height: 14px;
+}
+
+/* Tab content areas */
+.tab-content {
+    display: none;
+    flex: 1;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.tab-content.active {
+    display: flex;
+}

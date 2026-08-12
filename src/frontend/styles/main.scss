@@ -1,17 +1,50 @@
 // =========================================================================
 // MAIN - Point d'entrée principal SCSS
 // Baltimore Bird - Automotive Data Analysis Platform
+//
+// Structure (miroir de src/):
+//   abstracts/  variables partagées (couleurs, espacements, typo)
+//   core/       base, nav, layout, scrollbars, a11y, auth, banner, feedback, prism
+//   eda/        vue EDA: sidebar, toolbar, tabs, plots, curseurs, légende,
+//               drawers, modale d'upload, liste de signaux, run-list, export
+//   views/      autres vues: utilities, data-converter, concatenation,
+//               dashboard, settings, storage, reports
+//
+// L'ordre des @use reproduit l'ordre de cascade de l'ancien _styles.scss :
+// ne pas réordonner sans vérifier les overrides.
 // =========================================================================
 
-// Variables (optionnel - pour usage futur)
 @use 'abstracts/variables' as *;
 
-// Tous les styles originaux - importés tels quels
-@use 'styles';
-@use 'dashboard';
-@use 'settings';
-@use 'storage';
-@use 'auth';
-@use 'reports';
-@use 'run-list';
-@use 'python-syntax-prism';
+// --- ex-_styles.scss, dans l'ordre d'origine ---
+@use 'core/base';
+@use 'core/nav';
+@use 'core/layout';
+@use 'views/utilities';
+@use 'views/data-converter';
+@use 'views/concatenation';
+@use 'eda/sidebar';
+@use 'eda/var-drawer';
+@use 'eda/layouts-drawer';
+@use 'eda/signal-list';
+@use 'eda/toolbar';
+@use 'eda/upload-modal';
+@use 'eda/tabs';
+@use 'eda/plots';
+@use 'eda/cursors';
+@use 'core/scrollbars';
+@use 'core/a11y';
+@use 'eda/legend-table';
+@use 'eda/zone-stats';
+
+// --- partials historiques, ordre inchangé ---
+@use 'views/dashboard';
+@use 'views/settings';
+@use 'views/storage';
+@use 'core/auth';
+@use 'views/reports';
+@use 'eda/run-list';
+@use 'eda/export-annotate';
+@use 'core/banner';
+@use 'core/feedback';
+@use 'core/python-syntax-prism';

@@ -1,0 +1,85 @@
+@use '../abstracts/variables' as *;
+
+.fb-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 5000;
+    background: rgba(0, 0, 0, 0.55);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+}
+
+.fb-modal {
+    width: 100%;
+    max-width: 460px;
+    background: $bg-card-elevated;
+    border: 1px solid $border-color;
+    border-radius: 10px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+}
+
+.fb-title {
+    margin: 0;
+    font-size: 16px;
+    color: $text-primary;
+}
+
+.fb-message,
+.fb-email {
+    width: 100%;
+    box-sizing: border-box;
+    background: $bg-input;
+    color: $text-primary;
+    border: 1px solid $border-color;
+    border-radius: 6px;
+    padding: 8px 10px;
+    font-size: 13px;
+    font-family: inherit;
+}
+
+.fb-message {
+    resize: vertical;
+    min-height: 90px;
+}
+
+.fb-status {
+    min-height: 16px;
+    font-size: 12px;
+    color: $text-secondary;
+}
+
+.fb-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+.fb-btn {
+    border: 1px solid $border-color;
+    border-radius: 6px;
+    padding: 7px 14px;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.fb-cancel {
+    background: transparent;
+    color: $text-secondary;
+}
+
+.fb-send {
+    background: $color-accent;
+    color: $text-on-accent;
+    border-color: $color-accent;
+}
+
+.fb-send:disabled {
+    opacity: 0.6;
+    cursor: default;
+}

@@ -1,0 +1,210 @@
+// Baltimore Bird - Items de la liste de signaux (selection, lazy, calculees)
+// Partial extrait de _styles.scss (refactoring)
+@use '../abstracts/variables' as *;
+
+/* Selection multiple (clic, Ctrl, Shift) */
+.signal-item.selected {
+    background: $bg-hover;
+    border-color: $color-accent;
+    border-left-color: $color-accent;
+}
+
+.signal-item.active { 
+    border-left-color: var(--signal-color, $signal-active-color); 
+}
+
+.signal-item.active .signal-dot {
+    background: var(--signal-color, $signal-active-color);
+    box-shadow: 0 0 6px var(--signal-color, $signal-active-color);
+}
+
+.signal-dot {
+    width: 8px; 
+    height: 8px;
+    min-width: 8px; /* Empêche le rétrécissement */
+    border-radius: 50%;
+    background: $text-darker;
+    transition: all 0.15s;
+    flex-shrink: 0; /* Ne jamais rétrécir */
+}
+
+.signal-item.not-loaded {
+    opacity: 0.6;
+    cursor: default;
+}
+
+.signal-item.not-loaded:hover {
+    opacity: 0.8;
+}
+
+.signal-item.not-loaded .signal-name {
+    font-style: italic;
+}
+
+/* Indicateur lazy (dot en pointillés) */
+.signal-dot.lazy-indicator {
+    background: transparent !important;
+    border: 2px dashed var(--surface2, #666);
+    box-sizing: border-box;
+}
+
+/* Loader spinner */
+.signal-loader {
+    width: 12px;
+    height: 12px;
+    border: 2px solid var(--surface2, #444);
+    border-top-color: var(--accent, #fab387);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin-left: auto;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* État de chargement */
+.signal-item.loading {
+    opacity: 0.8;
+}
+
+.signal-item.loading .signal-name {
+    color: var(--accent, #fab387);
+}
+
+/* Erreur de chargement */
+.signal-item.load-error .signal-dot {
+    border-color: var(--red, #f38ba8) !important;
+}
+
+/* Signal chargé et actif dans un plot */
+.signal-item.active .signal-dot {
+    background: var(--signal-color) !important;
+    border: none;
+}
+
+.signal-name { 
+    flex: 1;
+    min-width: 0; /* Permet le truncate */
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.signal-unit { 
+    color: $text-dark; 
+    font-size: 10px;
+    flex-shrink: 0; /* Ne jamais rétrécir */
+    min-width: 30px;
+    text-align: right;
+}
+
+/* Badge de couverture multi-fichiers (present dans N runs sur le total) */
+/* Cible de reorganisation intra-legende (drag d'une ligne sur une autre du meme panneau). */
+.legend-row .lt-name.reorder-target {
+    box-shadow: inset 0 2px 0 var(--ctp-teal);
+}
+
+.legend-row .lt-name[draggable="true"] {
+    cursor: grab;
+}
+
+.signal-coverage {
+    flex-shrink: 0;
+    margin-left: 6px;
+    padding: 1px 5px;
+    border-radius: 8px;
+    font-size: 9px;
+    font-weight: 600;
+    line-height: 1.4;
+    color: $ctp-teal;
+    background: rgba(var(--ctp-teal-rgb), 0.14);
+}
+
+.signal-coverage.partial {
+    color: $ctp-peach;
+    background: rgba(var(--ctp-peach-rgb), 0.16);
+}
+
+/* Sur une variable calculee, le "fx" est absolu a droite: on decale le badge de couverture
+   pour qu'ils ne se superposent pas. */
+.signal-item.computed .signal-coverage {
+    margin-right: 20px;
+}
+
+/* Variables calculées - style distinct avec Teal */
+.signal-item.computed {
+    background: rgba(var(--ctp-teal-rgb), 0.08);
+    border-left: 3px solid $ctp-teal;
+    position: relative;
+    
+    // Petit indicateur "fx" discret
+    &::before {
+        content: 'fx';
+        position: absolute;
+        top: 50%;
+        right: 8px;
+        transform: translateY(-50%);
+        font-size: 9px;
+        font-weight: 600;
+        font-family: $font-mono;
+        color: $ctp-teal;
+        opacity: 0.6;
+        pointer-events: none;
+    }
+    
+    &:hover {
+        background: rgba(var(--ctp-teal-rgb), 0.15);
+        border-color: $ctp-teal;
+        cursor: pointer;
+        
+        &::before {
+            opacity: 1;
+        }
+    }
+    
+    .signal-dot {
+        background: $ctp-teal;
+    }
+    
+    .signal-name {
+        color: $ctp-text;
+    }
+    
+    .signal-unit {
+        margin-right: 20px; // Espace pour le "fx"
+    }
+}
+
+.signal-item.computed.active {
+    border-left-color: var(--signal-color, $ctp-teal);
+    background: rgba(var(--ctp-teal-rgb), 0.12);
+    
+    .signal-dot {
+        background: var(--signal-color, $ctp-teal);
+        box-shadow: 0 0 6px var(--signal-color, $ctp-teal);
+    }
+}
+
+.legend-extend-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding-top: 4px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    margin-top: 4px;
+}
+
+.legend-extend-row label {
+    font-size: 11px;
+    color: #a6adc8;
+    cursor: help;
+}
+
+.extend-zones-toggle {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+    accent-color: #89b4fa;
+}

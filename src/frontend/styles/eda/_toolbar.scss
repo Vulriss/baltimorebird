@@ -1,0 +1,174 @@
+// Baltimore Bird - Toolbar EDA (selecteur de source, clear/reset)
+// Partial extrait de _styles.scss (refactoring)
+@use '../abstracts/variables' as *;
+
+/* === MAIN === */
+.main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.toolbar {
+    padding: 10px 16px;
+    background: $bg-darkest;
+    border-bottom: 1px solid $border-color;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.toolbar-title { font-size: 16px; font-weight: 600; }
+
+.toolbar-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.toolbar-group label { font-size: 11px; color: $text-muted; }
+
+/* Source selector */
+#sourceSelector {
+    padding: 6px 10px;
+    background: $bg-card;
+    border: 1px solid $border-color;
+    border-radius: 4px;
+    color: $text-primary;
+    font-size: 12px;
+    cursor: pointer;
+    min-width: 150px;
+    max-width: 250px;      /* Largeur max fixe */
+    width: 250px;          /* Largeur fixe */
+    text-overflow: ellipsis;  /* Tronque les noms longs */
+}
+
+#sourceSelector:focus { outline: none; border-color: $border-focus; }
+
+#sourceSelector:hover { background: $bg-hover; }
+
+#sourceSelector option { background: $bg-card; color: $text-primary; }
+
+#sourceSelector option:disabled { color: $text-dark; }
+
+button {
+    background: $border-light;
+    color: $text-white;
+    border: none;
+    padding: 6px 14px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+}
+
+.toolbar-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    padding: 0 !important;
+    background: $ctp-surface1;
+    border: 1px solid $ctp-surface2;
+    border-radius: 4px;
+    color: $ctp-subtext1;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.toolbar-btn:hover {
+    background: $ctp-teal;
+    border-color: $ctp-teal;
+    color: $ctp-crust;
+}
+
+.toolbar-btn.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Séparateur vertical entre groupes de la toolbar EDA */
+.toolbar-divider {
+    align-self: center;
+    width: 1px;
+    height: 24px;
+    background: $ctp-surface2;
+    margin: 0 -4px;
+}
+
+.toolbar-btn.active {
+    background: $color-accent;
+    border-color: $color-accent;
+    color: $ctp-crust;
+}
+
+.toolbar-btn.active:hover {
+    background: $ctp-teal;
+    border-color: $ctp-teal;
+    color: $ctp-crust;
+}
+
+// Masquage des infos de curseur quand le bouton est inactif: temps en haut, ligne et
+// valeur de delta, valeurs par courbe. Les lignes de curseur restent visibles.
+body.hide-cursor-labels .cursor-time-label,
+body.hide-cursor-labels .cursor-delta-line,
+body.hide-cursor-labels .cursor-delta-label,
+body.hide-cursor-labels .cursor-label {
+    display: none !important;
+}
+
+.toolbar-btn svg {
+    width: 16px;
+    height: 16px;
+}
+
+/* === CLEAR & RESET BUTTONS (EDA toolbar) === */
+#clearBtn,
+#resetBtn {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px 14px;
+    background: $ctp-surface1;
+    border: 1px solid $ctp-surface2;
+    border-radius: 4px;
+    color: $ctp-subtext1;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    overflow: hidden;
+    transition: all 0.2s ease;
+    z-index: 1;
+}
+
+/* Clear button - wipe animation */
+#clearBtn::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 0;
+    height: 100%;
+    background: $ctp-red;
+    z-index: -1;
+    transition: width 0.35s ease;
+}
+
+#clearBtn:hover {
+    color: $ctp-crust;
+    border-color: $ctp-red;
+}
+
+#clearBtn:hover::after {
+    width: 100%;
+}
+
+/* Reset button - simple hover */
+#resetBtn:hover {
+    background: $ctp-teal;
+    border-color: $ctp-teal;
+    color: $ctp-crust;
+}

@@ -1,0 +1,260 @@
+@use '../abstracts/variables' as *;
+
+/* =============================================================================
+   Export PNG avec annotations - modale plein ecran
+   ============================================================================= */
+
+.exp-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 4000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(2px);
+}
+
+.exp-panel {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-width: 96vw;
+    max-height: 94vh;
+    padding: 12px;
+    background: $bg-card-elevated;
+    border: 1px solid $border-color;
+    border-radius: 10px;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+}
+
+.exp-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+/* Corps deux volets: scene d'annotation a gauche, rapport a droite */
+.exp-body {
+    display: flex;
+    gap: 12px;
+    min-height: 0;
+}
+
+.exp-left {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    align-items: flex-start;
+    min-width: 0;
+    overflow: auto;
+}
+
+.exp-section-title {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: $text-secondary;
+}
+
+.exp-close {
+    position: absolute;
+    top: 8px;
+    right: 10px;
+    width: 26px;
+    height: 26px;
+    padding: 0;
+    background: transparent;
+    border: 1px solid $border-color;
+    border-radius: 6px;
+    color: $text-secondary;
+    font-size: 16px;
+    line-height: 1;
+    cursor: pointer;
+
+    &:hover {
+        border-color: $color-accent;
+        color: $color-accent;
+    }
+}
+
+.exp-report {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    flex: 0 0 380px;
+    min-height: 0;
+    padding-left: 12px;
+    border-left: 1px solid $border-color;
+}
+
+.exp-rep-actions {
+    display: flex;
+    gap: 8px;
+
+    .exp-tool { flex: 1; }
+}
+
+.exp-rep-list {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding-right: 2px;
+}
+
+.exp-rep-empty {
+    padding: 24px 12px;
+    color: $text-secondary;
+    font-size: 12px;
+    text-align: center;
+    border: 1px dashed $border-color;
+    border-radius: 8px;
+}
+
+.exp-rep-block {
+    position: relative;
+    padding: 8px;
+    background: $bg-card;
+    border: 1px solid $border-color;
+    border-radius: 8px;
+
+    &:hover .exp-rep-controls { opacity: 1; }
+}
+
+.exp-rep-controls {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    display: flex;
+    gap: 2px;
+    opacity: 0;
+    transition: opacity 0.12s;
+}
+
+.exp-rep-ctrl {
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    background: $bg-card-elevated;
+    border: 1px solid $border-color;
+    border-radius: 4px;
+    color: $text-secondary;
+    font-size: 12px;
+    line-height: 1;
+    cursor: pointer;
+
+    &:hover {
+        border-color: $color-accent;
+        color: $color-accent;
+    }
+}
+
+.exp-rep-thumb {
+    width: 100%;
+    border-radius: 4px;
+    border: 1px solid $border-color;
+    display: block;
+}
+
+.exp-rep-input {
+    width: 100%;
+    margin-top: 6px;
+    padding: 6px 8px;
+    background: $bg-card-elevated;
+    border: 1px solid $border-color;
+    border-radius: 4px;
+    color: $text-primary;
+    font-size: 12px;
+    font-family: inherit;
+    resize: none;
+
+    &:focus {
+        outline: none;
+        border-color: $border-focus;
+    }
+}
+
+.exp-rep-title {
+    margin-top: 0;
+    font-weight: 600;
+}
+
+.exp-tool {
+    height: 30px;
+    padding: 0 12px;
+    background: transparent;
+    border: 1px solid $border-color;
+    border-radius: 6px;
+    color: $text-secondary;
+    font-size: 12px;
+    cursor: pointer;
+    transition: border-color 0.12s, color 0.12s, background 0.12s;
+}
+.exp-tool:hover {
+    border-color: $color-accent;
+    color: $color-accent;
+}
+.exp-tool.active {
+    border-color: $color-accent;
+    color: $color-accent;
+    background: rgba(var(--ctp-teal-rgb), 0.12);
+}
+.exp-tool.exp-primary {
+    background: $color-accent;
+    border-color: $color-accent;
+    color: $ctp-base;
+    font-weight: 600;
+}
+.exp-tool.exp-primary:hover {
+    color: $ctp-base;
+    filter: brightness(1.05);
+}
+
+.exp-color {
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    background: transparent;
+    border: 1px solid $border-color;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.exp-spacer {
+    flex: 1;
+}
+
+.exp-stage {
+    position: relative;
+    overflow: hidden;
+    border: 1px solid $border-color;
+    border-radius: 6px;
+}
+
+.exp-snapshot {
+    display: block;
+}
+
+.exp-annlayer {
+    position: absolute;
+    inset: 0;
+    cursor: crosshair;
+}
+
+.exp-textinput {
+    position: fixed;
+    z-index: 4100;
+    min-width: 80px;
+    padding: 2px 6px;
+    background: $bg-card-elevated;
+    border: 1px solid $color-accent;
+    border-radius: 4px;
+    font-size: 14px;
+    outline: none;
+}

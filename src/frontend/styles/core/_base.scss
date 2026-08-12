@@ -1,0 +1,47 @@
+// Baltimore Bird - Reset, corps de page, conteneur, vues placeholder
+// Partial extrait de _styles.scss (refactoring)
+@use '../abstracts/variables' as *;
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+    font-family: $font-sans;
+    background: $bg-body;
+    color: $text-primary;
+    height: 100vh;
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/* Chiffres tabulaires uniquement la ou des valeurs defilent (lectures stables
+   au survol), jamais sur body: applique globalement avec optimizeLegibility,
+   cela degradait la fluidite des curseurs uPlot (recalcul typographique a
+   chaque mise a jour des legendes sur mousemove) */
+.plot-legend,
+.toolbar-stats,
+.uplot .u-legend {
+    font-variant-numeric: tabular-nums;
+}
+
+::selection {
+    background: $bg-selection;
+}
+
+/* Focus clavier visible, sans anneau parasite a la souris */
+:focus {
+    outline: none;
+}
+
+:focus-visible {
+    outline: 2px solid $color-accent;
+    outline-offset: 2px;
+    border-radius: $radius-sm;
+}
+
+/* === APP CONTAINER === */
+.app-container {
+    display: flex;
+    height: 100vh;
+    overflow: hidden;
+}

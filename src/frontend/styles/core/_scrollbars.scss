@@ -1,0 +1,144 @@
+// Baltimore Bird - Scrollbars personnalisees (WebKit/Firefox)
+// Partial extrait de _styles.scss (refactoring)
+@use '../abstracts/variables' as *;
+
+/* =========================================================================
+   CUSTOM SCROLLBARS
+   ========================================================================= */
+
+/* === Variables === */
+:root {
+    --scrollbar-size: 8px;
+    --scrollbar-size-thin: 6px;
+    --scrollbar-track: rgba(255, 255, 255, 0.03);
+    --scrollbar-thumb: rgba(100, 100, 140, 0.3);
+    --scrollbar-thumb-hover: rgba(100, 100, 140, 0.5);
+    --scrollbar-thumb-active: rgba(var(--ctp-teal-rgb), 0.6);
+}
+
+/* === WebKit (Chrome, Safari, Edge) - Global === */
+::-webkit-scrollbar {
+    width: var(--scrollbar-size);
+    height: var(--scrollbar-size);
+}
+
+::-webkit-scrollbar-track {
+    background: var(--scrollbar-track);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb);
+    border-radius: 4px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--scrollbar-thumb-hover);
+    border: 2px solid transparent;
+    background-clip: padding-box;
+}
+
+::-webkit-scrollbar-thumb:active {
+    background: var(--scrollbar-thumb-active);
+}
+
+::-webkit-scrollbar-corner {
+    background: transparent;
+}
+
+/* === Firefox === */
+* {
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+}
+
+/* === Variantes fines pour certaines zones === */
+.signal-list::-webkit-scrollbar,
+.plot-legend::-webkit-scrollbar,
+.tabs-list::-webkit-scrollbar,
+.nav-items::-webkit-scrollbar,
+.palette-blocks::-webkit-scrollbar,
+.outline-content::-webkit-scrollbar,
+#consoleContent::-webkit-scrollbar,
+#mappingItems::-webkit-scrollbar {
+    width: var(--scrollbar-size-thin);
+    height: var(--scrollbar-size-thin);
+}
+
+/* === Code blocks - Style discret === */
+.canvas-block-code-content::-webkit-scrollbar,
+pre::-webkit-scrollbar,
+code::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+.canvas-block-code-content::-webkit-scrollbar-track,
+pre::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.2);
+}
+
+.canvas-block-code-content::-webkit-scrollbar-thumb,
+pre::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+}
+
+.canvas-block-code-content::-webkit-scrollbar-thumb:hover,
+pre::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+/* === Modal content === */
+.modal-content::-webkit-scrollbar {
+    width: var(--scrollbar-size);
+}
+
+.modal-content::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 0 12px 12px 0;
+}
+
+/* === Canvas / Edition area === */
+#editionCanvas::-webkit-scrollbar,
+#canvasBlocks::-webkit-scrollbar,
+.edition-canvas::-webkit-scrollbar {
+    width: var(--scrollbar-size);
+}
+
+/* === Utilities & Converter views === */
+.utilities-view::-webkit-scrollbar,
+.converter-view::-webkit-scrollbar {
+    width: var(--scrollbar-size);
+}
+
+/* === Scrollbar invisible par défaut, visible au hover === */
+.signal-list,
+.plot-legend,
+.nav-items,
+.palette-blocks {
+    scrollbar-color: transparent transparent;
+}
+
+.signal-list:hover,
+.plot-legend:hover,
+.nav-items:hover,
+.palette-blocks:hover {
+    scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+}
+
+.signal-list::-webkit-scrollbar-thumb,
+.plot-legend::-webkit-scrollbar-thumb,
+.nav-items::-webkit-scrollbar-thumb,
+.palette-blocks::-webkit-scrollbar-thumb {
+    background: transparent;
+}
+
+.signal-list:hover::-webkit-scrollbar-thumb,
+.plot-legend:hover::-webkit-scrollbar-thumb,
+.nav-items:hover::-webkit-scrollbar-thumb,
+.palette-blocks:hover::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb);
+}

@@ -1,0 +1,127 @@
+// Baltimore Bird - Vue Utilities
+// Partial extrait de _styles.scss (refactoring)
+@use '../abstracts/variables' as *;
+
+/* === UTILITIES VIEW === */
+.utilities-view {
+    flex: 1;
+    padding: 40px;
+    overflow-y: auto;
+}
+
+.utilities-header {
+    margin-bottom: 32px;
+}
+
+.utilities-header h1 {
+    font-size: 28px;
+    font-weight: 600;
+    color: $text-white;
+    margin-bottom: 8px;
+}
+
+.utilities-header p {
+    font-size: 14px;
+    color: $text-muted;
+}
+
+.utilities-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    gap: 20px;
+    max-width: 1200px;
+}
+
+.utility-card {
+    background: $bg-card;
+    border: 1px solid $border-color;
+    border-radius: 12px;
+    padding: 24px;
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.utility-card:hover {
+    background: $bg-hover;
+    border-color: $border-focus;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+
+.utility-icon {
+    width: 48px;
+    height: 48px;
+    background: linear-gradient(135deg, $color-primary, $color-primary-dark);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.utility-icon svg {
+    width: 24px;
+    height: 24px;
+    color: $ctp-crust;
+}
+
+.utility-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.utility-content h3 {
+    font-size: 16px;
+    font-weight: 600;
+    color: $text-white;
+    margin-bottom: 6px;
+}
+
+.utility-content p {
+    font-size: 13px;
+    color: $text-muted;
+    margin-bottom: 12px;
+    line-height: 1.4;
+}
+
+.utility-formats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.format-tag {
+    padding: 3px 8px;
+    background: $border-color;
+    border-radius: 4px;
+    font-size: 11px;
+    color: $text-lighter;
+    font-family: $font-mono;
+}
+
+.utility-card:hover .format-tag {
+    background: $border-light;
+    color: $text-light;
+}
+
+.utility-arrow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: all 0.2s;
+}
+
+.utility-arrow svg {
+    width: 20px;
+    height: 20px;
+    color: $color-primary;
+}
+
+.utility-card:hover .utility-arrow {
+    opacity: 1;
+    transform: translateX(4px);
+}

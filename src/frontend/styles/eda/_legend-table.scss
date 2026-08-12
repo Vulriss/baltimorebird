@@ -1,0 +1,543 @@
+// Baltimore Bird - Table de legende unifiee (Name | A | B | delta | unite)
+// Partial extrait de _styles.scss (refactoring)
+@use '../abstracts/variables' as *;
+
+/* =========================================================================
+   TABLE DE LEGENDE UNIFIEE (modele desktop)
+   Chaque ligne = entree de legende + mesures curseurs. Une seule grille:
+   colonnes Name | A | B | delta | unite alignees sur toutes les lignes.
+   Sans curseurs, seules les cellules nom sont visibles (legende classique).
+   ========================================================================= */
+
+.legend-table {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: 2px;
+    align-items: stretch;
+    font-family: $font-mono;
+    font-size: 10px;
+}
+
+.legend-table.cursors-active {
+    grid-template-columns: minmax(0, 1.3fr) repeat(3, minmax(46px, auto)) minmax(22px, auto);
+}
+
+/* Les cellules de mesure n'existent visuellement qu'avec un curseur pose.
+   :not() porte la specificite au-dessus des regles display propres des
+   cellules (.ct-val en flex, etc.), qui reprennent la main en mode actif. */
+.legend-table:not(.cursors-active) .lt-measure {
+    display: none;
+}
+
+.legend-row {
+    display: contents;
+}
+
+.legend-table .ct-h {
+    font-size: 9px;
+    font-weight: $font-weight-semibold;
+    letter-spacing: 0.06em;
+    text-align: right;
+    color: $text-muted;
+    padding-bottom: 3px;
+    padding-left: $spacing-2;
+    padding-right: 2px;
+    border-bottom: 1px solid $border-color;
+    margin-bottom: 2px;
+
+    &:first-child {
+        text-align: left;
+        padding-left: $spacing-1;
+    }
+}
+
+.legend-table .ct-ha { color: var(--cursor-a); }
+
+.legend-table .ct-hb { color: var(--cursor-b); }
+
+.legend-table .ct-hd { color: $cursor-delta-color; }
+
+.legend-table .ct-time-label {
+    color: $text-muted;
+    font-style: italic;
+    padding-left: $spacing-1;
+    min-height: 20px;
+    display: flex;
+    align-items: center;
+}
+
+.legend-table .ct-val {
+    text-align: right;
+    white-space: nowrap;
+    color: $text-primary;
+    padding-left: $spacing-2;
+    padding-right: 2px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+}
+
+.legend-table .ct-val.ct-a { color: var(--cursor-a); }
+
+.legend-table .ct-val.ct-b { color: var(--cursor-b); }
+
+.legend-table .ct-val.ct-d { color: $cursor-delta-color; font-weight: $font-weight-semibold; }
+
+.legend-table .ct-unit {
+    text-align: left;
+    color: $text-muted;
+    font-size: 9px;
+    padding-left: $spacing-2;
+    display: flex;
+    align-items: center;
+}
+
+.legend-table .ct-unit.ct-unit-error {
+    color: $color-error;
+    font-weight: 600;
+}
+
+/* Cellule nom: entree de legende complete (couleur, nom, depliage, retrait) */
+.lt-name {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+    min-height: 24px;
+    padding: 0 $spacing-1;
+    border-radius: $radius-sm;
+    cursor: pointer;
+
+    &:hover {
+        background: $bg-hover-subtle;
+    }
+
+    .legend-name {
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-weight: $font-weight-medium;
+    }
+
+    .legend-toggle {
+        font-size: 11px;
+        line-height: 1;
+        padding: 2px 4px;
+        margin-left: auto;
+        border-radius: $radius-sm;
+        color: $text-muted;
+        /* La cellule nom (draggable) impose cursor:grab; la fleche est un bouton
+           de reglages, pas une poignee de drag ni une cible de selection. */
+        cursor: pointer;
+        transition: transform $transition-fast $ease-in-out;
+
+        &:hover {
+            color: $text-primary;
+            background: $bg-hover-subtle;
+        }
+    }
+}
+
+.legend-row.expanded .lt-name .legend-toggle {
+    transform: rotate(180deg);
+}
+
+/* Selection (clic sur la ligne): fond accentue continu sur toute la ligne
+   (cellules jointives, gap reporte en padding), suppression via Suppr */
+.legend-row.selected > * {
+    background: $bg-selected;
+}
+
+.legend-row.selected > :first-child {
+    border-radius: $radius-sm 0 0 $radius-sm;
+}
+
+.legend-row.selected > .ct-unit {
+    border-radius: 0 $radius-sm $radius-sm 0;
+}
+
+.legend-table:not(.cursors-active) .legend-row.selected > .lt-name {
+    border-radius: $radius-sm;
+}
+
+.legend-row.selected .lt-name .legend-name {
+    font-weight: $font-weight-semibold;
+}
+
+.legend-row > .ct-val,
+.legend-row > .ct-unit {
+    cursor: pointer;
+}
+
+/* Panneau de reglages: pleine largeur sous la ligne, visible si depliee */
+.legend-row .legend-controls {
+    grid-column: 1 / -1;
+    display: none;
+}
+
+.legend-row.expanded .legend-controls {
+    display: block;
+}
+
+/* Mutateurs rapides: boutons d'analyse KDE/FFT de la legende */
+.legend-analysis-btn {
+    height: 20px;
+    padding: 0 12px;
+    background: transparent;
+    border: 1px solid $border-color;
+    border-radius: 4px;
+    color: $text-secondary;
+    font-size: 11px;
+    cursor: pointer;
+    transition: border-color 0.12s, color 0.12s;
+}
+
+.legend-analysis-btn:hover {
+    border-color: $color-accent;
+    color: $color-accent;
+}
+
+/* Panneau flottant d'analyse (KDE/FFT sur la fenetre visible) */
+.analysis-popover {
+    position: fixed;
+    right: 24px;
+    bottom: 24px;
+    /* Sous les modales (z-index 1000): leur voile assombrit le panneau d'analyse */
+    z-index: 900;
+    padding: 10px;
+    background: $bg-body;
+    border: 1px solid $border-color;
+    border-radius: 10px;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+}
+
+/* Poignee de redimensionnement au coin haut-gauche (panneau ancre en bas-droite). */
+.analysis-popover-resize {
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 14px;
+    height: 14px;
+    cursor: nwse-resize;
+    border-top: 2px solid var(--ctp-overlay0);
+    border-left: 2px solid var(--ctp-overlay0);
+    border-top-left-radius: 8px;
+    opacity: 0.45;
+    transition: opacity 0.12s;
+}
+
+.analysis-popover-resize:hover {
+    opacity: 1;
+}
+
+.analysis-popover-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.analysis-popover-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: $text-primary;
+}
+
+.analysis-popover-range {
+    flex: 1;
+    font-size: 10px;
+    color: $text-secondary;
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.analysis-popover-btn {
+    height: 22px;
+    padding: 0 8px;
+    background: transparent;
+    border: 1px solid $border-color;
+    border-radius: 4px;
+    color: $text-secondary;
+    font-size: 11px;
+    cursor: pointer;
+
+    &:hover {
+        border-color: $color-accent;
+        color: $color-accent;
+    }
+}
+
+.analysis-popover-stats {
+    margin-top: 6px;
+    font-size: 10px;
+    font-family: 'JetBrains Mono', monospace;
+    color: $text-secondary;
+    text-align: center;
+}
+
+.analysis-popover-readout {
+    margin-top: 6px;
+    min-height: 14px;
+    font-size: 10px;
+    font-family: 'JetBrains Mono', monospace;
+    color: $text-primary;
+    text-align: center;
+}
+
+// Signal present dans le layout mais absent du fichier courant: ligne inerte grisee.
+// Conserve la lisibilite du layout au changement de fichier; le signal reprend sa
+// couleur et son interactivite des qu'un fichier le contenant est charge.
+.legend-row-missing {
+    opacity: 0.45;
+    font-style: italic;
+    cursor: default;
+
+    .legend-name {
+        color: $text-muted;
+        text-decoration: line-through;
+        text-decoration-thickness: 1px;
+    }
+}
+
+.legend-missing-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    margin-right: 5px;
+    border-radius: 50%;
+    border: 1px dashed $text-muted;
+    flex: 0 0 auto;
+}
+
+// Boutons discrets de la barre overlay (poignee de deplacement, cadrage Y auto):
+// invisibles au repos, reveles au survol du panneau — comme la croix de
+// suppression voisine.
+.plot-stats .plot-grip,
+.plot-stats .plot-autoy,
+.plot-stats .plot-lock,
+.plot-stats .plot-solo-btn {
+    background: transparent;
+    border: none;
+    color: $text-muted;
+    padding: 2px 6px;
+    font-size: 11px;
+    line-height: 1;
+    border-radius: 3px;
+    transition: all 0.15s;
+    flex-shrink: 0;
+    opacity: 0;
+}
+
+// Les SVG sont en display inline par defaut: le baseline text decalerait le
+// trace de quelques pixels par rapport aux glyphes voisins.
+.plot-stats svg { display: block; }
+
+.plot-stats .plot-grip { cursor: grab; }
+
+.plot-stats .plot-autoy,
+.plot-stats .plot-lock,
+.plot-stats .plot-solo-btn { cursor: pointer; }
+
+.plot-container:hover .plot-stats .plot-grip,
+.plot-container:hover .plot-stats .plot-autoy,
+.plot-container:hover .plot-stats .plot-lock,
+.plot-container:hover .plot-stats .plot-solo-btn { opacity: 0.65; }
+
+.plot-stats .plot-grip:hover,
+.plot-stats .plot-autoy:hover,
+.plot-stats .plot-lock:hover,
+.plot-stats .plot-solo-btn:hover {
+    opacity: 1;
+    background: rgba(255, 255, 255, 0.08);
+    color: $text-primary;
+}
+
+// Etat actif (Y verrouille / panneau seul): visible en permanence, meme sans
+// survol. Un verrou invisible serait un piege: on ne comprendrait pas pourquoi
+// l'echelle ne se recadre plus.
+.plot-stats .plot-lock.is-on,
+.plot-stats .plot-solo-btn.is-on {
+    opacity: 1;
+    color: $color-accent;
+}
+
+.plot-stats .plot-grip:active { cursor: grabbing; }
+
+.plot-stats .plot-autoy:active,
+.plot-stats .plot-lock:active,
+.plot-stats .plot-solo-btn:active {
+    background: rgba(255, 255, 255, 0.14);
+}
+
+// Mode solo: un seul panneau occupe toute la hauteur. Les autres sont masques
+// (et non retires): S.plots, les hauteurs reglees au splitter et les caches
+// restent intacts au retour.
+.plot-container.plot-hidden-by-solo { display: none; }
+
+.plot-container.plot-solo { flex: 1 1 auto !important; }
+
+.plots-wrapper.has-solo .splitter { display: none; }
+
+// Panneau en cours de deplacement: estompe pour montrer ce qui suit le curseur.
+.plot-container.plot-dragging {
+    opacity: 0.4;
+    outline: 1px dashed $color-accent;
+}
+
+// Marqueur d'insertion: liseré sur le bord ou le panneau glisse sera depose.
+.plot-container.plot-drop-above { box-shadow: inset 0 3px 0 0 $color-accent; }
+
+.plot-container.plot-drop-below { box-shadow: inset 0 -3px 0 0 $color-accent; }
+
+// Icone "off" des bascules de la barre: la barre oblique n'est visible que
+// lorsque la bascule est inactive (meme convention que les icones "-off" de
+// Feather). Evite d'echanger le SVG en JS.
+.toolbar-btn.active .icon-off-slash { display: none; }
+
+// Retrait d'un signal absent: revele au survol de sa ligne, pour ne pas alourdir
+// une legende qui peut en compter beaucoup.
+.legend-missing-remove {
+    background: transparent;
+    border: none;
+    color: $text-muted;
+    padding: 0 4px;
+    // Pousse le bouton en bout de cellule plutot que colle au nom: il reste a la
+    // meme abscisse d'une ligne a l'autre, donc facile a viser en serie.
+    margin-left: auto;
+    font-size: 10px;
+    line-height: 1;
+    cursor: pointer;
+    border-radius: 3px;
+    opacity: 0;
+    transition: all 0.15s;
+    flex: 0 0 auto;
+}
+
+.legend-row-missing:hover .legend-missing-remove { opacity: 0.7; }
+
+.legend-missing-remove:hover {
+    opacity: 1;
+    color: $ctp-red;
+    background: rgba(255, 100, 100, 0.15);
+}
+
+/* =========================================================================
+   Palette de couleurs rapide (popover sur la pastille de legende)
+   ========================================================================= */
+.color-preset-popover {
+    position: fixed;
+    z-index: 2000;
+    background: $bg-card-elevated;
+    border: 1px solid $border-color;
+    border-radius: 10px;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.color-preset-grid {
+    display: grid;
+    grid-template-columns: repeat(8, 20px);
+    gap: 6px;
+}
+
+.color-preset-swatch {
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    border: 1px solid rgba(0, 0, 0, 0.25);
+    border-radius: 50%;
+    cursor: pointer;
+    transition: transform 0.1s ease;
+
+    &:hover {
+        transform: scale(1.2);
+    }
+
+    &.current {
+        outline: 2px solid $text-primary;
+        outline-offset: 1px;
+    }
+}
+
+/* Nuancier inline: surface saturation/valeur (fond pose en JS: gradients + teinte) */
+.color-picker-sv {
+    position: relative;
+    width: 100%;
+    height: 110px;
+    border-radius: 6px;
+    border: 1px solid $border-color;
+    cursor: crosshair;
+    touch-action: none;
+}
+
+.color-picker-sv-cursor {
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    border: 2px solid #fff;
+    border-radius: 50%;
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.6);
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+}
+
+/* Barre de teinte */
+.color-picker-hue {
+    position: relative;
+    width: 100%;
+    height: 12px;
+    border-radius: 6px;
+    border: 1px solid $border-color;
+    background: linear-gradient(to right,
+        #f00 0%, #ff0 17%, #0f0 33%, #0ff 50%, #00f 67%, #f0f 83%, #f00 100%);
+    cursor: ew-resize;
+    touch-action: none;
+}
+
+.color-picker-hue-cursor {
+    position: absolute;
+    top: 50%;
+    width: 8px;
+    height: 16px;
+    border: 2px solid #fff;
+    border-radius: 4px;
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.6);
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+}
+
+/* Ligne hex: apercu + champ editable */
+.color-picker-hex-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.color-picker-preview {
+    flex-shrink: 0;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: 1px solid $border-color;
+}
+
+.color-picker-hex {
+    flex: 1;
+    min-width: 0;
+    padding: 4px 8px;
+    background: $bg-card;
+    border: 1px solid $border-color;
+    border-radius: 6px;
+    color: $text-primary;
+    font-size: 11px;
+    font-family: $font-mono;
+
+    &:focus {
+        outline: none;
+        border-color: $color-accent;
+    }
+}

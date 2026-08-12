@@ -1,0 +1,159 @@
+// Baltimore Bird - Structure EDA + sidebar (zones fichiers/signaux, splitters)
+// Partial extrait de _styles.scss (refactoring)
+@use '../abstracts/variables' as *;
+
+/* === EDA APP === */
+.app { 
+    display: flex; 
+    height: 100%;
+    width: 100%;
+}
+
+/* === SIDEBAR === */
+.sidebar {
+    width: 250px;
+    background: $bg-darkest;
+    border-right: 1px solid $border-color;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Zone fichiers (haut, redimensionnable via le splitter vertical) */
+.sidebar-files {
+    flex: 0 0 auto;
+    min-height: 60px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    /* Padding haut aligne sur celui de .toolbar (10px): les boutons 32px de l'en-tete
+       (upload) et ceux de la toolbar principale partagent la meme ligne de base. */
+    padding: 10px 14px 14px;
+    overflow-y: auto;
+}
+
+/* Zone signaux (bas, prend la hauteur restante) */
+.sidebar-signals {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Splitter horizontal entre les deux zones */
+.sidebar-vsplitter {
+    position: relative;
+    flex: 0 0 9px;
+    cursor: row-resize;
+    background: transparent;
+}
+
+.sidebar-vsplitter::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 50%;
+    height: 1px;
+    transform: translateY(-50%);
+    background: $ctp-surface2;
+}
+
+.sidebar-vsplitter::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 28px;
+    height: 3px;
+    transform: translate(-50%, -50%);
+    border-radius: 2px;
+    background: $ctp-overlay1;
+    transition: background 0.15s;
+}
+
+.sidebar-vsplitter:hover::after {
+    background: $color-accent;
+}
+
+.sidebar-section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.sidebar-section-title {
+    font-size: 11px;
+    font-weight: 600;
+    color: $ctp-overlay1;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.sidebar-header {
+    padding: 14px;
+}
+
+.sidebar-title {
+    font-size: 11px;
+    font-weight: 600;
+    color: $ctp-overlay1;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 10px;
+}
+
+.sidebar-splitter:hover {
+    background: rgba(255, 255, 255, 0.12) !important;
+}
+
+.search-box {
+    width: 100%;
+    padding: 8px 10px;
+    background: $bg-card;
+    border: 1px solid $border-color;
+    border-radius: 4px;
+    color: $text-primary;
+    font-size: 12px;
+}
+
+.search-box:focus { outline: none; border-color: $border-focus; }
+
+/* type=search (anti-autofill): masquer le bouton d'effacement natif WebKit, non stylable */
+.search-box::-webkit-search-cancel-button { -webkit-appearance: none; appearance: none; }
+
+.signal-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 10px;
+}
+
+.signal-list::-webkit-scrollbar { width: 5px; }
+
+.signal-list::-webkit-scrollbar-thumb { background: $border-light; border-radius: 3px; }
+
+.sidebar-footer {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 12px;
+    padding: 10px 14px;
+    border-top: 1px solid $border-color;
+    font-size: 10px;
+    color: $text-tertiary;
+    background: var(--ctp-mantle);
+}
+
+.sidebar-footer .stat {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.sidebar-footer .stat-label { color: $text-secondary; }
+
+.signal-list-empty {
+    padding: 20px;
+    text-align: center;
+    color: $text-muted;
+    font-size: 12px;
+}

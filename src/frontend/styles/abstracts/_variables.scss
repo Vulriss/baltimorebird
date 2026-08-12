@@ -45,6 +45,9 @@
     --ctp-green-rgb: 166, 227, 161;
     --ctp-teal: #94e2d5;
     --ctp-teal-rgb: 148, 226, 213;
+    /* Valeur des cartes highlight temps reel sur fond legerement teinte teal.
+       En sombre le teal pastel contraste deja tres bien (>6:1). */
+    --stat-highlight-text: #94e2d5;
     --ctp-sky: #89dceb;
     --ctp-sky-rgb: 137, 220, 235;
     --ctp-sapphire: #74c7ec;
@@ -100,6 +103,9 @@
     --ctp-green-rgb: 64, 160, 43;
     --ctp-teal: #179299;
     --ctp-teal-rgb: 23, 146, 153;
+    /* Le teal Latte est de luminance moyenne: illisible tel quel sur fond clair
+       teinte (2.2:1). Version assombrie dediee pour tenir >=4.5:1. */
+    --stat-highlight-text: #0c5a5c;
     --ctp-sky: #04a5e5;
     --ctp-sky-rgb: 4, 165, 229;
     --ctp-sapphire: #209fb5;
@@ -929,8 +935,10 @@ $gradient-accent-warm: $gradient-accent;
 :root {
     --cursor-label-bg: rgba(0, 0, 0, 0.88);
     --cursor-delta-bg: rgba(70, 70, 70, 0.95);
+    --cursor-delta-fg: #f9e2af;
 }
 :root[data-theme="light"] {
     --cursor-label-bg: rgba(255, 255, 255, 0.92);
-    --cursor-delta-bg: rgba(220, 224, 232, 0.95);
+    --cursor-delta-bg: rgba(255, 246, 235, 0.97);
+    --cursor-delta-fg: #9a4f00;
 }

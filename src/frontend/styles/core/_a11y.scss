@@ -1,0 +1,34 @@
+// Baltimore Bird - Accessibilite: mouvement reduit
+// Partial extrait de _styles.scss (refactoring)
+@use '../abstracts/variables' as *;
+
+/* =========================================================================
+   ACCESSIBILITE - Mouvement reduit
+   ========================================================================= */
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}
+
+.upload-guest-note {
+    margin: 0 0 $spacing-5;
+    padding: $spacing-2-5 $spacing-3;
+    font-size: $font-size-sm;
+    color: $text-secondary;
+    background: $color-info-subtle;
+    border-left: 3px solid $color-info;
+    border-radius: $radius-sm;
+    line-height: $line-height-normal;
+}
+
+/* La note suit directement la description: resserre le couple */
+.modal-description + .upload-guest-note {
+    margin-top: -$spacing-2;
+}
