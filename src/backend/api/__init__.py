@@ -12,6 +12,8 @@ from api.scripts import scripts_bp
 from api.layouts import layouts_bp
 from api.computed import computed_vars_bp
 from api.storage import storage_bp
+from api.system import system_bp
+from api.feedback import feedback_bp
 
 
 def register_blueprints(app: Flask) -> None:
@@ -26,3 +28,5 @@ def register_blueprints(app: Flask) -> None:
     app.register_blueprint(layouts_bp)
     app.register_blueprint(computed_vars_bp)
     app.register_blueprint(storage_bp)
+    app.register_blueprint(system_bp)
+    app.register_blueprint(feedback_bp)
