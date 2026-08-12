@@ -98,6 +98,21 @@ METRICS_IP_SALT = os.environ.get("METRICS_IP_SALT", "baltimore_bird_2025")  # Di
 
 LAYOUT_VERSION = 1
 
+# --- Banniere d'annonce temporaire (editable par ops sans redeploiement) ---
+# Fichier JSON optionnel; absent ou active=false => aucune banniere.
+BANNER_CONFIG_PATH = DATA_DIR / "banner.json"
+
+# --- Feedback utilisateur ---
+FEEDBACK_DATA_DIR = DATA_DIR / "feedback"
+FEEDBACK_FILE = FEEDBACK_DATA_DIR / "feedback.jsonl"
+FEEDBACK_MAX_MESSAGE_LEN = 4000
+FEEDBACK_MAX_EMAIL_LEN = 254
+FEEDBACK_MAX_CONTEXT_LEN = 200
+FEEDBACK_RATE_LIMIT_WINDOW = 900
+FEEDBACK_RATE_LIMIT_MAX = 5
+
+FEEDBACK_DATA_DIR.mkdir(parents=True, exist_ok=True)
+
 # --- Sessions EDA anonymes (fichiers temporaires, non persistants) ---
 ANONYMOUS_USER_ID = "anonymous"
 ANON_EDA_DIR_NAME = "anon_eda"
