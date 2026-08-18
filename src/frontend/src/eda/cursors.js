@@ -379,29 +379,99 @@ export function cursorPlugin() {
 // Signal selectionne dans la legende: { plotId, sigIdx } ou null.
 // Selection par clic sur la ligne du tableau, deselection par le meme clic,
 // suppression du signal uniquement via la touche Suppr quand selectionne.
-let selectedLegendSignal = null;
+let selectedLegendSignals = [];
+const selectionAnchorByPlot = new Map();
 
-export function isLegendSignalSelected(plotId, sigIdx) {
-    return selectedLegendSignal !== null
-        && selectedLegendSignal.plotId === plotId
-        && selectedLegendSignal.sigIdx === sigIdx;
+function unionSelections(a, b) {
+    const key = s => `${s.plotId}:${s.sigIdx}`;
+    const seen = new Set(a.map(key));
+    const out = a.slice();
+    for (const s of b) {
+        const k = key(s);
+        if (!seen.has(k)) {
+            out.push(s);
+            seen.add(k);
+        }
+    }
+    return out;
 }
 
-export function toggleLegendSignalSelection(plotId, sigIdx) {
-    const wasSelected = isLegendSignalSelected(plotId, sigIdx);
-    const previous = selectedLegendSignal;
-    selectedLegendSignal = wasSelected ? null : { plotId, sigIdx };
+function selectedInPlot(plotId, selection) {
+    return selection.filter(s => s.plotId === plotId);
+}
+
+export function isLegendSignalSelected(plotId, sigIdx) {
+    return selectedLegendSignals.some(s => s.plotId === plotId && s.sigIdx === sigIdx);
+}
+
+export function toggleLegendSignalSelection(plotId, sigIdx, additive = false, range = false) {
+    const previous = selectedLegendSignals;
+    const plot = S.plots.find(pl => pl.id === plotId);
+
+    if (!plot || !Array.isArray(plot.signals) || plot.signals.length === 0) return;
+    const legendOrder = plot.signals; // legend order = signal order
+    const clickedIdx = legendOrder.indexOf(sigIdx);
+    if (clickedIdx === -1) return; // clicked item not in this legend
+
+    let nextSelection = previous;
+    if (range) {
+        // Shift select range
+        // Determine anchor
+        let anchorSig = selectionAnchorByPlot.get(plotId);
+        const selInPlot = previous.filter(s => s.plotId === plotId);
+        if (anchorSig == null || legendOrder.indexOf(anchorSig) === -1) {
+            anchorSig = (selInPlot.length === 1) ? selInPlot[0].sigIdx : sigIdx;
+        }
+        const anchorIdx = legendOrder.indexOf(anchorSig);
+        if (anchorIdx === -1) {
+            // Fallback: behave as a simple click 
+            nextSelection = (previous.length === 1 && previous[0].plotId === plotId && previous[0].sigIdx === sigIdx)
+                ? []
+                : [{ plotId, sigIdx }];
+            selectionAnchorByPlot.set(plotId, sigIdx);
+        } else {
+            // Inclusive range [min(anchorIdx, clickedIdx) .. max(...)]
+            const a = Math.min(anchorIdx, clickedIdx);
+            const b = Math.max(anchorIdx, clickedIdx);
+            const rangeItems = legendOrder.slice(a, b + 1).map(si => ({ plotId, sigIdx: si }));
+            if (additive) {
+                // Ctrl+Shift: add range to existing selection
+                nextSelection = unionSelections(previous, rangeItems);
+            } else {
+                // Shift only: replace selection with range (within this plot)
+                nextSelection = rangeItems;
+            }
+            // Keep anchor for consecutive Shift+clicks
+            selectionAnchorByPlot.set(plotId, anchorSig);
+        }
+    } else if (additive) {
+        // Ctrl select one by one to create list
+        const idx = previous.findIndex(s => s.plotId === plotId && s.sigIdx === sigIdx);
+        nextSelection = (idx === -1)
+            ? [...previous, { plotId, sigIdx }]
+            : previous.filter((_, i) => i !== idx);
+        selectionAnchorByPlot.set(plotId, sigIdx);
+    } else {
+        // Simple click: replace with this item (or clear if it was the only one)
+        const idx = previous.findIndex(s => s.plotId === plotId && s.sigIdx === sigIdx);
+        nextSelection = (idx !== -1 && previous.length === 1)
+            ? []
+            : [{ plotId, sigIdx }];
+        selectionAnchorByPlot.set(plotId, sigIdx);
+    }
+
+    selectedLegendSignals = nextSelection;
     interactionFocus = 'legend';
 
-    // Re-rend les plots concernes pour appliquer la mise en exergue du trait
+    // Re-render affected plots to update highlight
     const affected = new Set();
-    if (previous) affected.add(previous.plotId);
-    if (selectedLegendSignal) affected.add(selectedLegendSignal.plotId);
+    previous.forEach(s => affected.add(s.plotId));
+    selectedLegendSignals.forEach(s => affected.add(s.plotId));
     affected.forEach(pid => {
-        const plot = S.plots.find(pl => pl.id === pid);
-        if (plot) {
-            renderPlotFromCache(plot);
-            updateLegendSelectionClasses(plot);
+        const p = S.plots.find(pl => pl.id === pid);
+        if (p) {
+            renderPlotFromCache(p);
+            updateLegendSelectionClasses(p);
         }
     });
 }
@@ -427,10 +497,10 @@ document.addEventListener('keydown', (e) => {
         if (removeLastTouchedCursor()) e.preventDefault();
         return;
     }
-    if (!selectedLegendSignal) return;
-    const { plotId, sigIdx } = selectedLegendSignal;
-    selectedLegendSignal = null;
-    removeSignalFromPlot(plotId, sigIdx);
+    if (!selectedLegendSignals.length) return;
+    const toDelete = selectedLegendSignals;
+    selectedLegendSignals = [];
+    toDelete.forEach(({ plotId, sigIdx }) => removeSignalFromPlot(plotId, sigIdx));
 });
 
 // Copie le nom du signal sélectionné dans la liste de droite via Ctrl+C / Cmd+C. On laisse la copie
@@ -456,7 +526,7 @@ function fallbackCopyText(text) {
 
 document.addEventListener('keydown', (e) => {
     if (!(e.ctrlKey || e.metaKey) || (e.key !== 'c' && e.key !== 'C')) return;
-    if (!selectedLegendSignal) return;
+    if (!selectedLegendSignals) return;
     const target = e.target;
     if (target && (target.tagName === 'INPUT' || target.tagName === 'SELECT'
             || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
@@ -465,11 +535,15 @@ document.addEventListener('keydown', (e) => {
     const selection = window.getSelection && window.getSelection().toString();
     if (selection) return;
 
-    const sig = S.signalsInfo[selectedLegendSignal.sigIdx];
-    if (!sig) return;
+    const names = selectedLegendSignals
+        .map(s => S.signalsInfo[s.sigIdx]?.name)
+        .filter(Boolean);
+    if (!names.length) return;
     e.preventDefault();
-    copyTextToClipboard(sig.name);
-    if (typeof showNotification === 'function') showNotification(`Nom copié : ${sig.name}`, 'success');
+    copyTextToClipboard(names.join('\n'));
+    if (typeof showNotification === 'function') {
+        showNotification(names.length > 1 ? `${names.length} noms copiés` : `Nom copié : ${names[0]}`, 'success');
+    }
 });
 
 // Ctrl+Z / Ctrl+Y : bascule vers les niveaux de zoom precedents / suivants.

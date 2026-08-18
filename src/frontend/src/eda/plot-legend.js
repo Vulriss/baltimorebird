@@ -699,7 +699,7 @@ export function updatePlotHeader(plot) {
                         || e.target.classList.contains('legend-toggle')) {
                     return;
                 }
-                toggleLegendSignalSelection(plot.id, sigIdx);
+                toggleLegendSignalSelection(plot.id, sigIdx, e.ctrlKey, e.shiftKey);
             });
         });
 
