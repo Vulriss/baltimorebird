@@ -1,4 +1,5 @@
 import { S } from '../core/state.js';
+import { ectx } from './context.js';
 
 // Identifiant de l'onglet en cours de deplacement. Distinct de S.draggedSignal: les zones
 // de drop de signaux et le reordonnancement d'onglets s'ignorent mutuellement.
@@ -141,6 +142,7 @@ function renderTabs() {
             if (!e.target.classList.contains('tab-close') && 
                 !e.target.classList.contains('tab-name-input')) {
                 switchTab(tab.id);
+                
             }
         });
         
@@ -232,6 +234,17 @@ function switchTab(tabId) {
     setTimeout(window.resizePlotCharts, 50);
 }
 
+// Purge les zones etendues des signaux d'un tab entier: sinon elles restent dessinees dans les autres onglets apres fermeture 
+function purgeExtendedZonesForTab(tab) {
+    if (!tab || !tab.plots) return;
+    tab.plots.forEach(p => {
+        (p.signals || []).forEach(sigIdx => {
+            ectx.extendedBoolZones.delete(sigIdx);
+            ectx.disabledBoolZones.delete(sigIdx);
+        });
+    });
+}
+
 function closeTab(tabId) {
     const tabIndex = S.tabs.findIndex(t => t.id === tabId);
     if (tabIndex === -1) return;
@@ -256,6 +269,7 @@ function closeTab(tabId) {
     
     // Destroy charts in this tab
     const tab = S.tabs[tabIndex];
+    purgeExtendedZonesForTab(tab);
     if (tab.plots) {
         tab.plots.forEach(p => {
             if (p.chart) p.chart.destroy();
