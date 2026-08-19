@@ -34,36 +34,36 @@
 
 /* === CREATE VARIABLE DRAWER === */
 .create-var-drawer {
-    position: fixed;
-    top: 0;
-    right: 0;
-    bottom: 0;
-    width: 420px;
+    position: relative;
+    flex: 0 0 0px;
+    width: 0px;
     max-width: 90vw;
+    overflow: hidden;
     background: $bg-body;
-    border-left: 1px solid $border-color;
-    z-index: 1000;
+    border-left: 1px solid transparent;
+    z-index: 10;
     display: flex;
     flex-direction: column;
-    transform: translateX(100%);
-    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s;
+    transition: flex-basis 0.3s cubic-bezier(0.4, 0, 0.2, 1), width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-// L'ombre n'est portee QUE tiroir ouvert. Ferme, le tiroir reste rendu (il n'est
-// que translate hors ecran): son bord gauche colle au bord droit du viewport et
-// une ombre projetee vers la gauche (-8px, flou 32px) baverait d'une quarantaine
-// de pixels dans la zone visible, sur toute la hauteur. Invisible en thema sombre
-// (noir sur noir), elle apparaissait en bande grise a droite en theme clair.
 .create-var-drawer.active {
-    transform: translateX(0);
-    box-shadow: -8px 0 32px rgba(0, 0, 0, 0.4);
+    flex: 0 0 420px;
+    width: 420px;
+    border-left-color: $border-color;
+}
+
+#modalsContainer {
+    display: flex;
+    flex-shrink: 0;
+    height: 100vh;
 }
 
 .drawer-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 16px 20px;
+    padding: 10px 10px;
     border-bottom: 1px solid $border-color;
     background: $bg-dark;
 }
