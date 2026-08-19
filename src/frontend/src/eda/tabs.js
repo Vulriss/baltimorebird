@@ -351,10 +351,52 @@ function setupTabDropZones(tabId) {
                 const group = (S.draggedSignalGroup && S.draggedSignalGroup.length)
                     ? S.draggedSignalGroup : [S.draggedSignal];
                 const fromPlotId = S.draggedFromPlotId;
+
+                // capture les modifs de chaque signal avant de le remove/effacer
+                const sourcePlot = fromPlotId !== null ? S.plots.find(p => p.id === fromPlotId) : null;
+                const carriedOver = new Map();
+                if (sourcePlot) {
+                    group.forEach(idx => {
+                        carriedOver.set(idx, {
+                            style: sourcePlot.signalStyles?.[idx] ? { ...sourcePlot.signalStyles[idx] } : null,
+                            transform: sourcePlot.signalTransforms?.[idx] ? { ...sourcePlot.signalTransforms[idx] } : null,
+                        });
+                    });
+                }
+
                 const destId = window.dropSignalGroup(group);
                 if (fromPlotId !== null && fromPlotId !== destId) {
                     group.forEach(idx => window.removeSignalFromPlot(fromPlotId, idx));
                 }
+
+                // Re applique les modifs captures sur le plot destinataire
+                if (destId !== null && fromPlotId !== destId) {
+                    const destPlot = S.plots.find(p => p.id === destId);
+                    if (destPlot) {
+                        let changed = false;
+                        group.forEach(idx => {
+                            const carried = carriedOver.get(idx);
+                            if (!carried) return;
+                            if (carried.style) {
+                                if (!destPlot.signalStyles) destPlot.signalStyles = {};
+                                destPlot.signalStyles[idx] = carried.style;
+                                changed = true;
+                            }
+                            if (carried.transform) {
+                                if (!destPlot.signalTransforms) destPlot.signalTransforms = {};
+                                destPlot.signalTransforms[idx] = carried.transform;
+                                changed = true;
+                            }
+                        });
+                        if (changed && typeof window.updatePlotHeader === 'function') {
+                            window.updatePlotHeader(destPlot);
+                        }
+                        if (changed && typeof window.renderPlotFromCache === 'function') {
+                            window.renderPlotFromCache(destPlot);
+                        }
+                    }
+                }
+                
                 setTimeout(window.resizePlotCharts, 100);
             }
         });

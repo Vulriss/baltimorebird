@@ -7,8 +7,9 @@ import { init, initApp, initEDA, resizePlotCharts } from './bootstrap.js';
 import { addMappingSlot, closeCreateVariableDrawer, closeCreateVariableModal, openComputedVariableForEdit, openCreateVariableDrawer, openCreateVariableModal, removeMappingSlot, setupCreateVariableListeners, submitCreateVariable } from './computed-vars.js';
 import { ectx } from './context.js';
 import { applyLayout, exportCurrentLayout } from './layout-state.js';
-import { toggleExtendedZones } from './plot-legend.js';
+import { toggleExtendedZones, updatePlotHeader } from './plot-legend.js';
 import { dropSignal, dropSignalGroup, removeSignalFromPlot, updateSignalsLoadedStatus } from './plots.js';
+import { renderPlotFromCache } from './plot-ui.js';
 import { ensureSignalPreloaded } from './preload.js';
 import { changeSource, loadSources } from './sessions.js';
 import { renderSignalList } from './signal-list.js';
@@ -90,6 +91,10 @@ window.updateSignalsLoadedStatus = updateSignalsLoadedStatus;
 window.extendedBoolZones = ectx.extendedBoolZones;
 
 window.toggleExtendedZones = toggleExtendedZones;
+
+window.updatePlotHeader = updatePlotHeader;
+
+window.renderPlotFromCache = renderPlotFromCache;
 
 window.extractBoolHighRanges = extractBoolHighRanges;
 
