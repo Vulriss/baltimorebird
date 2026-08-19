@@ -565,6 +565,41 @@ export function axisDragPlugin() {
     };
 }
 
+
+// Zoom Y a la molette / pincement trackpad, uniquement au survol de la gouttiere de l'axe Y (a gauche de la zone de trace) 
+export function wheelZoomYPlugin() {
+    return {
+        hooks: {
+            ready: u => {
+                const plot = S.plots.find(p => p.chart === u);
+                if (!plot) return;
+                if (plot.isBoolPlot || plot.isCommentPlot) return;
+
+                u.root.addEventListener('wheel', e => {
+                    const r = u.over.getBoundingClientRect();
+                    const onY = e.clientX < r.left && e.clientY >= r.top && e.clientY <= r.bottom;
+                    if (!onY) return;
+
+                    e.preventDefault();
+
+                    const scale = u.scales.y;
+                    if (!Number.isFinite(scale.min) || !Number.isFinite(scale.max)) return;
+
+                    const cursorY = e.clientY - r.top;
+                    const pivot = u.posToVal(cursorY, 'y');
+
+                    const factor = Math.exp(e.deltaY * 0.001);
+                    const newMin = pivot - (pivot - scale.min) * factor;
+                    const newMax = pivot + (scale.max - pivot) * factor;
+
+                    plot.yRange = { min: newMin, max: newMax };
+                    u.setScale('y', { min: newMin, max: newMax });
+                }, { passive: false });
+            },
+        },
+    };
+}
+
 function buildPlotOptions(series, width, height, plot, bands = null, showTimeAxis = true) {
     return {
         width,
@@ -586,7 +621,7 @@ function buildPlotOptions(series, width, height, plot, bands = null, showTimeAxi
         ],
         cursor: { drag: { ...PLOT_CURSOR_DRAG }, points: { show: false } },
         hooks: { setSelect: [zoomToSelection] },
-        plugins: [boolZonesPlugin(), cursorPlugin(), axisDragPlugin()],
+        plugins: [boolZonesPlugin(), cursorPlugin(), axisDragPlugin(), wheelZoomYPlugin()],
     };
 }
 
