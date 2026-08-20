@@ -10,6 +10,7 @@ body {
     color: $text-primary;
     height: 100vh;
     overflow: hidden;
+    display: flex;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
 }
@@ -43,5 +44,7 @@ body {
 .app-container {
     display: flex;
     height: 100vh;
+    flex: 1;
+    min-width: 0;
     overflow: hidden;
 }
