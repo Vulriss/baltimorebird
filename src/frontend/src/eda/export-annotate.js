@@ -676,8 +676,8 @@ body { font-family: -apple-system, 'Segoe UI', sans-serif; color: #1a1a1a; backg
        max-width: 920px; margin: 0 auto; padding: 32px 24px; }
 h1 { font-size: 20px; border-bottom: 2px solid #1a1a1a; padding-bottom: 8px; }
 .gen { color: #666; font-size: 12px; margin-bottom: 28px; }
-figure { margin: 0 0 28px; page-break-inside: avoid; }
-figure img { width: 100%; border: 1px solid #ddd; border-radius: 4px; }
+figure { margin: 0 0 28px; page-break-inside: avoid; max-width: 800px; }
+figure img { width: 100%; max-width: 100%; border: 1px solid #ddd; border-radius: 4px; }
 .caption { font-size: 13px; margin-top: 6px; line-height: 1.45; }
 .freetext { font-size: 13px; line-height: 1.55; margin: 0 0 22px; }
 @media print { body { padding: 0; } }
