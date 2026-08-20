@@ -172,6 +172,8 @@ export async function maybeApplyDeepLink() {
     if (typeof window.bbTrack === 'function') window.bbTrack('view_link_open');
 }
 
+window.buildViewLink = buildViewLink;
+
 document.addEventListener('click', (e) => {
     if (e.target.closest && e.target.closest('#shareViewBtn')) copyViewLink();
 });

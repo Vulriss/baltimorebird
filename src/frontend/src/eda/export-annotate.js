@@ -654,12 +654,24 @@
         }
 
         const title = reportTitle();
+        let viewLink = '';
+        try {
+            if (typeof window.buildViewLink === 'function') {
+                viewLink = window.buildViewLink();
+            }
+        } catch (e) {
+            console.warn('Could not generate view link:', e);
+        }
+
         const body = report.blocks.map(block => {
             if (block.type === 'image') {
                 const caption = block.caption.trim()
                     ? `<figcaption class="caption">${multiline(block.caption)}</figcaption>` : '';
+                const imgHtml = viewLink
+                    ? `<a href="${viewLink}" style="text-decoration: none; cursor: pointer;" title="Cliquer pour ouvrir la vue dans Baltimore Bird"><img src="${block.dataUrl}" alt="Capture annotee"></a>`
+                    : `<img src="${block.dataUrl}" alt="Capture annotee">`;
                 return `<figure>
-<img src="${block.dataUrl}" alt="Capture annotee">
+${imgHtml}
 ${caption}
 </figure>`;
             }
@@ -677,7 +689,9 @@ body { font-family: -apple-system, 'Segoe UI', sans-serif; color: #1a1a1a; backg
 h1 { font-size: 20px; border-bottom: 2px solid #1a1a1a; padding-bottom: 8px; }
 .gen { color: #666; font-size: 12px; margin-bottom: 28px; }
 figure { margin: 0 0 28px; page-break-inside: avoid; max-width: 800px; }
+figure a { display: inline-block; }
 figure img { width: 100%; max-width: 100%; border: 1px solid #ddd; border-radius: 4px; }
+figure a:hover img { box-shadow: 0 0 8px rgba(0,0,0,0.2); transition: box-shadow 0.2s; cursor: pointer; }
 .caption { font-size: 13px; margin-top: 6px; line-height: 1.45; }
 .freetext { font-size: 13px; line-height: 1.55; margin: 0 0 22px; }
 @media print { body { padding: 0; } }
