@@ -29,6 +29,7 @@
 
     let annotations = [];
     let undone = [];
+    let floatingTexts = []; 
     let tool = 'text';
     let color = '#f38ba8';
     let draft = null;           // annotation en cours (drag)
@@ -67,13 +68,23 @@
 
     function undo() {
         if (!annotations.length) return;
-        undone.push(annotations.pop());
+        const a = annotations.pop();
+        undone.push(a);
+        if (a && a.type === 'text') {
+            try { if (a._el && a._el.remove) a._el.remove(); } catch (e) {}
+            floatingTexts = floatingTexts.filter(ft => ft !== a);
+        }
         redraw();
     }
 
     function redo() {
         if (!undone.length) return;
-        annotations.push(undone.pop());
+        const a = undone.pop();
+        annotations.push(a);
+        if (a && a.type === 'text') {
+            if (!floatingTexts.includes(a)) floatingTexts.push(a);
+            if (overlay) createFloatingTextElement(a);
+        }
         redraw();
     }
 
@@ -358,8 +369,8 @@
     function redraw() {
         if (!annCtx) return;
         annCtx.clearRect(0, 0, contentW, contentH);
-        annotations.forEach(a => drawAnnotation(annCtx, a));
-        if (draft) drawAnnotation(annCtx, draft);
+        annotations.forEach(a => { if (a.type !== 'text') drawAnnotation(annCtx, a); });
+        if (draft && draft.type !== 'text') drawAnnotation(annCtx, draft);
     }
 
     // ---------------------------------------------------------------------
@@ -368,6 +379,8 @@
     function close() {
         if (overlay) { overlay.remove(); overlay = null; }
         annotations = [];
+        floatingTexts.forEach(ft => { if (ft._el && ft._el.remove) ft._el.remove(); });
+        floatingTexts = [];
         draft = null;
         annCtx = null;
         composite = null;
@@ -404,9 +417,99 @@
 
     function commitText(x, y, value) {
         if (value && value.trim()) {
-            pushAnnotation({ type: 'text', x, y, text: value.trim(), color, size: 16 });
+            const ft = { type: 'text', x, y, text: value.trim(), color, size: 16 };
+            floatingTexts.push(ft);
+            pushAnnotation(ft);
+            if (overlay) createFloatingTextElement(ft);
             redraw();
         }
+    }
+    
+    function createFloatingTextElement(ft) {
+        if (!overlay) return;
+        const stage = overlay.querySelector('.exp-stage');
+        if (!stage) return;
+        const stageRect = stage.getBoundingClientRect();
+
+        const el = document.createElement('div');
+        el.className = 'floating-text';
+        el.textContent = ft.text;
+        el.style.position = 'absolute';
+        el.style.whiteSpace = 'pre';
+        el.style.padding = '2px 6px';
+        el.style.background = 'transparent';
+        el.style.borderRadius = '3px';
+        el.style.color = ft.color || color;
+        el.style.font = `${(ft.size || 16) * displayScale}px sans-serif`;
+        el.style.cursor = 'move';
+        el.style.zIndex = 5000;
+
+        const left = Math.round(stageRect.left + ft.x * displayScale);
+        const top = Math.round(stageRect.top + ft.y * displayScale);
+        el.style.left = left + 'px';
+        el.style.top = top + 'px';
+
+        let dragging = false;
+        let startX = 0, startY = 0;
+
+        const onMouseDown = (e) => {
+            if (e.button !== 0) return;
+            dragging = true;
+            startX = e.clientX;
+            startY = e.clientY;
+            e.preventDefault();
+            document.body.style.userSelect = 'none';
+        };
+        const onMouseMove = (e) => {
+            if (!dragging) return;
+            const dx = e.clientX - startX;
+            const dy = e.clientY - startY;
+            startX = e.clientX;
+            startY = e.clientY;
+            const curLeft = parseFloat(el.style.left || 0);
+            const curTop = parseFloat(el.style.top || 0);
+            el.style.left = (curLeft + dx) + 'px';
+            el.style.top = (curTop + dy) + 'px';
+        };
+        const onMouseUp = (e) => {
+            if (!dragging) return;
+            dragging = false;
+            document.body.style.userSelect = '';
+            // Update ft coordinates relative to stage
+            const srect = stage.getBoundingClientRect();
+            const ex = parseFloat(el.style.left) - srect.left;
+            const ey = parseFloat(el.style.top) - srect.top;
+            ft.x = ex / displayScale;
+            ft.y = ey / displayScale;
+        };
+
+        el.addEventListener('mousedown', onMouseDown);
+        document.addEventListener('mousemove', onMouseMove);
+        document.addEventListener('mouseup', onMouseUp);
+
+        el.addEventListener('dblclick', () => {
+            const inp = document.createElement('input');
+            inp.className = 'exp-textinput';
+            inp.style.left = el.style.left;
+            inp.style.top = el.style.top;
+            inp.style.color = ft.color || color;
+            inp.value = ft.text;
+            document.body.appendChild(inp);
+            setTimeout(() => inp.focus(), 0);
+            const commit = () => {
+                ft.text = inp.value.trim();
+                el.textContent = ft.text;
+                inp.remove();
+            };
+            inp.addEventListener('keydown', (ev) => {
+                if (ev.key === 'Enter') { ev.preventDefault(); commit(); }
+                else if (ev.key === 'Escape') { inp.remove(); }
+            });
+            inp.addEventListener('blur', commit);
+        });
+
+        ft._el = el;
+        overlay.appendChild(el);
     }
 
     function makeToolButton(id, label) {
@@ -426,6 +529,7 @@
         ctx.drawImage(composite, 0, 0);
         ctx.scale(dpr, dpr);
         annotations.forEach(a => drawAnnotation(ctx, a));
+        floatingTexts.forEach(ft => drawAnnotation(ctx, ft));
         return out;
     }
 
@@ -766,7 +870,12 @@ ${body}
         const clearBtn = document.createElement('button');
         clearBtn.className = 'exp-tool';
         clearBtn.textContent = 'Effacer';
-        clearBtn.addEventListener('click', () => { annotations = []; redraw(); });
+        clearBtn.addEventListener('click', () => {
+            annotations = [];
+            floatingTexts.forEach(ft => { if (ft._el && ft._el.remove) ft._el.remove(); });
+            floatingTexts = [];
+            redraw();
+        });
         toolbar.appendChild(clearBtn);
 
         const divider = document.createElement('span');
@@ -848,7 +957,6 @@ ${body}
         panel.appendChild(body);
         overlay.appendChild(panel);
         document.body.appendChild(overlay);
-
         // Interactions de dessin
         let textInput = null;
         annCanvas.addEventListener('mousedown', (e) => {
