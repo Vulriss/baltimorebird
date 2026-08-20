@@ -66,9 +66,9 @@ export function pathRenderer(mode) {
 }
 
 // Mode de trace effectif: la valeur explicite du signal sinon le defaut lie au
-// type (escalier pour les booleens, lineaire sinon).
+// type (escalier par defaut).
 export function effectivePathMode(style, unit) {
-    return style.path || (unit === 'bool' ? 'stepped' : 'linear');
+    return style.path || 'stepped';
 }
 
 // Modes de remplissage par bande, jusqu'a la courbe voisine du panneau:
