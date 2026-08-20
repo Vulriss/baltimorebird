@@ -36,6 +36,14 @@
     flex-wrap: wrap;
 }
 
+.exp-toolbar .toolbar-divider {
+    align-self: center;
+    width: 1px;
+    height: 24px;
+    background: $ctp-surface2;
+    margin: 0 12px;
+}
+
 /* Corps deux volets: scene d'annotation a gauche, rapport a droite */
 .exp-body {
     display: flex;
@@ -215,6 +223,16 @@
     color: $ctp-base;
     filter: brightness(1.05);
 }
+
+.exp-tool svg {
+    width: 16px;
+    height: 16px;
+    display: block;
+    stroke: currentColor;
+    fill: none;
+}
+.exp-tool svg[aria-hidden="true"] { pointer-events: none; }
+
 
 .exp-color {
     width: 30px;

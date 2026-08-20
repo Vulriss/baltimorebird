@@ -679,6 +679,30 @@ ${body}
         if (typeof window.bbTrack === 'function') window.bbTrack('png_export');
     }
 
+    async function copyImageToClipboard() {
+        const out = flattenToCanvas();
+        if (!navigator.clipboard || !navigator.clipboard.write) {
+            if (typeof window.showNotification === 'function') {
+                window.showNotification('Votre navigateur ne supporte pas le presse-papiers d\'images.', 'warning');
+            }
+            return;
+        }
+        return new Promise((resolve, reject) => {
+            out.toBlob(async (blob) => {
+                try {
+                    const item = new ClipboardItem({ [blob.type]: blob });
+                    await navigator.clipboard.write([item]);
+                    if (typeof window.showNotification === 'function') window.showNotification('Image copiée dans le presse-papiers.', 'success');
+                    if (typeof window.bbTrack === 'function') window.bbTrack('png_copy');
+                    resolve();
+                } catch (e) {
+                    if (typeof window.showNotification === 'function') window.showNotification('Échec de la copie.', 'error');
+                    reject(e);
+                }
+            });
+        });
+    }
+
     function open() {
         if (overlay) close();
         if (!buildComposite()) {
@@ -745,11 +769,40 @@ ${body}
         clearBtn.addEventListener('click', () => { annotations = []; redraw(); });
         toolbar.appendChild(clearBtn);
 
+        const divider = document.createElement('span');
+        divider.className = 'toolbar-divider';
+        toolbar.appendChild(divider);
+
         const dlBtn = document.createElement('button');
         dlBtn.className = 'exp-tool exp-primary';
-        dlBtn.textContent = 'Telecharger PNG';
+        dlBtn.type = 'button';
+        dlBtn.title = 'Télécharger PNG';
+        dlBtn.innerHTML = `
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="17 8 12 3 7 8"/>
+                <line x1="12" y1="3" x2="12" y2="15"/>
+            </svg>`;
         dlBtn.addEventListener('click', download);
         toolbar.appendChild(dlBtn);
+
+        const copyBtn = document.createElement('button');
+        copyBtn.className = 'exp-tool exp-primary';
+        copyBtn.type = 'button';
+        copyBtn.title = 'Copier PNG';
+        copyBtn.innerHTML = `
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+            </svg>`;
+        copyBtn.addEventListener('click', async () => {
+            try {
+                await copyImageToClipboard();
+            } catch (e) {
+                console.error('Copy failed', e);
+            }
+        });
+        toolbar.appendChild(copyBtn);
 
         const closeBtn = document.createElement('button');
         closeBtn.className = 'exp-close';
