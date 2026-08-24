@@ -100,6 +100,22 @@ export function initApp() {
 // Event Listeners Setup
 // =========================================================================
 function setupEventListeners() {
+
+    document.querySelectorAll('.toolbar-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            // Si desactivation bouton, suppression hover 
+            setTimeout(() => {
+                if (!btn.classList.contains('active')) {
+                    btn.classList.add('just-deactivated');
+                }
+            }, 0); 
+        });
+        btn.addEventListener('mouseleave', () => {
+            // rétablir le hover classique une fois qu'on quitte le bouton après une désactivation
+            btn.classList.remove('just-deactivated');
+        });
+    });
+
     // Splitter de redimensionnement de la sidebar
     setupSidebarSplitter();
     // Splitter interne fichiers / signaux
@@ -180,6 +196,27 @@ function setupEventListeners() {
             }
         });
         syncViewsToggle._listenerAdded = true;
+    }
+
+    // Synchronisation des curseurs entre onglets.
+    const syncCursorsToggle = document.getElementById('syncCursorsToggle');
+    if (syncCursorsToggle && !syncCursorsToggle._listenerAdded) {
+        // Preference persistante (comme le theme). Par defaut non synchronise
+        const saved = localStorage.getItem('bb_sync_cursors');
+        S.syncCursors = saved === null ? false : saved === 'true';
+        syncCursorsToggle.classList.toggle('active', S.syncCursors);
+        syncCursorsToggle.setAttribute('aria-pressed', S.syncCursors ? 'true' : 'false');
+
+        syncCursorsToggle.addEventListener('click', () => {
+            S.syncCursors = syncCursorsToggle.classList.toggle('active');
+            syncCursorsToggle.setAttribute('aria-pressed', S.syncCursors ? 'true' : 'false');
+            localStorage.setItem('bb_sync_cursors', S.syncCursors ? 'true' : 'false');
+            // Si activé, synchro les curseurs de l'onglet actif vers les autres onglets
+            if (S.syncCursors && typeof syncCursorsAcrossTabs === 'function') {
+                syncCursorsAcrossTabs();
+            }
+        });
+        syncCursorsToggle._listenerAdded = true;
     }
 
     // Reset Button

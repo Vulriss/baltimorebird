@@ -78,10 +78,16 @@ button {
     transition: all 0.2s;
 }
 
-.toolbar-btn:hover {
+.toolbar-btn:hover:not(.just-deactivated) {
     background: $ctp-teal;
     border-color: $ctp-teal;
     color: $ctp-crust;
+}
+
+.toolbar-btn.just-deactivated {
+    background: $ctp-surface1 !important;
+    border-color: $ctp-surface2 !important;
+    color: $ctp-subtext1 !important;
 }
 
 .toolbar-btn.disabled {

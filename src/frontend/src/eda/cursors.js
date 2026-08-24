@@ -752,6 +752,9 @@ export function addCursorFromButton() {
 }
 
 export function updateCursors() {
+    if (S.syncCursors) {
+        syncCursorsAcrossTabs();
+    }
     S.plots.forEach(p => {
         const chart = p.chart;
         if (!chart) return;
@@ -760,3 +763,10 @@ export function updateCursors() {
     });
 }
 
+export function syncCursorsAcrossTabs() {
+    if (!Array.isArray(S.tabs)) return;
+    S.tabs.forEach(tab => {
+        tab.cursor1 = S.cursor1;
+        tab.cursor2 = S.cursor2;
+    });
+}
