@@ -1,4 +1,5 @@
 import { S } from '../core/state.js';
+import { ectx } from './context.js';
 
 // Identifiant de l'onglet en cours de deplacement. Distinct de S.draggedSignal: les zones
 // de drop de signaux et le reordonnancement d'onglets s'ignorent mutuellement.
@@ -141,6 +142,7 @@ function renderTabs() {
             if (!e.target.classList.contains('tab-close') && 
                 !e.target.classList.contains('tab-name-input')) {
                 switchTab(tab.id);
+                
             }
         });
         
@@ -232,6 +234,17 @@ function switchTab(tabId) {
     setTimeout(window.resizePlotCharts, 50);
 }
 
+// Purge les zones etendues des signaux d'un tab entier: sinon elles restent dessinees dans les autres onglets apres fermeture 
+function purgeExtendedZonesForTab(tab) {
+    if (!tab || !tab.plots) return;
+    tab.plots.forEach(p => {
+        (p.signals || []).forEach(sigIdx => {
+            ectx.extendedBoolZones.delete(sigIdx);
+            ectx.disabledBoolZones.delete(sigIdx);
+        });
+    });
+}
+
 function closeTab(tabId) {
     const tabIndex = S.tabs.findIndex(t => t.id === tabId);
     if (tabIndex === -1) return;
@@ -256,6 +269,7 @@ function closeTab(tabId) {
     
     // Destroy charts in this tab
     const tab = S.tabs[tabIndex];
+    purgeExtendedZonesForTab(tab);
     if (tab.plots) {
         tab.plots.forEach(p => {
             if (p.chart) p.chart.destroy();
@@ -337,10 +351,52 @@ function setupTabDropZones(tabId) {
                 const group = (S.draggedSignalGroup && S.draggedSignalGroup.length)
                     ? S.draggedSignalGroup : [S.draggedSignal];
                 const fromPlotId = S.draggedFromPlotId;
+
+                // capture les modifs de chaque signal avant de le remove/effacer
+                const sourcePlot = fromPlotId !== null ? S.plots.find(p => p.id === fromPlotId) : null;
+                const carriedOver = new Map();
+                if (sourcePlot) {
+                    group.forEach(idx => {
+                        carriedOver.set(idx, {
+                            style: sourcePlot.signalStyles?.[idx] ? { ...sourcePlot.signalStyles[idx] } : null,
+                            transform: sourcePlot.signalTransforms?.[idx] ? { ...sourcePlot.signalTransforms[idx] } : null,
+                        });
+                    });
+                }
+
                 const destId = window.dropSignalGroup(group);
                 if (fromPlotId !== null && fromPlotId !== destId) {
                     group.forEach(idx => window.removeSignalFromPlot(fromPlotId, idx));
                 }
+
+                // Re applique les modifs captures sur le plot destinataire
+                if (destId !== null && fromPlotId !== destId) {
+                    const destPlot = S.plots.find(p => p.id === destId);
+                    if (destPlot) {
+                        let changed = false;
+                        group.forEach(idx => {
+                            const carried = carriedOver.get(idx);
+                            if (!carried) return;
+                            if (carried.style) {
+                                if (!destPlot.signalStyles) destPlot.signalStyles = {};
+                                destPlot.signalStyles[idx] = carried.style;
+                                changed = true;
+                            }
+                            if (carried.transform) {
+                                if (!destPlot.signalTransforms) destPlot.signalTransforms = {};
+                                destPlot.signalTransforms[idx] = carried.transform;
+                                changed = true;
+                            }
+                        });
+                        if (changed && typeof window.updatePlotHeader === 'function') {
+                            window.updatePlotHeader(destPlot);
+                        }
+                        if (changed && typeof window.renderPlotFromCache === 'function') {
+                            window.renderPlotFromCache(destPlot);
+                        }
+                    }
+                }
+                
                 setTimeout(window.resizePlotCharts, 100);
             }
         });

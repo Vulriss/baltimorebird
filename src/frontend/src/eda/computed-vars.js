@@ -40,6 +40,9 @@ export function closeCreateVariableDrawer() {
         drawer.classList.remove('active');
         drawer.classList.remove('creating');
         editingVariableIndex = null;
+        drawer.addEventListener('transitionend', () => {
+            if (typeof window.resizePlotCharts === 'function') window.resizePlotCharts();
+        }, { once: true });
     }
 }
 

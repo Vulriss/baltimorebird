@@ -29,6 +29,7 @@
 
     let annotations = [];
     let undone = [];
+    let floatingTexts = []; 
     let tool = 'text';
     let color = '#f38ba8';
     let draft = null;           // annotation en cours (drag)
@@ -67,13 +68,23 @@
 
     function undo() {
         if (!annotations.length) return;
-        undone.push(annotations.pop());
+        const a = annotations.pop();
+        undone.push(a);
+        if (a && a.type === 'text') {
+            try { if (a._el && a._el.remove) a._el.remove(); } catch (e) {}
+            floatingTexts = floatingTexts.filter(ft => ft !== a);
+        }
         redraw();
     }
 
     function redo() {
         if (!undone.length) return;
-        annotations.push(undone.pop());
+        const a = undone.pop();
+        annotations.push(a);
+        if (a && a.type === 'text') {
+            if (!floatingTexts.includes(a)) floatingTexts.push(a);
+            if (overlay) createFloatingTextElement(a);
+        }
         redraw();
     }
 
@@ -358,8 +369,8 @@
     function redraw() {
         if (!annCtx) return;
         annCtx.clearRect(0, 0, contentW, contentH);
-        annotations.forEach(a => drawAnnotation(annCtx, a));
-        if (draft) drawAnnotation(annCtx, draft);
+        annotations.forEach(a => { if (a.type !== 'text') drawAnnotation(annCtx, a); });
+        if (draft && draft.type !== 'text') drawAnnotation(annCtx, draft);
     }
 
     // ---------------------------------------------------------------------
@@ -368,6 +379,8 @@
     function close() {
         if (overlay) { overlay.remove(); overlay = null; }
         annotations = [];
+        floatingTexts.forEach(ft => { if (ft._el && ft._el.remove) ft._el.remove(); });
+        floatingTexts = [];
         draft = null;
         annCtx = null;
         composite = null;
@@ -404,9 +417,99 @@
 
     function commitText(x, y, value) {
         if (value && value.trim()) {
-            pushAnnotation({ type: 'text', x, y, text: value.trim(), color, size: 16 });
+            const ft = { type: 'text', x, y, text: value.trim(), color, size: 16 };
+            floatingTexts.push(ft);
+            pushAnnotation(ft);
+            if (overlay) createFloatingTextElement(ft);
             redraw();
         }
+    }
+    
+    function createFloatingTextElement(ft) {
+        if (!overlay) return;
+        const stage = overlay.querySelector('.exp-stage');
+        if (!stage) return;
+        const stageRect = stage.getBoundingClientRect();
+
+        const el = document.createElement('div');
+        el.className = 'floating-text';
+        el.textContent = ft.text;
+        el.style.position = 'absolute';
+        el.style.whiteSpace = 'pre';
+        el.style.padding = '2px 6px';
+        el.style.background = 'transparent';
+        el.style.borderRadius = '3px';
+        el.style.color = ft.color || color;
+        el.style.font = `${(ft.size || 16) * displayScale}px sans-serif`;
+        el.style.cursor = 'move';
+        el.style.zIndex = 5000;
+
+        const left = Math.round(stageRect.left + ft.x * displayScale);
+        const top = Math.round(stageRect.top + ft.y * displayScale);
+        el.style.left = left + 'px';
+        el.style.top = top + 'px';
+
+        let dragging = false;
+        let startX = 0, startY = 0;
+
+        const onMouseDown = (e) => {
+            if (e.button !== 0) return;
+            dragging = true;
+            startX = e.clientX;
+            startY = e.clientY;
+            e.preventDefault();
+            document.body.style.userSelect = 'none';
+        };
+        const onMouseMove = (e) => {
+            if (!dragging) return;
+            const dx = e.clientX - startX;
+            const dy = e.clientY - startY;
+            startX = e.clientX;
+            startY = e.clientY;
+            const curLeft = parseFloat(el.style.left || 0);
+            const curTop = parseFloat(el.style.top || 0);
+            el.style.left = (curLeft + dx) + 'px';
+            el.style.top = (curTop + dy) + 'px';
+        };
+        const onMouseUp = (e) => {
+            if (!dragging) return;
+            dragging = false;
+            document.body.style.userSelect = '';
+            // Update ft coordinates relative to stage
+            const srect = stage.getBoundingClientRect();
+            const ex = parseFloat(el.style.left) - srect.left;
+            const ey = parseFloat(el.style.top) - srect.top;
+            ft.x = ex / displayScale;
+            ft.y = ey / displayScale;
+        };
+
+        el.addEventListener('mousedown', onMouseDown);
+        document.addEventListener('mousemove', onMouseMove);
+        document.addEventListener('mouseup', onMouseUp);
+
+        el.addEventListener('dblclick', () => {
+            const inp = document.createElement('input');
+            inp.className = 'exp-textinput';
+            inp.style.left = el.style.left;
+            inp.style.top = el.style.top;
+            inp.style.color = ft.color || color;
+            inp.value = ft.text;
+            document.body.appendChild(inp);
+            setTimeout(() => inp.focus(), 0);
+            const commit = () => {
+                ft.text = inp.value.trim();
+                el.textContent = ft.text;
+                inp.remove();
+            };
+            inp.addEventListener('keydown', (ev) => {
+                if (ev.key === 'Enter') { ev.preventDefault(); commit(); }
+                else if (ev.key === 'Escape') { inp.remove(); }
+            });
+            inp.addEventListener('blur', commit);
+        });
+
+        ft._el = el;
+        overlay.appendChild(el);
     }
 
     function makeToolButton(id, label) {
@@ -426,6 +529,7 @@
         ctx.drawImage(composite, 0, 0);
         ctx.scale(dpr, dpr);
         annotations.forEach(a => drawAnnotation(ctx, a));
+        floatingTexts.forEach(ft => drawAnnotation(ctx, ft));
         return out;
     }
 
@@ -550,12 +654,24 @@
         }
 
         const title = reportTitle();
+        let viewLink = '';
+        try {
+            if (typeof window.buildViewLink === 'function') {
+                viewLink = window.buildViewLink();
+            }
+        } catch (e) {
+            console.warn('Could not generate view link:', e);
+        }
+
         const body = report.blocks.map(block => {
             if (block.type === 'image') {
                 const caption = block.caption.trim()
                     ? `<figcaption class="caption">${multiline(block.caption)}</figcaption>` : '';
+                const imgHtml = viewLink
+                    ? `<a href="${viewLink}" style="text-decoration: none; cursor: pointer;" title="Cliquer pour ouvrir la vue dans Baltimore Bird"><img src="${block.dataUrl}" alt="Capture annotee"></a>`
+                    : `<img src="${block.dataUrl}" alt="Capture annotee">`;
                 return `<figure>
-<img src="${block.dataUrl}" alt="Capture annotee">
+${imgHtml}
 ${caption}
 </figure>`;
             }
@@ -572,8 +688,10 @@ body { font-family: -apple-system, 'Segoe UI', sans-serif; color: #1a1a1a; backg
        max-width: 920px; margin: 0 auto; padding: 32px 24px; }
 h1 { font-size: 20px; border-bottom: 2px solid #1a1a1a; padding-bottom: 8px; }
 .gen { color: #666; font-size: 12px; margin-bottom: 28px; }
-figure { margin: 0 0 28px; page-break-inside: avoid; }
-figure img { width: 100%; border: 1px solid #ddd; border-radius: 4px; }
+figure { margin: 0 0 28px; page-break-inside: avoid; max-width: 800px; }
+figure a { display: inline-block; }
+figure img { width: 100%; max-width: 100%; border: 1px solid #ddd; border-radius: 4px; }
+figure a:hover img { box-shadow: 0 0 8px rgba(0,0,0,0.2); transition: box-shadow 0.2s; cursor: pointer; }
 .caption { font-size: 13px; margin-top: 6px; line-height: 1.45; }
 .freetext { font-size: 13px; line-height: 1.55; margin: 0 0 22px; }
 @media print { body { padding: 0; } }
@@ -679,6 +797,30 @@ ${body}
         if (typeof window.bbTrack === 'function') window.bbTrack('png_export');
     }
 
+    async function copyImageToClipboard() {
+        const out = flattenToCanvas();
+        if (!navigator.clipboard || !navigator.clipboard.write) {
+            if (typeof window.showNotification === 'function') {
+                window.showNotification('Votre navigateur ne supporte pas le presse-papiers d\'images.', 'warning');
+            }
+            return;
+        }
+        return new Promise((resolve, reject) => {
+            out.toBlob(async (blob) => {
+                try {
+                    const item = new ClipboardItem({ [blob.type]: blob });
+                    await navigator.clipboard.write([item]);
+                    if (typeof window.showNotification === 'function') window.showNotification('Image copiée dans le presse-papiers.', 'success');
+                    if (typeof window.bbTrack === 'function') window.bbTrack('png_copy');
+                    resolve();
+                } catch (e) {
+                    if (typeof window.showNotification === 'function') window.showNotification('Échec de la copie.', 'error');
+                    reject(e);
+                }
+            });
+        });
+    }
+
     function open() {
         if (overlay) close();
         if (!buildComposite()) {
@@ -742,14 +884,48 @@ ${body}
         const clearBtn = document.createElement('button');
         clearBtn.className = 'exp-tool';
         clearBtn.textContent = 'Effacer';
-        clearBtn.addEventListener('click', () => { annotations = []; redraw(); });
+        clearBtn.addEventListener('click', () => {
+            annotations = [];
+            floatingTexts.forEach(ft => { if (ft._el && ft._el.remove) ft._el.remove(); });
+            floatingTexts = [];
+            redraw();
+        });
         toolbar.appendChild(clearBtn);
+
+        const divider = document.createElement('span');
+        divider.className = 'toolbar-divider';
+        toolbar.appendChild(divider);
 
         const dlBtn = document.createElement('button');
         dlBtn.className = 'exp-tool exp-primary';
-        dlBtn.textContent = 'Telecharger PNG';
+        dlBtn.type = 'button';
+        dlBtn.title = 'Télécharger PNG';
+        dlBtn.innerHTML = `
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="17 8 12 3 7 8"/>
+                <line x1="12" y1="3" x2="12" y2="15"/>
+            </svg>`;
         dlBtn.addEventListener('click', download);
         toolbar.appendChild(dlBtn);
+
+        const copyBtn = document.createElement('button');
+        copyBtn.className = 'exp-tool exp-primary';
+        copyBtn.type = 'button';
+        copyBtn.title = 'Copier PNG';
+        copyBtn.innerHTML = `
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+            </svg>`;
+        copyBtn.addEventListener('click', async () => {
+            try {
+                await copyImageToClipboard();
+            } catch (e) {
+                console.error('Copy failed', e);
+            }
+        });
+        toolbar.appendChild(copyBtn);
 
         const closeBtn = document.createElement('button');
         closeBtn.className = 'exp-close';
@@ -795,7 +971,6 @@ ${body}
         panel.appendChild(body);
         overlay.appendChild(panel);
         document.body.appendChild(overlay);
-
         // Interactions de dessin
         let textInput = null;
         annCanvas.addEventListener('mousedown', (e) => {

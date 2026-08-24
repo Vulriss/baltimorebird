@@ -5,6 +5,7 @@ import { S } from '../core/state.js';
 import { notify } from './analysis.js';
 import { ectx } from './context.js';
 import { updateCursors } from './cursors.js';
+import { openUploadModal } from './upload.js';
 import { applyLayout, exportCurrentLayout } from './layout-state.js';
 
 // =========================================================================
@@ -12,6 +13,7 @@ import { applyLayout, exportCurrentLayout } from './layout-state.js';
 // curseurs et onglet actif - une URL restaure exactement la vue partagee.
 // =========================================================================
 let pendingDeepLink = null;
+let _pendingLinkOverlay = null;
 
 function encodeDeepLink(payload) {
     return btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
@@ -65,6 +67,77 @@ export function readDeepLinkFromUrl() {
     }
 }
 
+function showPendingDeepLinkModal(wantedFilename) {
+    if (_pendingLinkOverlay) return;
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.classList.add('active');
+    overlay.id = 'pendingDeepLinkModal';
+    overlay.setAttribute('role', 'dialog');
+    overlay.setAttribute('aria-modal', 'true');
+    overlay.addEventListener('click', (e) => { if (e.target !== overlay) return; close(); });
+
+    const content = document.createElement('div');
+    content.className = 'modal-content';
+    content.addEventListener('click', (e) => e.stopPropagation());
+
+    const header = document.createElement('div');
+    header.className = 'modal-header';
+    const h2 = document.createElement('h2');
+    h2.textContent = 'Vue partagée en attente';
+    const closeBtn = document.createElement('button');
+    closeBtn.className = 'modal-close';
+    closeBtn.type = 'button';
+    closeBtn.innerHTML = '&times;';
+    closeBtn.addEventListener('click', close);
+    header.appendChild(h2);
+    header.appendChild(closeBtn);
+
+    const body = document.createElement('div');
+    body.className = 'modal-body';
+    const desc = document.createElement('p');
+    desc.className = 'modal-description';
+    desc.textContent = `Le lien demande le fichier "${wantedFilename}". Chargez-le pour appliquer la vue.`;
+    body.appendChild(desc);
+
+    const footer = document.createElement('div');
+    footer.className = 'modal-footer';
+    const cancelBtn = document.createElement('button');
+    cancelBtn.type = 'button';
+    cancelBtn.className = 'btn-secondary';
+    cancelBtn.textContent = 'Annuler';
+    cancelBtn.addEventListener('click', close);
+    const addBtn = document.createElement('button');
+    addBtn.type = 'button';
+    addBtn.className = 'btn-primary';
+    addBtn.textContent = 'Charger un fichier';
+    addBtn.addEventListener('click', () => {
+        close();
+        if (typeof openUploadModal === 'function') openUploadModal();
+    });
+    footer.appendChild(cancelBtn);
+    footer.appendChild(addBtn);
+
+    content.appendChild(header);
+    content.appendChild(body);
+    content.appendChild(footer);
+    overlay.appendChild(content);
+    document.body.appendChild(overlay);
+
+    function close() {
+        overlay.remove();
+        if (_pendingLinkOverlay === overlay) _pendingLinkOverlay = null;
+        document.removeEventListener('keydown', onKey);
+    }
+
+    function onKey(e) {
+        if (e.key === 'Escape') close();
+    }
+
+    document.addEventListener('keydown', onKey);
+    _pendingLinkOverlay = overlay;
+}
+
 // Applique le lien en attente si le fichier actif correspond (appele apres l'init et
 // apres chaque activation de session); sinon informe l'utilisateur du fichier attendu,
 // le lien restant en attente jusqu'au bon chargement.
@@ -73,7 +146,8 @@ export async function maybeApplyDeepLink() {
     const wanted = pendingDeepLink.f || '';
     const current = activeRunFilename();
     if (wanted && wanted !== current) {
-        notify(`Vue partagee en attente: chargez le fichier "${wanted}" pour l'appliquer.`, 'info');
+        // Show a centered modal prompting the user to add the expected file.
+        showPendingDeepLinkModal(wanted);
         return;
     }
     const link = pendingDeepLink;
@@ -97,6 +171,8 @@ export async function maybeApplyDeepLink() {
     notify('Vue partagee appliquee.', 'success');
     if (typeof window.bbTrack === 'function') window.bbTrack('view_link_open');
 }
+
+window.buildViewLink = buildViewLink;
 
 document.addEventListener('click', (e) => {
     if (e.target.closest && e.target.closest('#shareViewBtn')) copyViewLink();
