@@ -1,9 +1,9 @@
 {
   "2025-12-23": {
-    "total_requests": 1242,
     "unique_users": [
       "b2aeadbb5b4cd836"
     ],
+    "total_requests": 1242,
     "endpoints": {
       "/api/sources": 45,
       "/api/info": 51,
@@ -28,14 +28,10 @@
     },
     "sessions": {
       "count": 5,
-      "durations": [
-        100.96713042259216,
-        19.359657764434814,
-        3075.0946085453033,
-        1178.328649520874,
-        8516.101878166199
-      ]
+      "total_duration": 0.0,
+      "max_duration": 0.0
     },
+    "events": {},
     "latency": {
       "count": 1242,
       "min": 0.0,
@@ -43,14 +39,15 @@
       "avg": 40.83,
       "p50": 0,
       "p95": 0,
-      "p99": 0
+      "p99": 0,
+      "samples": []
     }
   },
   "2025-12-24": {
-    "total_requests": 151,
     "unique_users": [
       "b2aeadbb5b4cd836"
     ],
+    "total_requests": 151,
     "endpoints": {
       "/api/sources": 43,
       "/api/info": 43,
@@ -72,10 +69,10 @@
     },
     "sessions": {
       "count": 3,
-      "durations": [
-        4121.516237258911
-      ]
+      "total_duration": 0.0,
+      "max_duration": 0.0
     },
+    "events": {},
     "latency": {
       "count": 151,
       "min": 0.0,
@@ -83,14 +80,15 @@
       "avg": 0.82,
       "p50": 0,
       "p95": 0,
-      "p99": 0
+      "p99": 0,
+      "samples": []
     }
   },
   "2025-12-25": {
-    "total_requests": 122,
     "unique_users": [
       "b2aeadbb5b4cd836"
     ],
+    "total_requests": 122,
     "endpoints": {
       "/api/reports": 57,
       "/api/auth/me": 18,
@@ -110,6 +108,7 @@
       "total_duration": 2469.2181825637817,
       "max_duration": 2051.0829429626465
     },
+    "events": {},
     "latency": {
       "count": 122,
       "min": 0.0,
@@ -117,14 +116,15 @@
       "avg": 0.94,
       "p50": 0,
       "p95": 0,
-      "p99": 0
+      "p99": 0,
+      "samples": []
     }
   },
   "2025-12-27": {
-    "total_requests": 993,
     "unique_users": [
       "b2aeadbb5b4cd836"
     ],
+    "total_requests": 993,
     "endpoints": {
       "/api/sources": 113,
       "/api/info": 124,
@@ -161,6 +161,7 @@
       "total_duration": 7743.193212270737,
       "max_duration": 6926.9173493385315
     },
+    "events": {},
     "latency": {
       "count": 993,
       "min": 0.0,
@@ -168,14 +169,15 @@
       "avg": 211.26,
       "p50": 0,
       "p95": 0,
-      "p99": 0
+      "p99": 0,
+      "samples": []
     }
   },
   "2025-12-28": {
-    "total_requests": 389,
     "unique_users": [
       "b2aeadbb5b4cd836"
     ],
+    "total_requests": 389,
     "endpoints": {
       "/api/auth/me": 41,
       "/api/sources": 40,
@@ -203,6 +205,7 @@
       "total_duration": 3170.446392059326,
       "max_duration": 3053.6213598251343
     },
+    "events": {},
     "latency": {
       "count": 389,
       "min": 0.0,
@@ -210,14 +213,15 @@
       "avg": 15.91,
       "p50": 0,
       "p95": 0,
-      "p99": 0
+      "p99": 0,
+      "samples": []
     }
   },
   "2025-12-29": {
-    "total_requests": 68,
     "unique_users": [
       "b2aeadbb5b4cd836"
     ],
+    "total_requests": 68,
     "endpoints": {
       "/api/view": 40,
       "/api/auth/me": 8,
@@ -232,6 +236,7 @@
       "total_duration": 1694.1289205551147,
       "max_duration": 1694.1289205551147
     },
+    "events": {},
     "latency": {
       "count": 68,
       "min": 0.0,
@@ -239,14 +244,15 @@
       "avg": 1.77,
       "p50": 0,
       "p95": 0,
-      "p99": 0
+      "p99": 0,
+      "samples": []
     }
   },
   "2025-12-30": {
-    "total_requests": 116,
     "unique_users": [
       "b2aeadbb5b4cd836"
     ],
+    "total_requests": 116,
     "endpoints": {
       "/api/auth/me": 2,
       "/api/sources": 2,
@@ -270,6 +276,7 @@
       "total_duration": 1232.3340864181519,
       "max_duration": 1232.3340864181519
     },
+    "events": {},
     "latency": {
       "count": 116,
       "min": 0.0,
@@ -277,14 +284,15 @@
       "avg": 739.72,
       "p50": 0,
       "p95": 0,
-      "p99": 0
+      "p99": 0,
+      "samples": []
     }
   },
   "2026-01-06": {
-    "total_requests": 21,
     "unique_users": [
       "b2aeadbb5b4cd836"
     ],
+    "total_requests": 21,
     "endpoints": {
       "/api/sources": 9,
       "/api/info": 8,
@@ -299,6 +307,7 @@
       "total_duration": 83.8900351524353,
       "max_duration": 83.8900351524353
     },
+    "events": {},
     "latency": {
       "count": 21,
       "min": 0.0,
@@ -306,14 +315,15 @@
       "avg": 11.18,
       "p50": 0,
       "p95": 0,
-      "p99": 0
+      "p99": 0,
+      "samples": []
     }
   },
   "2026-01-08": {
-    "total_requests": 103,
     "unique_users": [
       "b2aeadbb5b4cd836"
     ],
+    "total_requests": 103,
     "endpoints": {
       "/api/auth/me": 15,
       "/api/sources": 33,
@@ -334,6 +344,7 @@
       "total_duration": 3022.202201128006,
       "max_duration": 3022.202201128006
     },
+    "events": {},
     "latency": {
       "count": 103,
       "min": 0.0,
@@ -341,14 +352,15 @@
       "avg": 15.17,
       "p50": 0,
       "p95": 0,
-      "p99": 0
+      "p99": 0,
+      "samples": []
     }
   },
   "2026-01-09": {
-    "total_requests": 6,
     "unique_users": [
       "b2aeadbb5b4cd836"
     ],
+    "total_requests": 6,
     "endpoints": {
       "/api/sources": 3,
       "/api/info": 3
@@ -361,6 +373,7 @@
       "total_duration": 40.294103145599365,
       "max_duration": 40.294103145599365
     },
+    "events": {},
     "latency": {
       "count": 6,
       "min": 0.0,
@@ -368,14 +381,15 @@
       "avg": 2.0,
       "p50": 0,
       "p95": 0,
-      "p99": 0
+      "p99": 0,
+      "samples": []
     }
   },
   "2026-01-12": {
-    "total_requests": 212,
     "unique_users": [
       "b2aeadbb5b4cd836"
     ],
+    "total_requests": 212,
     "endpoints": {
       "/api/sources": 39,
       "/api/info": 45,
@@ -410,6 +424,7 @@
       "total_duration": 6198.755650043488,
       "max_duration": 4712.441880941391
     },
+    "events": {},
     "latency": {
       "count": 212,
       "min": 0.0,
@@ -417,14 +432,15 @@
       "avg": 41.1,
       "p50": 0,
       "p95": 0,
-      "p99": 0
+      "p99": 0,
+      "samples": []
     }
   },
   "2026-01-13": {
-    "total_requests": 110,
     "unique_users": [
       "b2aeadbb5b4cd836"
     ],
+    "total_requests": 110,
     "endpoints": {
       "/api/sources": 16,
       "/api/info": 22,
@@ -446,6 +462,7 @@
       "total_duration": 3410.3937287330627,
       "max_duration": 2813.370973110199
     },
+    "events": {},
     "latency": {
       "count": 110,
       "min": 0.0,
@@ -453,14 +470,15 @@
       "avg": 3.53,
       "p50": 0,
       "p95": 0,
-      "p99": 0
+      "p99": 0,
+      "samples": []
     }
   },
   "2026-01-14": {
-    "total_requests": 337,
     "unique_users": [
       "b2aeadbb5b4cd836"
     ],
+    "total_requests": 337,
     "endpoints": {
       "/api/auth/me": 45,
       "/api/sources": 54,
@@ -491,6 +509,7 @@
       "total_duration": 7829.19087600708,
       "max_duration": 3014.997478723526
     },
+    "events": {},
     "latency": {
       "count": 337,
       "min": 0.0,
@@ -498,14 +517,15 @@
       "avg": 5.63,
       "p50": 0,
       "p95": 0,
-      "p99": 0
+      "p99": 0,
+      "samples": []
     }
   },
   "2026-01-15": {
-    "total_requests": 171,
     "unique_users": [
       "b2aeadbb5b4cd836"
     ],
+    "total_requests": 171,
     "endpoints": {
       "/api/auth/me": 11,
       "/api/sources": 20,
@@ -536,6 +556,7 @@
       "total_duration": 1100.5714128017426,
       "max_duration": 573.2656695842743
     },
+    "events": {},
     "latency": {
       "count": 171,
       "min": 0.0,
@@ -543,7 +564,8 @@
       "avg": 6.59,
       "p50": 0,
       "p95": 0,
-      "p99": 0
+      "p99": 0,
+      "samples": []
     }
   },
   "2026-01-19": {
@@ -570,9 +592,10 @@
     },
     "sessions": {
       "count": 0,
-      "total_duration": 0,
-      "max_duration": 0
+      "total_duration": 0.0,
+      "max_duration": 0.0
     },
+    "events": {},
     "latency": {
       "count": 35,
       "min": 0.0,
@@ -580,7 +603,8 @@
       "avg": 9.82,
       "p50": 0,
       "p95": 0,
-      "p99": 0
+      "p99": 0,
+      "samples": []
     }
   },
   "2026-01-24": {
@@ -601,9 +625,10 @@
     },
     "sessions": {
       "count": 0,
-      "total_duration": 0,
-      "max_duration": 0
+      "total_duration": 0.0,
+      "max_duration": 0.0
     },
+    "events": {},
     "latency": {
       "count": 43,
       "min": 0.0,
@@ -611,7 +636,8 @@
       "avg": 92.47,
       "p50": 0,
       "p95": 0,
-      "p99": 0
+      "p99": 0,
+      "samples": []
     }
   },
   "2026-03-11": {
@@ -650,14 +676,64 @@
       "total_duration": 918.612731218338,
       "max_duration": 918.612731218338
     },
+    "events": {},
     "latency": {
       "count": 128,
       "min": 0.0,
       "max": 3636.9,
       "avg": 55.88,
-      "p50": 2.0,
-      "p95": 214.87,
-      "p99": 1237.51
+      "p50": 0,
+      "p95": 0,
+      "p99": 0,
+      "samples": []
+    }
+  },
+  "2026-08-24": {
+    "unique_users": [
+      "11307f27733167f9"
+    ],
+    "total_requests": 15,
+    "endpoints": {
+      "/api/banner": 13,
+      "/api/sources": 1,
+      "/api/info": 1
+    },
+    "status_codes": {
+      "200": 15
+    },
+    "sessions": {
+      "count": 0,
+      "total_duration": 0.0,
+      "max_duration": 0.0
+    },
+    "events": {
+      "app_open": 1
+    },
+    "latency": {
+      "count": 15,
+      "min": 0.0,
+      "max": 14.01,
+      "avg": 3.53,
+      "p50": 3.0,
+      "p95": 14.01,
+      "p99": 14.01,
+      "samples": [
+        14.01,
+        0.0,
+        1.0,
+        7.0,
+        3.01,
+        2.01,
+        1.93,
+        1.99,
+        3.0,
+        3.0,
+        4.0,
+        2.0,
+        4.0,
+        3.02,
+        3.01
+      ]
     }
   }
 }
