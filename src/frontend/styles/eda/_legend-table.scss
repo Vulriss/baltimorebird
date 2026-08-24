@@ -313,20 +313,34 @@
 // Boutons discrets de la barre overlay (poignee de deplacement, cadrage Y auto):
 // invisibles au repos, reveles au survol du panneau — comme la croix de
 // suppression voisine.
+.plot-stats {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px; 
+    padding: 2px 4px;
+    width: auto;
+    border-radius: $radius-sm;
+    background: transparent;
+    transition: background 0.15s ease-in-out;
+}
+
 .plot-stats .plot-grip,
 .plot-stats .plot-autoy,
 .plot-stats .plot-lock,
-.plot-stats .plot-solo-btn {
-    background: transparent;
-    border: none;
-    color: $text-muted;
-    padding: 2px 6px;
-    font-size: 11px;
-    line-height: 1;
-    border-radius: 3px;
-    transition: all 0.15s;
-    flex-shrink: 0;
-    opacity: 0;
+.plot-stats .plot-solo-btn,
+.plot-stats .plot-delete {
+    background: transparent !important;
+    border-radius: 3px !important;
+    border: none !important;
+    color: $text-muted !important;
+    padding: 3px 7px !important;
+    font-size: 14px !important;
+    line-height: 1 !important;
+    border-radius: 3px !important;
+    transition: all 0.15s !important;
+    flex-shrink: 0 !important;
+    opacity: 0 !important;
+     margin: 0;
 }
 
 // Les SVG sont en display inline par defaut: le baseline text decalerait le
@@ -337,21 +351,36 @@
 
 .plot-stats .plot-autoy,
 .plot-stats .plot-lock,
-.plot-stats .plot-solo-btn { cursor: pointer; }
+.plot-stats .plot-solo-btn,
+.plot-stats .plot-delete { cursor: pointer; }
 
 .plot-container:hover .plot-stats .plot-grip,
 .plot-container:hover .plot-stats .plot-autoy,
 .plot-container:hover .plot-stats .plot-lock,
-.plot-container:hover .plot-stats .plot-solo-btn { opacity: 0.65; }
+.plot-container:hover .plot-stats .plot-solo-btn,
+.plot-container:hover .plot-stats .plot-delete { opacity: 0.65 !important; }
+
+.plot-container:hover .plot-stats {
+    background: rgba(255, 255, 255, 0.06);
+}
 
 .plot-stats .plot-grip:hover,
 .plot-stats .plot-autoy:hover,
 .plot-stats .plot-lock:hover,
-.plot-stats .plot-solo-btn:hover {
-    opacity: 1;
-    background: rgba(255, 255, 255, 0.08);
-    color: $text-primary;
+.plot-stats .plot-solo-btn:hover,
+.plot-stats .plot-delete:hover {
+    opacity: 1 !important;
+    background: rgba(255, 255, 255, 0.08) !important;
+    color: $text-primary !important;
 }
+
+// Bouton de suppression: rouge au survol, pour eviter les clics accidentels
+.plot-stats .plot-delete:hover {
+    opacity: 1 !important;
+    color: $ctp-red !important;
+    background: rgba(255, 100, 100, 0.15) !important;
+}
+
 
 // Etat actif (Y verrouille / panneau seul): visible en permanence, meme sans
 // survol. Un verrou invisible serait un piege: on ne comprendrait pas pourquoi
@@ -366,8 +395,9 @@
 
 .plot-stats .plot-autoy:active,
 .plot-stats .plot-lock:active,
-.plot-stats .plot-solo-btn:active {
-    background: rgba(255, 255, 255, 0.14);
+.plot-stats .plot-solo-btn:active,
+.plot-stats .plot-delete:active {
+    background: rgba(255, 255, 255, 0.14) !important;
 }
 
 // Mode solo: un seul panneau occupe toute la hauteur. Les autres sont masques
