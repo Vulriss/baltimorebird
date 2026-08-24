@@ -1,8 +1,9 @@
 """Baltimore Bird - API des variables calculées."""
 
 import ast
+import operator
 import re
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import numpy as np
 from flask import Blueprint, g, jsonify, request
@@ -131,8 +132,13 @@ class _LogicalTransformer(ast.NodeTransformer):
         return expr
 
 
-def compile_formula(formula: str):
-    """Normalise, parse (mode eval: expressions seules), transforme et compile."""
+def build_formula_ast(formula: str) -> ast.Expression:
+    """Normalise, parse (mode eval: expressions seules) et applique la reecriture logique.
+
+    Ne compile ni n'evalue aucun code Python: l'arbre retourne est ensuite interprete
+    par SafeExpressionEvaluator. Supprimer compile/eval elimine la surface d'attaque
+    d'execution de code arbitraire.
+    """
     normalized = normalize_formula(formula).strip()
     try:
         tree = ast.parse(normalized, mode="eval")
@@ -140,7 +146,105 @@ def compile_formula(formula: str):
         raise ValueError(f"Formule invalide: {exc.msg}")
     tree = _LogicalTransformer().visit(tree)
     ast.fix_missing_locations(tree)
-    return compile(tree, "<formula>", "eval")
+    return tree
+
+
+class UnsafeExpressionError(ValueError):
+    """Construction interdite rencontree lors de l'interpretation d'une formule."""
+
+
+class SafeExpressionEvaluator:
+    """Interprete un AST de formule restreint sans jamais recourir a eval ni compile.
+
+    Le modele de securite est une liste blanche de noeuds: seuls l'arithmetique, les
+    comparaisons et les appels aux entrees de ALLOWED_FUNCTIONS sont evalues. Aucun
+    acces attribut n'est implemente, ce qui ferme par construction les evasions par
+    introspection (__class__, __globals__, __subclasses__...). Toute construction non
+    prevue leve UnsafeExpressionError au lieu d'etre executee.
+    """
+
+    _BINARY_OPS: Dict[type, Callable[[Any, Any], Any]] = {
+        ast.Add: operator.add,
+        ast.Sub: operator.sub,
+        ast.Mult: operator.mul,
+        ast.Div: operator.truediv,
+        ast.FloorDiv: operator.floordiv,
+        ast.Mod: operator.mod,
+        ast.Pow: operator.pow,
+    }
+    _UNARY_OPS: Dict[type, Callable[[Any], Any]] = {
+        ast.UAdd: operator.pos,
+        ast.USub: operator.neg,
+    }
+    _COMPARE_OPS: Dict[type, Callable[[Any, Any], Any]] = {
+        ast.Eq: operator.eq,
+        ast.NotEq: operator.ne,
+        ast.Lt: operator.lt,
+        ast.LtE: operator.le,
+        ast.Gt: operator.gt,
+        ast.GtE: operator.ge,
+    }
+
+    def evaluate(self, tree: ast.Expression, namespace: Dict[str, Any]) -> Any:
+        return self._eval(tree.body, namespace)
+
+    def _eval(self, node: ast.expr, namespace: Dict[str, Any]) -> Any:
+        if isinstance(node, ast.Constant):
+            if isinstance(node.value, bool) or not isinstance(node.value, (int, float)):
+                raise UnsafeExpressionError("Constante non numerique interdite")
+            return node.value
+        if isinstance(node, ast.Name):
+            if node.id not in namespace:
+                raise UnsafeExpressionError(f"Nom non autorise: {node.id}")
+            return namespace[node.id]
+        if isinstance(node, ast.BinOp):
+            handler = self._BINARY_OPS.get(type(node.op))
+            if handler is None:
+                raise UnsafeExpressionError("Operateur binaire interdit")
+            return handler(self._eval(node.left, namespace), self._eval(node.right, namespace))
+        if isinstance(node, ast.UnaryOp):
+            unary = self._UNARY_OPS.get(type(node.op))
+            if unary is None:
+                raise UnsafeExpressionError("Operateur unaire interdit")
+            return unary(self._eval(node.operand, namespace))
+        if isinstance(node, ast.Compare):
+            return self._eval_compare(node, namespace)
+        if isinstance(node, ast.Call):
+            return self._eval_call(node, namespace)
+        raise UnsafeExpressionError(f"Expression non autorisee: {type(node).__name__}")
+
+    def _eval_compare(self, node: ast.Compare, namespace: Dict[str, Any]) -> Any:
+        # _LogicalTransformer reduit deja les comparaisons chainees; on traite le cas
+        # general par securite, en combinant les maillons via un ET element-wise.
+        left = self._eval(node.left, namespace)
+        result: Any = None
+        for op, comparator in zip(node.ops, node.comparators):
+            handler = self._COMPARE_OPS.get(type(op))
+            if handler is None:
+                raise UnsafeExpressionError("Operateur de comparaison interdit")
+            right = self._eval(comparator, namespace)
+            link = handler(left, right)
+            result = link if result is None else np.logical_and(result, link)
+            left = right
+        return result
+
+    def _eval_call(self, node: ast.Call, namespace: Dict[str, Any]) -> Any:
+        if not isinstance(node.func, ast.Name):
+            raise UnsafeExpressionError("Seuls les appels de fonctions nommees sont autorises")
+        name = node.func.id
+        func = ALLOWED_FUNCTIONS.get(name)
+        if func is None or not callable(func):
+            raise UnsafeExpressionError(f"Fonction non autorisee: {name}")
+        if any(isinstance(arg, ast.Starred) for arg in node.args):
+            raise UnsafeExpressionError("Le deballage d'arguments positionnels est interdit")
+        if any(keyword.arg is None for keyword in node.keywords):
+            raise UnsafeExpressionError("Le deballage de mots-cles est interdit")
+        args = [self._eval(arg, namespace) for arg in node.args]
+        kwargs = {keyword.arg: self._eval(keyword.value, namespace) for keyword in node.keywords}
+        return func(*args, **kwargs)
+
+
+_EVALUATOR = SafeExpressionEvaluator()
 
 
 def compute_formula(
@@ -166,8 +270,8 @@ def compute_formula(
     namespace: Dict[str, Any] = {**ALLOWED_FUNCTIONS, **signal_data}
 
     try:
-        code = compile_formula(formula)
-        result = eval(code, {"__builtins__": {}}, namespace)
+        tree = build_formula_ast(formula)
+        result = _EVALUATOR.evaluate(tree, namespace)
 
         # bool est un sous-type d'int; np.bool_/np.float64 scalaires passent par np.generic.
         if isinstance(result, (int, float, np.generic)):
