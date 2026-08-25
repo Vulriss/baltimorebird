@@ -19,14 +19,15 @@
     position: relative;
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 0px;
     max-width: 96vw;
     max-height: 94vh;
-    padding: 12px;
-    background: $bg-card-elevated;
-    border: 1px solid $border-color;
+    padding: 0px;
+    background: transparent;
+    border: transparent;
     border-radius: 10px;
     box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+    overflow: visible !important;
 }
 
 .exp-toolbar {
@@ -41,23 +42,28 @@
     width: 1px;
     height: 24px;
     background: $ctp-surface2;
-    margin: 0 12px;
+    margin: 0 8px;
 }
 
 /* Corps deux volets: scene d'annotation a gauche, rapport a droite */
 .exp-body {
     display: flex;
-    gap: 12px;
+    gap: 16px;
     min-height: 0;
+    align-items: stretch;
 }
 
 .exp-left {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 12px;
     align-items: flex-start;
     min-width: 0;
-    overflow: auto;
+    background: $bg-card-elevated;
+    border: 1px solid $border-color;
+    border-radius: 12px;
+    padding: 16px;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
 }
 
 .exp-section-title {
@@ -70,33 +76,41 @@
 
 .exp-close {
     position: absolute;
-    top: 8px;
-    right: 10px;
-    width: 26px;
-    height: 26px;
+    top: -38px;
+    right: -38px;
+    width: 30px;
+    height: 30px;
     padding: 0;
-    background: transparent;
+    background: $bg-card-elevated;
     border: 1px solid $border-color;
     border-radius: 6px;
     color: $text-secondary;
-    font-size: 16px;
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     line-height: 1;
     cursor: pointer;
-
+    z-index: 100;
     &:hover {
         border-color: $color-accent;
         color: $color-accent;
+        background: $bg-hover;
     }
 }
 
 .exp-report {
+    position: relative;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 12px;
     flex: 0 0 380px;
     min-height: 0;
-    padding-left: 12px;
-    border-left: 1px solid $border-color;
+    background: $bg-card-elevated;
+    border: 1px solid $border-color;
+    border-radius: 12px;
+    padding: 16px;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
 }
 
 .exp-rep-actions {
@@ -104,6 +118,37 @@
     gap: 8px;
 
     .exp-tool { flex: 1; }
+}
+
+.exp-rep-actions .exp-tool:not(.exp-primary) {
+    background: rgba(255, 255, 255, 0.03) !important; 
+    border-color: $border-color !important;
+    color: $text-secondary !important;
+}
+
+.exp-rep-actions .exp-tool:not(.exp-primary):hover {
+    background: rgba(255, 255, 255, 0.08) !important;
+    border-color: $color-accent !important;
+    color: $text-primary !important;
+}
+
+.exp-rep-empty {
+    padding: 24px 16px;
+    color: rgba($text-muted, 0.5) !important; 
+    font-size: 12px;
+    font-style: italic;
+    text-align: center;
+    line-height: 1.4;
+}
+
+.exp-rep-title {
+    margin-top: 0;
+    font-weight: 600;
+    background: $bg-card !important;
+    padding: 8px 12px !important;
+    font-size: 13px !important;
+    border-radius: 6px !important;
+    transition: all 0.15s ease;
 }
 
 .exp-rep-list {
@@ -193,7 +238,24 @@
     font-weight: 600;
 }
 
+.exp-stage-wrapper {
+    display: flex;
+    flex-direction: row;
+    gap: 12px; /* Espace entre le PNG et la barre d'outils verticale */
+    align-items: flex-start;
+}
+
+.exp-stage-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
 .exp-tool {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     height: 30px;
     padding: 0 12px;
     background: transparent;
@@ -204,6 +266,7 @@
     cursor: pointer;
     transition: border-color 0.12s, color 0.12s, background 0.12s;
 }
+
 .exp-tool:hover {
     border-color: $color-accent;
     color: $color-accent;
@@ -231,10 +294,20 @@
     stroke: currentColor;
     fill: none;
 }
+
+.exp-tool:not(.keep-color) svg {
+    stroke: var(--selected-color, $color-accent);
+}
+
 .exp-tool svg[aria-hidden="true"] { pointer-events: none; }
 
+.exp-tool:has(svg) {
+    padding: 0;
+    width: 30px;
+}
 
 .exp-color {
+    margin-left: 12px;
     width: 30px;
     height: 30px;
     padding: 0;
@@ -242,6 +315,12 @@
     border: 1px solid $border-color;
     border-radius: 6px;
     cursor: pointer;
+    overflow: hidden;
+    transition: border-color 0.12s;
+}
+
+.exp-color:hover{
+    border-color: $color-accent;
 }
 
 .exp-spacer {
