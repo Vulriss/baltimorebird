@@ -75,6 +75,7 @@ import { resizeAllChartsNow } from './plots.js';
     let color = '#e83e3e';
     let draft = null;           // annotation en cours (drag)
     let annCtx = null;          // contexte de la couche d'annotation (affichage)
+    let legendPosition = 'top'; 
 
     // Rapport en construction: volontairement epargne par close(), la structure survit
     // aux fermetures de la modale pour accumuler les captures d'une meme session.
@@ -189,6 +190,76 @@ import { resizeAllChartsNow } from './plots.js';
         return rows * LEGEND_ROW_H + 4;
     }
 
+    function calculateLegendWidth(ctx, entries) {
+        if (!entries.length) return 0;
+        ctx.font = '12px sans-serif';
+        let maxWidth = 0;
+        entries.forEach(e => {
+            const w = ctx.measureText(e.text).width + 20; 
+            maxWidth = Math.max(maxWidth, w);
+        });
+        return maxWidth; 
+    }
+
+    function resizePlotsForLegendPosition() {
+        const S = window.S;
+        if (!S || !S.plots) return;
+        
+        const totalGapHeight = (S.plots.length - 1) * PLOT_GAP;
+        const titleAndPadding = PAD * 2 + TITLE_H;
+        
+        let availableHeight;
+        
+        if (legendPosition === 'top') {
+            // Calculer la hauteur totale de la legende top
+            let totalLegendHeight = 0;
+            S.plots.forEach(plot => {
+                const container = plot.element;
+                const meas = document.createElement('canvas').getContext('2d');
+                const entries = legendEntries(container);
+                const legH = legendHeight(meas, entries, TARGET_WIDTH - PAD * 2);
+                totalLegendHeight += legH;
+            });
+            availableHeight = TARGET_HEIGHT - totalGapHeight - totalLegendHeight - titleAndPadding;
+        } else {
+            // Pas de hauteur quand légende à droite
+            availableHeight = TARGET_HEIGHT - totalGapHeight - titleAndPadding;
+        }
+        
+        // Calculer la hauteur actuelle totale des corps de graphe pour determiner les proportions
+        let totalCurrentHeight = 0;
+        const currentHeights = new Map();
+        
+        S.plots.forEach(plot => {
+            const plotBody = plot.element.querySelector('.plot-body');
+            if (plotBody) {
+                const height = plotBody.getBoundingClientRect().height;
+                currentHeights.set(plot.id, height);
+                totalCurrentHeight += height;
+            }
+        });
+        
+        // Redimensionner chaque corps de graphe en fonction de sa proportion actuelle par rapport a la hauteur totale disponible
+        S.plots.forEach(plot => {
+            const plotBody = plot.element.querySelector('.plot-body');
+            
+            if (plotBody) {
+                const currentHeight = currentHeights.get(plot.id) || 1;
+                const proportion = currentHeight / Math.max(totalCurrentHeight, 1);
+                const finalHeight = Math.floor(availableHeight * proportion);
+                
+                plotBody.style.height = `${finalHeight}px`;
+                plotBody.style.minHeight = `${finalHeight}px`;
+                plotBody.style.maxHeight = `${finalHeight}px`;
+                plotBody.style.flex = `0 0 ${finalHeight}px`;
+            }
+        });
+        
+        // Forcer le recalcul de la mise en page pour que les changements de style prennent effet
+        forceResizeCharts();
+        setTimeout(forceResizeCharts, 50);
+    }
+
     function drawLegend(ctx, entries, x0, y0, maxW) {
         ctx.font = '12px sans-serif';
         ctx.textBaseline = 'middle';
@@ -207,6 +278,25 @@ import { resizeAllChartsNow } from './plots.js';
             ctx.fillStyle = tc;
             ctx.fillText(e.text, x + dot, y);
             x += w;
+        });
+    }
+
+    function drawLegendVertical(ctx, entries, x0, y0, maxW) {
+        ctx.font = '12px sans-serif';
+        ctx.textBaseline = 'middle';
+        const tc = themeColors().fg;
+        let y = y0 + LEGEND_ROW_H / 2;
+        
+        entries.forEach(e => {
+            ctx.fillStyle = e.color;
+            ctx.beginPath();
+            ctx.arc(x0 + 5, y, 4, 0, Math.PI * 2);
+            ctx.fill();
+            
+            ctx.fillStyle = tc;
+            ctx.fillText(e.text, x0 + 14, y);
+            
+            y += LEGEND_ROW_H;
         });
     }
 
@@ -543,16 +633,14 @@ import { resizeAllChartsNow } from './plots.js';
             // Mesurer la hauteur de la legende pour ce graphe
             const meas = document.createElement('canvas').getContext('2d');
             const entries = legendEntries(container);
-            const legH = legendHeight(meas, entries, contentW - PAD * 2);
-            
-            return {
-                cnv,
-                chartW,
-                chartH,
-                entries,
-                legH,
-                container
-            };
+
+            if (legendPosition === 'top') {
+                const legH = legendHeight(meas, entries, contentW - PAD * 2);
+                return { cnv, chartW, chartH, entries, legH, legW: 0, container };
+            } else {
+                const legW = calculateLegendWidth(meas, entries);
+                return { cnv, chartW, chartH, entries, legH: 0, legW, container };
+            }
         });
 
         composite = document.createElement('canvas');
@@ -590,30 +678,33 @@ import { resizeAllChartsNow } from './plots.js';
         let currentY = PAD + TITLE_H;
         
         plotLayouts.forEach((layout, index) => {
-            // Legend
-            if (layout.entries.length) {
-                drawLegend(ctx, layout.entries, PAD, currentY, contentW - PAD * 2);
-                currentY += layout.legH;
-            }
-            
-            // Chart
-            const chartX = PAD; 
-            const chartWidth = contentW - PAD * 2; 
-            
-            ctx.drawImage(
-                layout.cnv,
-                chartX, currentY,
-                chartWidth,
-                layout.chartH
-            );
-            
-            // Cursors
-            drawCursors(ctx, layout.container, layout.cnv, chartX, currentY);
-            
-            // Move to next plot position
-            currentY += layout.chartH;
-            if (index < plotLayouts.length - 1) {
-                currentY += PLOT_GAP;
+            if (legendPosition === 'top') {
+                // Legend on top
+                if (layout.entries.length) {
+                    drawLegend(ctx, layout.entries, PAD, currentY, contentW - PAD * 2);
+                    currentY += layout.legH;
+                }
+                
+                // Chart
+                ctx.drawImage(layout.cnv, PAD, currentY, contentW - PAD * 2, layout.chartH);
+                drawCursors(ctx, layout.container, layout.cnv, PAD, currentY);
+                
+                currentY += layout.chartH + PLOT_GAP;
+            } else {
+                // Legend on right
+                const chartWidth = contentW - PAD * 2 - layout.legW - 10; 
+                const legendX = PAD + chartWidth + 10;
+                
+                // Chart
+                ctx.drawImage(layout.cnv, PAD, currentY, chartWidth, layout.chartH);
+                drawCursors(ctx, layout.container, layout.cnv, PAD, currentY);
+                
+                // Legend on right
+                if (layout.entries.length) {
+                    drawLegendVertical(ctx, layout.entries, legendX, currentY, layout.legW);
+                }
+                
+                currentY += layout.chartH + PLOT_GAP;
             }
         });
 
@@ -1404,9 +1495,46 @@ ${body}
             });
             toolbar.appendChild(clearBtn);
 
-            /*const divider2 = document.createElement('span');
+            const divider2 = document.createElement('span');
             divider2.className = 'toolbar-divider';
-            toolbar.appendChild(divider2);*/
+            toolbar.appendChild(divider2);
+
+            const legendToggleBtn = document.createElement('button');
+            legendToggleBtn.className = 'exp-tool keep-color';
+            legendToggleBtn.title = 'Légende à droite';
+            legendToggleBtn.innerHTML = `
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <rect x="3" y="3" width="18" height="18" rx="2"/>
+                    <line x1="15" y1="3" x2="15" y2="21"/>
+                </svg>`;
+            legendToggleBtn.addEventListener('click', () => {
+                legendPosition = legendPosition === 'top' ? 'right' : 'top';
+                legendToggleBtn.title = legendPosition === 'top' ? 'Légende à droite' : 'Légende en haut';
+
+                resizePlotsForLegendPosition();
+
+                // Reconstruit le composite avec la nouvelle position de la légende
+                setTimeout(() => {
+                    const newComposite = buildComposite();
+                if (!newComposite) return;
+
+                    const stage = overlay.querySelector('.exp-stage');
+                    const existingCanvas = stage.querySelector('.exp-snapshot');
+
+                    if (existingCanvas) {
+                        const ctx = existingCanvas.getContext('2d');
+                        existingCanvas.width = newComposite.width;
+                        existingCanvas.height = newComposite.height;
+                        ctx.drawImage(newComposite, 0, 0);
+                    }
+
+                    composite = newComposite;
+
+                    redraw();
+                }, 50);
+            });
+
+            toolbar.appendChild(legendToggleBtn);
 
             const closeBtn = document.createElement('button');
             closeBtn.className = 'exp-close';
