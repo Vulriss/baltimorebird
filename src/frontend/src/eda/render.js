@@ -4,7 +4,7 @@
 import { S } from '../core/state.js';
 import { boolZonesPlugin } from './bool-zones.js';
 import { API, ectx } from './context.js';
-import { cursorPlugin } from './cursors.js';
+import { cursorPlugin, isLegendSignalSelected } from './cursors.js';
 import { PX_BUCKET, cacheCoversView, canRenderFromCache, getPersistentView, prefetchCache, replayServerData, schedulePyramidBuild, storeViewCache, targetPointsForPlot, viewCacheKey } from './data-views.js';
 import { renderCommentPlot } from './events-strip.js';
 import { fetchViewGrouped, isSeriesSynth, plotHasSynth, renderOverlayChart, renderOverlayFromCache, scheduleFullDataOverlay, seriesDescriptor } from './overlay.js';
@@ -507,13 +507,14 @@ export function renderBoolPlot(plot) {
             if (p !== undefined) y[p] = s.v[i];
         }
         const style = resolveSignalStyle(plot, s.sigIdx, s.cached.color);
+        const selected = isLegendSignalSelected(plot.id, s.sigIdx);
         uplotData.push(y);
         series.push({
             label: s.cached.name,
             stroke: style.color,
-            width: style.width,
+            width: selected ? style.width * 2 + 0.5 : style.width,
             paths: pathRenderer('stepped'),
-            fill: colorWithOpacity(style.color, 0.3),
+            fill: colorWithOpacity(style.color, selected ? 0.5 : 0.3),
             fillTo: s.base,
             points: { show: false },
             spanGaps: true,

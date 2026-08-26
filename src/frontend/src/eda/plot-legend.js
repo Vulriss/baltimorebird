@@ -102,14 +102,21 @@ export function deletePlot(plotId) {
 
 // Reordonne un signal dans son panneau (drag-reorg des lignes de legende): retire le signal
 // deplace et le reinsere a la position de la ligne cible, puis re-rend chart et legende.
-function reorderSignalInPlot(plotId, draggedIdx, targetIdx) {
+function reorderSignalInPlot(plotId, draggedIdx, targetIdx, position = 'before') {
     const plot = S.plots.find(p => p.id === plotId);
     if (!plot || draggedIdx === targetIdx) return;
     const from = plot.signals.indexOf(draggedIdx);
     if (from === -1) return;
     plot.signals.splice(from, 1);
-    const to = plot.signals.indexOf(targetIdx);
-    plot.signals.splice(to === -1 ? plot.signals.length : to, 0, draggedIdx);
+
+    let to = plot.signals.indexOf(targetIdx);
+    if (to === -1) {
+        to = plot.signals.length; 
+    } else if (position === 'after') {
+        to += 1;
+    }
+    plot.signals.splice(to, 0, draggedIdx);
+
     const tab = S.tabs.find(t => t.id === S.activeTabId);
     if (tab) tab.plots = S.plots;
     rerenderPlotFromCache(plot);
@@ -344,6 +351,19 @@ export function updatePlotHeader(plot) {
     const table = document.createElement('div');
     table.className = 'legend-table';
 
+    table.addEventListener('dragenter', (e) => {
+        if (S.draggedFromPlotId === plot.id) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+        }
+    });
+    table.addEventListener('dragover', (e) => {
+        if (S.draggedFromPlotId === plot.id) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+        }
+    });
+
     const makeCell = (cls, text, attrs) => {
         const cell = document.createElement('span');
         cell.className = cls;
@@ -439,16 +459,24 @@ export function updatePlotHeader(plot) {
         nameCell.addEventListener('dragover', (e) => {
             if (S.draggedFromPlotId === plot.id && S.draggedSignal !== sigIdx) {
                 e.preventDefault();
-                nameCell.classList.add('reorder-target');
+                e.dataTransfer.dropEffect = 'move';
+                const rect = nameCell.getBoundingClientRect();
+                const before = (e.clientY - rect.top) < rect.height / 2;
+                nameCell.classList.toggle('reorder-target-before', before);
+                nameCell.classList.toggle('reorder-target-after', !before);
             }
         });
-        nameCell.addEventListener('dragleave', () => nameCell.classList.remove('reorder-target'));
+        nameCell.addEventListener('dragleave', () => {
+            nameCell.classList.remove('reorder-target-before', 'reorder-target-after');
+        });
         nameCell.addEventListener('drop', (e) => {
-            nameCell.classList.remove('reorder-target');
+            nameCell.classList.remove('reorder-target-before', 'reorder-target-after');
             if (S.draggedFromPlotId !== plot.id || S.draggedSignal === sigIdx) return;
             e.preventDefault();
             e.stopPropagation();
-            reorderSignalInPlot(plot.id, S.draggedSignal, sigIdx);
+            const rect = nameCell.getBoundingClientRect();
+            const before = (e.clientY - rect.top) < rect.height / 2;
+            reorderSignalInPlot(plot.id, S.draggedSignal, sigIdx, before ? 'before' : 'after');
         });
 
         if (isLegendSignalSelected(plot.id, sigIdx)) {
