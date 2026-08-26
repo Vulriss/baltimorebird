@@ -75,6 +75,7 @@ import { resizeAllChartsNow } from './plots.js';
     let color = '#e83e3e';
     let draft = null;           // annotation en cours (drag)
     let annCtx = null;          // contexte de la couche d'annotation (affichage)
+    let legendPosition = 'top'; 
 
     // Rapport en construction: volontairement epargne par close(), la structure survit
     // aux fermetures de la modale pour accumuler les captures d'une meme session.
@@ -189,6 +190,113 @@ import { resizeAllChartsNow } from './plots.js';
         return rows * LEGEND_ROW_H + 4;
     }
 
+    function calculateLegendWidth(ctx, entries) {
+        if (!entries.length) return 0;
+        ctx.font = '12px sans-serif';
+        let maxWidth = 0;
+        entries.forEach(e => {
+            const w = ctx.measureText(e.text).width + 20; 
+            maxWidth = Math.max(maxWidth, w);
+        });
+        return maxWidth; 
+    }
+
+    function resizePlotsForLegendPosition() {
+        const S = window.S;
+        if (!S || !S.plots) return;
+        
+        const totalGapHeight = (S.plots.length - 1) * PLOT_GAP;
+        const titleAndPadding = PAD * 2 + TITLE_H;
+        
+        let availableHeight;
+        let plotWidth;
+        
+        if (legendPosition === 'top') {
+            // Calculer la hauteur totale de la legende top
+            let totalLegendHeight = 0;
+            S.plots.forEach(plot => {
+                const container = plot.element;
+                const meas = document.createElement('canvas').getContext('2d');
+                const entries = legendEntries(container);
+                const legH = legendHeight(meas, entries, TARGET_WIDTH - PAD * 2);
+                totalLegendHeight += legH;
+            });
+            availableHeight = TARGET_HEIGHT - totalGapHeight - totalLegendHeight - titleAndPadding;
+            plotWidth = TARGET_WIDTH - PAD * 2;
+        } else {
+            // Pas de hauteur quand légende à droite
+            availableHeight = TARGET_HEIGHT - totalGapHeight - titleAndPadding;
+
+            // Pour légende à droite, calculer la largeur maximale de la légende
+            let maxLegendWidth = 0;
+            S.plots.forEach(plot => {
+                const container = plot.element;
+                const meas = document.createElement('canvas').getContext('2d');
+                const entries = legendEntries(container);
+                const legW = calculateLegendWidth(meas, entries);
+                maxLegendWidth = Math.max(maxLegendWidth, legW);
+            });
+            plotWidth = TARGET_WIDTH - PAD * 2 - maxLegendWidth - 10;
+        }
+        
+        // Calculer la hauteur actuelle totale des corps de graphe pour determiner les proportions
+        let totalCurrentHeight = 0;
+        const currentHeights = new Map();
+        
+        S.plots.forEach(plot => {
+            const plotBody = plot.element.querySelector('.plot-body');
+            if (plotBody) {
+                const height = plotBody.getBoundingClientRect().height;
+                currentHeights.set(plot.id, height);
+                totalCurrentHeight += height;
+            }
+        });
+        
+        // Redimensionner chaque corps de graphe en fonction de sa proportion actuelle par rapport a la hauteur totale disponible
+        S.plots.forEach(plot => {
+            const plotBody = plot.element.querySelector('.plot-body');
+            const legend = plot.element.querySelector('.plot-legend');
+            const splitter = plot.element.querySelector('.legend-splitter');
+            const plotMain = plot.element.querySelector('.plot-main');
+                
+            if (legendPosition === 'right') {
+                if (legend) legend.style.display = 'none';
+                if (splitter) splitter.style.display = 'none';
+                if (plotMain) {
+                    plotMain.style.width = '100%';
+                    plotMain.style.flex = '1';
+                }
+            } else {
+                if (legend) legend.style.display = '';
+                if (splitter) splitter.style.display = '';
+                if (plotMain) {
+                    plotMain.style.width = '';
+                    plotMain.style.flex = '';
+                }
+            }
+
+            if (plotBody) {
+                const currentHeight = currentHeights.get(plot.id) || 1;
+                const proportion = currentHeight / Math.max(totalCurrentHeight, 1);
+                const finalHeight = Math.floor(availableHeight * proportion);
+                
+                plotBody.style.width = `${plotWidth}px`;
+                plotBody.style.minWidth = `${plotWidth}px`;
+                plotBody.style.maxWidth = `${plotWidth}px`;
+                plotBody.style.height = `${finalHeight}px`;
+                plotBody.style.minHeight = `${finalHeight}px`;
+                plotBody.style.maxHeight = `${finalHeight}px`;
+                plotBody.style.flex = `0 0 ${finalHeight}px`;
+                plotBody.style.marginLeft = `${PAD}px`;
+                plotBody.style.marginRight = `${PAD}px`;
+            }
+        });
+        
+        // Forcer le recalcul de la mise en page pour que les changements de style prennent effet
+        forceResizeCharts();
+        setTimeout(forceResizeCharts, 50);
+    }
+
     function drawLegend(ctx, entries, x0, y0, maxW) {
         ctx.font = '12px sans-serif';
         ctx.textBaseline = 'middle';
@@ -210,42 +318,64 @@ import { resizeAllChartsNow } from './plots.js';
         });
     }
 
+    function drawLegendVertical(ctx, entries, x0, y0, maxW) {
+        ctx.font = '12px sans-serif';
+        ctx.textBaseline = 'middle';
+        const tc = themeColors().fg;
+        let y = y0 + LEGEND_ROW_H / 2;
+        
+        entries.forEach(e => {
+            ctx.fillStyle = e.color;
+            ctx.beginPath();
+            ctx.arc(x0 + 5, y, 4, 0, Math.PI * 2);
+            ctx.fill();
+            
+            ctx.fillStyle = tc;
+            ctx.fillText(e.text, x0 + 14, y);
+            
+            y += LEGEND_ROW_H;
+        });
+    }
+
     // Rasterise un element overlay (ligne de curseur, label de valeur/temps/delta) sur le
     // canvas de capture, a partir de sa position ecran relative au canvas du graphe. Les
     // elements masques (toggle des labels) sont ignores automatiquement (rect nul/hidden).
-    function rasterizeOverlayEl(ctx, el, canvasRect, originX, originY) {
+    function rasterizeOverlayEl(ctx, el, canvasRect, originX, originY, scaleX, scaleY) {
         const r = el.getBoundingClientRect();
         if (r.width < 0.5 || r.height < 0.5) return;
         const cs = getComputedStyle(el);
         if (cs.display === 'none' || cs.visibility === 'hidden' || parseFloat(cs.opacity) === 0) return;
-        const x = originX + (r.left - canvasRect.left);
-        const y = originY + (r.top - canvasRect.top);
+        const x = originX + (r.left - canvasRect.left) * scaleX;
+        const y = originY + (r.top - canvasRect.top) * scaleY;
+        const width = r.width * scaleX;
+        const height = r.height * scaleY;
 
         const bg = cs.backgroundColor;
         if (bg && bg !== 'rgba(0, 0, 0, 0)' && bg !== 'transparent') {
             ctx.fillStyle = bg;
-            ctx.fillRect(x, y, r.width, r.height);
+            ctx.fillRect(x, y, width, height);
         }
         const border = cs.borderTopWidth ? parseFloat(cs.borderTopWidth) : 0;
         if (border > 0 && cs.borderTopColor && cs.borderTopColor !== 'rgba(0, 0, 0, 0)') {
             ctx.strokeStyle = cs.borderTopColor;
-            ctx.lineWidth = border;
-            ctx.strokeRect(x, y, r.width, r.height);
+            ctx.lineWidth = border * scaleX;
+            ctx.strokeRect(x, y, width, height);
         }
         const txt = el.children.length === 0 && el.textContent ? el.textContent.trim() : '';
         if (txt) {
             ctx.fillStyle = cs.color;
-            ctx.font = `${cs.fontStyle} ${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
+            const fontSize = parseFloat(cs.fontSize) * scaleY;
+            ctx.font = `${cs.fontStyle} ${cs.fontWeight} ${fontSize}px ${cs.fontFamily}`;
             ctx.textBaseline = 'middle';
-            const padL = parseFloat(cs.paddingLeft) || 0;
-            ctx.fillText(txt, x + padL, y + r.height / 2);
+            const padL = (parseFloat(cs.paddingLeft) || 0) * scaleX;
+            ctx.fillText(txt, x + padL, y + height / 2);
         }
     }
 
     // Ligne de curseur verticale: le div est une zone de clic transparente; la ligne
     // visible est le pseudo ::after (couleur var(--cursor-color), largeur ~2px), centre
     // sur le div. On lit la couleur resolue du ::after.
-    function drawVCursor(ctx, el, canvasRect, ox, oy) {
+    function drawVCursor(ctx, el, canvasRect, originX, originY, scaleX, scaleY) {
         const r = el.getBoundingClientRect();
         if (r.height < 0.5) return;
         const cs = getComputedStyle(el);
@@ -259,26 +389,30 @@ import { resizeAllChartsNow } from './plots.js';
         }
         let w = after ? parseFloat(after.width) : 2;
         if (!Number.isFinite(w) || w < 1) w = 2;
-        const cx = ox + (r.left - canvasRect.left) + r.width / 2;
-        const y = oy + (r.top - canvasRect.top);
+        const cx = originX + (r.left - canvasRect.left) * scaleX + (r.width * scaleX) / 2;
+        const y = originY + (r.top - canvasRect.top) * scaleY;
+        const lineWidth = w * scaleX;
+        const lineHeight = r.height * scaleY;
         ctx.fillStyle = color;
-        ctx.fillRect(cx - w / 2, y, w, r.height);
+        ctx.fillRect(cx - lineWidth / 2, y, lineWidth, lineHeight);
     }
 
     // Ligne delta horizontale (degrade pointille entre les deux curseurs).
-    function drawDeltaLine(ctx, el, canvasRect, ox, oy) {
+    function drawDeltaLine(ctx, el, canvasRect, originX, originY, scaleX, scaleY) {
         const r = el.getBoundingClientRect();
         if (r.width < 1) return;
         const cs = getComputedStyle(el);
         if (cs.display === 'none' || cs.visibility === 'hidden') return;
-        const x = ox + (r.left - canvasRect.left);
-        const y = oy + (r.top - canvasRect.top) + r.height / 2;
+        const x = originX + (r.left - canvasRect.left) * scaleX;
+        const y = originY + (r.top - canvasRect.top) * scaleY + (r.height * scaleY) / 2;
+        const width = r.width * scaleX;
+        const lineWidth = Math.max(1.5, r.height * scaleY);
         ctx.strokeStyle = 'rgba(255, 170, 68, 0.7)';
-        ctx.lineWidth = Math.max(1.5, r.height);
-        ctx.setLineDash([4, 4]);
+        ctx.lineWidth = lineWidth;
+        ctx.setLineDash([4 * scaleX, 4 * scaleX]);
         ctx.beginPath();
         ctx.moveTo(x, y);
-        ctx.lineTo(x + r.width, y);
+        ctx.lineTo(x + width, y);
         ctx.stroke();
         ctx.setLineDash([]);
     }
@@ -286,11 +420,15 @@ import { resizeAllChartsNow } from './plots.js';
     // Capture les curseurs et leurs labels d'un graphe (ceux actuellement visibles).
     function drawCursors(ctx, container, cnv, originX, originY) {
         const canvasRect = cnv.getBoundingClientRect();
-        container.querySelectorAll('.cursor-line').forEach(el => drawVCursor(ctx, el, canvasRect, originX, originY));
-        container.querySelectorAll('.cursor-delta-line').forEach(el => drawDeltaLine(ctx, el, canvasRect, originX, originY));
+        
+        const scaleX = canvasRect.width > 0 ? cnv.width / canvasRect.width : 1;
+        const scaleY = canvasRect.height > 0 ? cnv.height / canvasRect.height : 1;
+        
+        container.querySelectorAll('.cursor-line').forEach(el => drawVCursor(ctx, el, canvasRect, originX, originY, scaleX, scaleY));
+        container.querySelectorAll('.cursor-delta-line').forEach(el => drawDeltaLine(ctx, el, canvasRect, originX, originY, scaleX, scaleY));
         const labels = '.cursor-time-label, .cursor-delta-label, .cursor-label';
         container.querySelectorAll(labels).forEach(el => {
-            rasterizeOverlayEl(ctx, el, canvasRect, originX, originY);
+            rasterizeOverlayEl(ctx, el, canvasRect, originX, originY, scaleX, scaleY);
         });
     }
 
@@ -543,16 +681,14 @@ import { resizeAllChartsNow } from './plots.js';
             // Mesurer la hauteur de la legende pour ce graphe
             const meas = document.createElement('canvas').getContext('2d');
             const entries = legendEntries(container);
-            const legH = legendHeight(meas, entries, contentW - PAD * 2);
-            
-            return {
-                cnv,
-                chartW,
-                chartH,
-                entries,
-                legH,
-                container
-            };
+
+            if (legendPosition === 'top') {
+                const legH = legendHeight(meas, entries, contentW - PAD * 2);
+                return { cnv, chartW, chartH, entries, legH, legW: 0, container };
+            } else {
+                const legW = calculateLegendWidth(meas, entries);
+                return { cnv, chartW, chartH, entries, legH: 0, legW, container };
+            }
         });
 
         composite = document.createElement('canvas');
@@ -590,30 +726,33 @@ import { resizeAllChartsNow } from './plots.js';
         let currentY = PAD + TITLE_H;
         
         plotLayouts.forEach((layout, index) => {
-            // Legend
-            if (layout.entries.length) {
-                drawLegend(ctx, layout.entries, PAD, currentY, contentW - PAD * 2);
-                currentY += layout.legH;
-            }
-            
-            // Chart
-            const chartX = PAD; 
-            const chartWidth = contentW - PAD * 2; 
-            
-            ctx.drawImage(
-                layout.cnv,
-                chartX, currentY,
-                chartWidth,
-                layout.chartH
-            );
-            
-            // Cursors
-            drawCursors(ctx, layout.container, layout.cnv, chartX, currentY);
-            
-            // Move to next plot position
-            currentY += layout.chartH;
-            if (index < plotLayouts.length - 1) {
-                currentY += PLOT_GAP;
+            if (legendPosition === 'top') {
+                // Legend on top
+                if (layout.entries.length) {
+                    drawLegend(ctx, layout.entries, PAD, currentY, contentW - PAD * 2);
+                    currentY += layout.legH;
+                }
+                
+                // Chart
+                ctx.drawImage(layout.cnv, PAD, currentY, contentW - PAD * 2, layout.chartH);
+                drawCursors(ctx, layout.container, layout.cnv, PAD, currentY);
+                
+                currentY += layout.chartH + PLOT_GAP;
+            } else {
+                // Legend on right
+                const chartWidth = contentW - PAD * 2 - layout.legW - 10; 
+                const legendX = PAD + chartWidth + 10;
+                
+                // Chart
+                ctx.drawImage(layout.cnv, PAD, currentY, chartWidth, layout.chartH);
+                drawCursors(ctx, layout.container, layout.cnv, PAD, currentY);
+                
+                // Legend on right
+                if (layout.entries.length) {
+                    drawLegendVertical(ctx, layout.entries, legendX, currentY, layout.legW);
+                }
+                
+                currentY += layout.chartH + PLOT_GAP;
             }
         });
 
@@ -683,6 +822,8 @@ import { resizeAllChartsNow } from './plots.js';
         composite = null;
         reportListEl = null;
         restoreLayout();
+
+        legendPosition = 'top';
 
         // `report` survit deliberement: la structure du rapport est conservee pour
         // accumuler les captures suivantes jusqu'a l'export ou au vidage explicite.
@@ -1404,9 +1545,46 @@ ${body}
             });
             toolbar.appendChild(clearBtn);
 
-            /*const divider2 = document.createElement('span');
+            const divider2 = document.createElement('span');
             divider2.className = 'toolbar-divider';
-            toolbar.appendChild(divider2);*/
+            toolbar.appendChild(divider2);
+
+            const legendToggleBtn = document.createElement('button');
+            legendToggleBtn.className = 'exp-tool keep-color';
+            legendToggleBtn.title = 'Légende à droite';
+            legendToggleBtn.innerHTML = `
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <rect x="3" y="3" width="18" height="18" rx="2"/>
+                    <line x1="15" y1="3" x2="15" y2="21"/>
+                </svg>`;
+            legendToggleBtn.addEventListener('click', () => {
+                legendPosition = legendPosition === 'top' ? 'right' : 'top';
+                legendToggleBtn.title = legendPosition === 'top' ? 'Légende à droite' : 'Légende en haut';
+
+                resizePlotsForLegendPosition();
+
+                // Reconstruit le composite avec la nouvelle position de la légende
+                setTimeout(() => {
+                    const newComposite = buildComposite();
+                if (!newComposite) return;
+
+                    const stage = overlay.querySelector('.exp-stage');
+                    const existingCanvas = stage.querySelector('.exp-snapshot');
+
+                    if (existingCanvas) {
+                        const ctx = existingCanvas.getContext('2d');
+                        existingCanvas.width = newComposite.width;
+                        existingCanvas.height = newComposite.height;
+                        ctx.drawImage(newComposite, 0, 0);
+                    }
+
+                    composite = newComposite;
+
+                    redraw();
+                }, 150);
+            });
+
+            toolbar.appendChild(legendToggleBtn);
 
             const closeBtn = document.createElement('button');
             closeBtn.className = 'exp-close';
