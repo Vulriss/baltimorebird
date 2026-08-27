@@ -2,16 +2,74 @@
 // Partial extrait de _styles.scss (refactoring)
 @use '../abstracts/variables' as *;
 
+/* === SEPARATEUR ONDULE NAV / SIDEBAR ===
+   $nav-wave-width, $nav-wave-period et $nav-wave-offset proviennent des tokens:
+   la sidebar reserve la meme gouttiere a gauche pour ne pas passer sous la vague.
+
+   Le trace deborde volontairement de la tuile (y = -40 a 80 pour un viewBox de 0
+   a 40). Le SVG clippe l'excedent, mais chaque tuile porte la continuation de ses
+   voisines: le raccord ne laisse plus d'encoche aux jonctions.
+
+   Les abscisses des points de controle (16.5 et -4.5 autour de l'axe x = 6)
+   bornent la courbe a [0.75, 11.25], soit une demi-epaisseur de filet de marge de
+   part et d'autre: le trait n'est plus tronque par les bords du viewBox aux
+   cretes et aux creux. Toute modification de $nav-wave-width impose de reprendre
+   le viewBox et ces abscisses. */
+$nav-wave-path: "M6 -40 Q16.5 -30 6 -20 Q-4.5 -10 6 0 Q16.5 10 6 20 Q-4.5 30 6 40 Q16.5 50 6 60 Q-4.5 70 6 80";
+$nav-wave-fill: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 40' preserveAspectRatio='none'%3E%3Cpath d='#{$nav-wave-path} L0 80 L0 -40 Z' fill='black'/%3E%3C/svg%3E");
+$nav-wave-stroke: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 40' preserveAspectRatio='none'%3E%3Cpath d='#{$nav-wave-path}' fill='none' stroke='black' stroke-width='1.5'/%3E%3C/svg%3E");
+
 /* === NAV MENU === */
 .nav-menu {
+    position: relative;
     width: 240px;
     min-width: 240px;
-    background: $bg-dark;
+    background: $bg-nav;
+    /* Repli tant que le masquage CSS n'est pas disponible, neutralise plus bas */
     border-right: 1px solid $border-color;
     display: flex;
     flex-direction: column;
     transition: width $transition-slow $ease-in-out, min-width $transition-slow $ease-in-out;
     z-index: 100;
+}
+
+@supports (mask-image: linear-gradient(#000, #000)) or (-webkit-mask-image: linear-gradient(#000, #000)) {
+    .nav-menu {
+        border-right: none;
+    }
+
+    /* Bande debordant sur la sidebar, masquee en vague. Le masque etant
+       monochrome, la couleur vient du background: le theme clair / sombre suit
+       sans encoder de valeur hexadecimale dans la data URI. */
+    .nav-menu::before{
+        content: "";
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        right: -$nav-wave-width;
+        width: $nav-wave-width;
+        pointer-events: none;
+        -webkit-mask-repeat: repeat-y;
+        mask-repeat: repeat-y;
+        /* Dephasage commun au remplissage et au filet: les deux masques doivent
+           rester alignes, sous peine de voir la bordure quitter la silhouette. */
+        -webkit-mask-position: 0 $nav-wave-offset;
+        mask-position: 0 $nav-wave-offset;
+        -webkit-mask-size: $nav-wave-width $nav-wave-period;
+        mask-size: $nav-wave-width $nav-wave-period;
+    }
+
+    /* Corps de la vague: prolonge le fond de la nav par dessus la sidebar.
+       Aucun filter ici: drop-shadow forcerait une rasterisation separee du
+       pseudo element et le decalerait d'une fraction de pixel par rapport au
+       filet, qui apparaitrait alors comme une seconde courbe parallele. */
+    .nav-menu::before {
+        background: $bg-nav;
+        -webkit-mask-image: $nav-wave-fill;
+        mask-image: $nav-wave-fill;
+    }
+
+    /* Filet de bordure, peint apres le remplissage pour rester entier */
 }
 
 .nav-menu.collapsed {
@@ -20,45 +78,48 @@
 }
 
 .nav-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 15px;
     padding: 16px;
+    width: 100%;
+    box-sizing: border-box;
 }
 
-.nav-logo {
+.empty-space {
     display: flex;
     align-items: center;
     gap: 10px;
     overflow: hidden;
 }
 
-.logo-icon {
-    width: 22px;
-    height: 22px;
-    color: $color-primary;
-    flex-shrink: 0;
+.logo-text {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    font-size: 18px;
+    font-weight: 800;
+    letter-spacing: -0.04em;
+    text-transform: lowercase;
+    color: $ctp-title;
+    white-space: nowrap;
     display: flex;
     align-items: center;
     justify-content: center;
-
-    svg {
-        width: 100%;
-        height: 100%;
-    }
-}
-
-.logo-text {
-    font-size: 18px;
-    font-weight: 600;
-    color: $text-white;
-    white-space: nowrap;
+    overflow: hidden;
     transition: opacity 0.2s;
 }
 
-.nav-menu.collapsed .logo-text {
+.nav-menu.collapsed .nav-header {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 16px 0;
+}
+
+.nav-menu.collapsed .logo-text,
+.nav-menu.collapsed .empty-space {
     opacity: 0;
     width: 0;
+    display: none;
 }
 
 .nav-toggle {
@@ -98,7 +159,7 @@
     align-items: center;
     gap: 12px;
     padding: 10px 12px;
-    color: $text-muted;
+    color: $text-muted-variation;
     text-decoration: none;
     border-radius: 8px;
     transition: all 0.15s;
@@ -108,15 +169,15 @@
 }
 
 .nav-item:hover {
-    background: $bg-hover-subtle;
-    color: $text-primary;
+    background: $bg-selected;
+    color: $nav-text-hover;
 }
 
 .nav-item.active {
     background: $bg-selected;
     color: $color-accent;
     font-weight: $font-weight-semibold;
-    box-shadow: inset 3px 0 0 $color-accent;
+    box-shadow: inset 2px 0 0 $color-accent;
 }
 
 .nav-item.active .nav-icon {
