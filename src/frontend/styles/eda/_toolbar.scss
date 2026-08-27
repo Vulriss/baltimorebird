@@ -78,12 +78,6 @@ button {
     transition: all 0.2s;
 }
 
-.toolbar-btn:hover {
-    background: $ctp-teal;
-    border-color: $ctp-teal;
-    color: $ctp-crust;
-}
-
 .toolbar-btn.disabled {
     opacity: 0.5;
     cursor: not-allowed;
@@ -99,15 +93,16 @@ button {
 }
 
 .toolbar-btn.active {
-    background: $color-accent;
-    border-color: $color-accent;
+    background: $bg-nav;
+    border-color: $bg-nav;
     color: $ctp-crust;
 }
 
+.toolbar-btn:hover,
 .toolbar-btn.active:hover {
-    background: $ctp-teal;
-    border-color: $ctp-teal;
-    color: $ctp-crust;
+    background: $color-accent;
+    border-color: $color-accent;
+    color: $ctp-subtext1;
 }
 
 // Masquage des infos de curseur quand le bouton est inactif: temps en haut, ligne et

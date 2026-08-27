@@ -170,7 +170,7 @@ export function cursorPlugin() {
             maxRow = Math.max(maxRow, row);
             timeLabel1.style.display = 'block';
             timeLabel1.style.transform =
-                `translate3d(${x1 + 3}px, ${row * LABEL_ROW_H}px, 0) translateX(-50%)`;
+                `translate3d(${x1 + 3}px, ${row * LABEL_ROW_H - 5}px, 0) translateX(-50%)`;
         } else if (timeLabel1) {
             timeLabel1.style.display = 'none';
         }
@@ -182,7 +182,7 @@ export function cursorPlugin() {
             maxRow = Math.max(maxRow, row);
             timeLabel2.style.display = 'block';
             timeLabel2.style.transform =
-                `translate3d(${x2 + 3}px, ${row * LABEL_ROW_H}px, 0) translateX(-50%)`;
+                `translate3d(${x2 + 3}px, ${row * LABEL_ROW_H - 5}px, 0) translateX(-50%)`;
         } else if (timeLabel2) {
             timeLabel2.style.display = 'none';
         }
@@ -204,7 +204,7 @@ export function cursorPlugin() {
             maxRow = Math.max(maxRow, row);
             deltaLabel.style.display = 'block';
             deltaLabel.style.transform =
-                `translate3d(${center}px, ${row * LABEL_ROW_H}px, 0) translateX(-50%)`;
+                `translate3d(${center}px, ${row * LABEL_ROW_H - 5}px, 0) translateX(-50%)`;
         } else {
             if (deltaLine) deltaLine.style.display = 'none';
             if (deltaLabel) deltaLabel.style.display = 'none';
