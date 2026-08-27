@@ -11,6 +11,11 @@
  * coherents et nets.
  */
 
+import { hexToRgb, rgbToHsv, hsvToHex } from './color-utils.js';
+import { resizeAllChartsNow } from './plots.js';
+
+
+
 (function () {
     'use strict';
 
@@ -18,7 +23,43 @@
     const TITLE_H = 30;
     const LEGEND_ROW_H = 20;
     const PLOT_GAP = 14;
+    const TARGET_WIDTH = 1134;
+    const TARGET_HEIGHT = 700;
     const DEFAULT_COLORS = ['#f38ba8', '#94e2d5', '#fab387', '#89b4fa', '#a6e3a1', '#f9e2af', '#cba6f7'];
+
+    const PRESET_COLORS_DARK = [
+        '#f38ba8', '#eba0ac', '#fab387', '#f9e2af',
+        '#a6e3a1', '#94e2d5', '#89dceb', '#74c7ec',
+        '#89b4fa', '#b4befe', '#cba6f7', '#f5c2e7',
+        '#f2cdcd', '#f5e0dc', '#cdd6f4', '#9399b2',
+    ];
+    const PRESET_COLORS_LIGHT = [
+        '#d20f39', '#e64553', '#fe640b', '#df8e1d',
+        '#40a02b', '#179299', '#04a5e5', '#209fb5',
+        '#1e66f5', '#7287fd', '#8839ef', '#ea76cb',
+        '#dd7878', '#dc8a68', '#4c4f69', '#7c7f93',
+    ];
+
+    const TOOL_ICONS = {
+        text: `
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M4 7V4h16v3M12 4v16M9 20h6"/>
+            </svg>`,
+        arrow: `
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="5" y1="19" x2="19" y2="5"/>
+                <polyline points="12 5 19 5 19 12"/>
+            </svg>`,
+        rect: `
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="2"/>
+            </svg>`,
+        pen: `
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 20h9"/>
+                <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/>
+            </svg>`
+    };
 
     let overlay = null;
     let composite = null;       // canvas de capture (backing = contentW*dpr)
@@ -31,7 +72,7 @@
     let undone = [];
     let floatingTexts = []; 
     let tool = 'text';
-    let color = '#f38ba8';
+    let color = '#e83e3e';
     let draft = null;           // annotation en cours (drag)
     let annCtx = null;          // contexte de la couche d'annotation (affichage)
 
@@ -253,7 +294,236 @@
         });
     }
 
-    // Construit le canvas de capture (snapshot) de l'onglet actif.
+    let originalLayoutState = null;
+
+    function forceResizeCharts() {
+        const S = window.S;
+        if (!S || !S.plots) return;
+        
+        S.plots.forEach(plot => {
+            if (!plot.chart) return;
+            const body = plot.element.querySelector('.plot-body');
+            if (body && body.clientWidth > 0 && body.clientHeight > 0) {
+                plot.chart.setSize({ 
+                    width: body.clientWidth, 
+                    height: body.clientHeight 
+                });
+            }
+        });
+    }
+
+    function resizePlotsWrapperForTarget() {
+        const S = window.S;
+        if (!S || !S.activeTabId) return false;
+        
+        const plotsWrapper = document.getElementById(`plotsWrapper-${S.activeTabId}`);
+        if (!plotsWrapper) {
+            console.warn('Could not find plots wrapper');
+            return false;
+        }
+        
+        // Garder l'etat original de la mise en page pour pouvoir le restaurer plus tard
+        if (!originalLayoutState) {
+            originalLayoutState = {
+                plotBodyStyles: new Map(),
+                legendStyles: new Map(),
+                splitterStyles: new Map(),
+                plotMainStyles: new Map(),
+                containerStyles: new Map(),
+                wrapperStyle: plotsWrapper.getAttribute('style')
+            };
+            
+            // Sauvegarder les styles actuels de chaque plot et de ses elements enfants
+            S.plots.forEach(plot => {
+                if (plot.element) {
+                    const plotBody = plot.element.querySelector('.plot-body');
+                    const legend = plot.element.querySelector('.plot-legend');
+                    const splitter = plot.element.querySelector('.legend-splitter');
+                    const plotMain = plot.element.querySelector('.plot-main');
+                    
+                    if (plotBody) {
+                        originalLayoutState.plotBodyStyles.set(plot.id, plotBody.getAttribute('style'));
+                    }
+                    if (legend) {
+                        originalLayoutState.legendStyles.set(plot.id, legend.getAttribute('style'));
+                    }
+                    if (splitter) {
+                        originalLayoutState.splitterStyles.set(plot.id, splitter.getAttribute('style'));
+                    }
+                    if (plotMain) {
+                        originalLayoutState.plotMainStyles.set(plot.id, plotMain.getAttribute('style'));
+                    }
+                    originalLayoutState.containerStyles.set(plot.id, plot.element.getAttribute('style'));
+                }
+            });
+        }
+        
+        // Calculer la hauteur disponible pour les corps de graphe en tenant compte des legendes et des gaps
+        const totalGapHeight = (S.plots.length - 1) * PLOT_GAP;
+        let totalLegendHeight = 0;
+        S.plots.forEach(plot => {
+            const container = plot.element;
+            const meas = document.createElement('canvas').getContext('2d');
+            const entries = legendEntries(container);
+            const legH = legendHeight(meas, entries, TARGET_WIDTH - PAD * 2);
+            totalLegendHeight += legH;
+        });
+
+        const titleAndPadding = PAD * 2 + TITLE_H;
+        const availableHeight = TARGET_HEIGHT - totalGapHeight - totalLegendHeight - titleAndPadding;
+
+        // Calculer la hauteur actuelle totale des corps de graphe pour determiner les proportions
+        let totalCurrentHeight = 0;
+        const currentHeights = new Map();
+        
+        S.plots.forEach(plot => {
+            const plotBody = plot.element.querySelector('.plot-body');
+            if (plotBody) {
+                const height = plotBody.getBoundingClientRect().height;
+                currentHeights.set(plot.id, height);
+                totalCurrentHeight += height;
+            }
+        });
+        
+        // Redimensionner chaque corps de graphe en fonction de sa proportion actuelle par rapport a la hauteur totale disponible
+        S.plots.forEach(plot => {
+            const plotBody = plot.element.querySelector('.plot-body');
+            const legend = plot.element.querySelector('.plot-legend');
+            const splitter = plot.element.querySelector('.legend-splitter');
+            const plotMain = plot.element.querySelector('.plot-main');
+            const container = plot.element;
+            
+            if (plotBody) {
+                // Calculer la nouvelle hauteur proportionnelle pour le corps du graphe
+                const currentHeight = currentHeights.get(plot.id) || 1;
+                const proportion = currentHeight / Math.max(totalCurrentHeight, 1);
+                const finalHeight = Math.floor(availableHeight * proportion);
+                
+                // Appliquer les styles de dimensionnement aux elements du graphe
+                plotBody.style.width = `${TARGET_WIDTH - PAD * 2}px`;
+                plotBody.style.minWidth = `${TARGET_WIDTH - PAD * 2}px`;
+                plotBody.style.maxWidth = `${TARGET_WIDTH - PAD * 2}px`;
+                plotBody.style.height = `${finalHeight}px`;
+                plotBody.style.minHeight = `${finalHeight}px`;
+                plotBody.style.maxHeight = `${finalHeight}px`;
+                plotBody.style.flex = `0 0 ${finalHeight}px`;
+                plotBody.style.marginLeft = `${PAD}px`;
+                plotBody.style.marginRight = `${PAD}px`;
+            }
+        });
+        
+        // Appliquer les styles de dimensionnement au wrapper des graphes pour forcer la taille cible
+        plotsWrapper.style.width = `${TARGET_WIDTH}px`;
+        plotsWrapper.style.height = `${TARGET_HEIGHT}px`;
+        plotsWrapper.style.minWidth = `${TARGET_WIDTH}px`;
+        plotsWrapper.style.minHeight = `${TARGET_HEIGHT}px`;
+        plotsWrapper.style.maxWidth = `${TARGET_WIDTH}px`;
+        plotsWrapper.style.maxHeight = `${TARGET_HEIGHT}px`;
+        plotsWrapper.style.flex = 'none';
+        plotsWrapper.style.overflow = 'hidden';
+        plotsWrapper.style.display = 'flex';
+        plotsWrapper.style.flexDirection = 'column';
+        
+        // Forcer le recalcul de la mise en page pour que les changements de style prennent effet
+        void plotsWrapper.offsetHeight;
+
+        forceResizeCharts();
+        
+        return true;
+    }
+
+    function restoreLayout() {
+        if (!originalLayoutState) return;
+        
+        const S = window.S;
+        if (S && S.activeTabId) {
+            const plotsWrapper = document.getElementById(`plotsWrapper-${S.activeTabId}`);
+            
+            // Restaurer les styles de chaque plot et de ses elements enfants
+            if (plotsWrapper) {
+                if (originalLayoutState.wrapperStyle !== null && originalLayoutState.wrapperStyle !== '') {
+                    plotsWrapper.setAttribute('style', originalLayoutState.wrapperStyle);
+                } else {
+                    plotsWrapper.removeAttribute('style');
+                }
+            }
+            
+            if (S.plots) {
+                S.plots.forEach(plot => {
+                    if (plot.element) {
+                        // Restaurer le style du conteneur du graphe
+                        if (originalLayoutState.containerStyles.has(plot.id)) {
+                            const savedStyle = originalLayoutState.containerStyles.get(plot.id);
+                            if (savedStyle !== null && savedStyle !== '') {
+                                plot.element.setAttribute('style', savedStyle);
+                            } else {
+                                plot.element.removeAttribute('style');
+                            }
+                        }
+                        
+                        // Restaurer le style du corps du graphe
+                        const plotBody = plot.element.querySelector('.plot-body');
+                        if (plotBody && originalLayoutState.plotBodyStyles.has(plot.id)) {
+                            const savedStyle = originalLayoutState.plotBodyStyles.get(plot.id);
+                            if (savedStyle !== null && savedStyle !== '') {
+                                plotBody.setAttribute('style', savedStyle);
+                            } else {
+                                plotBody.removeAttribute('style');
+                            }
+                        }
+                        
+                        // Restaurer le style de la legende
+                        const legend = plot.element.querySelector('.plot-legend');
+                        if (legend && originalLayoutState.legendStyles.has(plot.id)) {
+                            const savedStyle = originalLayoutState.legendStyles.get(plot.id);
+                            if (savedStyle !== null && savedStyle !== '') {
+                                legend.setAttribute('style', savedStyle);
+                            } else {
+                                legend.removeAttribute('style');
+                            }
+                        }
+                        
+                        // Restaurer le style du splitter de legende
+                        const splitter = plot.element.querySelector('.legend-splitter');
+                        if (splitter && originalLayoutState.splitterStyles.has(plot.id)) {
+                            const savedStyle = originalLayoutState.splitterStyles.get(plot.id);
+                            if (savedStyle !== null && savedStyle !== '') {
+                                splitter.setAttribute('style', savedStyle);
+                            } else {
+                                splitter.removeAttribute('style');
+                            }
+                        }
+                        
+                        // Restaurer le style du plot-main
+                        const plotMain = plot.element.querySelector('.plot-main');
+                        if (plotMain && originalLayoutState.plotMainStyles.has(plot.id)) {
+                            const savedStyle = originalLayoutState.plotMainStyles.get(plot.id);
+                            if (savedStyle !== null && savedStyle !== '') {
+                                plotMain.setAttribute('style', savedStyle);
+                            } else {
+                                plotMain.removeAttribute('style');
+                            }
+                        }
+                    }
+                });
+                
+                // Forcer le recalcul de la mise en page pour que les changements de style prennent effet
+                setTimeout(() => {
+                    forceResizeCharts();
+                    if (typeof resizeAllChartsNow === 'function') {
+                        resizeAllChartsNow();
+                    }
+                    // Rebuild the plots layout if the function is available
+                    if (typeof window.rebuildPlotsLayout === 'function') {
+                        window.rebuildPlotsLayout(S.activeTabId);
+                    }
+                }, 200);
+            }
+        }
+        
+        originalLayoutState = null;
+    }
+
     function buildComposite() {
         const { plots } = activeTabPlots();
         if (!plots.length) return null;
@@ -261,28 +531,29 @@
         dpr = window.devicePixelRatio || 1;
         const colors = themeColors();
 
-        // Largeur de contenu: largeur CSS du plus large canvas de graphe.
-        let chartW = 0;
-        plots.forEach(({ plot }) => {
-            const cnv = plot.chart.ctx.canvas;
-            chartW = Math.max(chartW, Math.round(cnv.width / dpr));
-        });
-        contentW = chartW + PAD * 2;
+        contentW = TARGET_WIDTH;
+        contentH = TARGET_HEIGHT;
 
-        // Mesure (legende + graphe) par plot a l'aide d'un contexte temporaire.
-        const meas = document.createElement('canvas').getContext('2d');
-        let y = PAD + TITLE_H;
-        const layout = [];
-        plots.forEach(({ plot, container }) => {
+        // Calculer les dimensions de chaque graphe et de sa legende, pour determiner la hauteur totale du canvas composite
+        const plotLayouts = plots.map(({ plot, container }) => {
             const cnv = plot.chart.ctx.canvas;
-            const cw = Math.round(cnv.width / dpr);
-            const ch = Math.round(cnv.height / dpr);
+            const chartW = Math.round(cnv.width / dpr);
+            const chartH = Math.round(cnv.height / dpr);
+            
+            // Mesurer la hauteur de la legende pour ce graphe
+            const meas = document.createElement('canvas').getContext('2d');
             const entries = legendEntries(container);
-            const legH = legendHeight(meas, entries, chartW);
-            layout.push({ cnv, cw, ch, entries, legH, y, container });
-            y += legH + ch + PLOT_GAP;
+            const legH = legendHeight(meas, entries, contentW - PAD * 2);
+            
+            return {
+                cnv,
+                chartW,
+                chartH,
+                entries,
+                legH,
+                container
+            };
         });
-        contentH = y - PLOT_GAP + PAD;
 
         composite = document.createElement('canvas');
         composite.width = Math.round(contentW * dpr);
@@ -290,20 +561,16 @@
         const ctx = composite.getContext('2d');
         ctx.scale(dpr, dpr);
 
-        // Fond + titre (fichier - onglet) + horodatage.
+        // Background
         ctx.fillStyle = colors.bg;
         ctx.fillRect(0, 0, contentW, contentH);
-        ctx.textBaseline = 'middle';
-        ctx.font = '11px sans-serif';
-        const stamp = new Date().toLocaleString();
-        const sw = ctx.measureText(stamp).width;
-        ctx.fillStyle = colors.muted;
-        ctx.fillText(stamp, contentW - PAD - sw, PAD + TITLE_H / 2 - 2);
 
-        ctx.fillStyle = colors.fg;
+        // Title 
+        ctx.textBaseline = 'middle';
         ctx.font = '600 15px sans-serif';
+        ctx.fillStyle = colors.fg;
         let heading = exportHeading();
-        const maxTitleW = contentW - PAD * 2 - sw - 16;
+        const maxTitleW = contentW - PAD * 2 - 200;
         if (ctx.measureText(heading).width > maxTitleW) {
             while (heading.length > 1 && ctx.measureText(heading + '...').width > maxTitleW) {
                 heading = heading.slice(0, -1);
@@ -312,13 +579,42 @@
         }
         ctx.fillText(heading, PAD, PAD + TITLE_H / 2 - 2);
 
-        // Graphes + legendes + curseurs/valeurs visibles.
-        layout.forEach(item => {
-            drawLegend(ctx, item.entries, PAD, item.y, chartW);
-            const ox = PAD;
-            const oy = item.y + item.legH;
-            ctx.drawImage(item.cnv, ox, oy, item.cw, item.ch);
-            drawCursors(ctx, item.container, item.cnv, ox, oy);
+        // Timestamp
+        ctx.font = '11px sans-serif';
+        const stamp = new Date().toLocaleString();
+        const sw = ctx.measureText(stamp).width;
+        ctx.fillStyle = colors.muted;
+        ctx.fillText(stamp, contentW - PAD - sw, PAD + TITLE_H / 2 - 2);
+
+        // Plots
+        let currentY = PAD + TITLE_H;
+        
+        plotLayouts.forEach((layout, index) => {
+            // Legend
+            if (layout.entries.length) {
+                drawLegend(ctx, layout.entries, PAD, currentY, contentW - PAD * 2);
+                currentY += layout.legH;
+            }
+            
+            // Chart
+            const chartX = PAD; 
+            const chartWidth = contentW - PAD * 2; 
+            
+            ctx.drawImage(
+                layout.cnv,
+                chartX, currentY,
+                chartWidth,
+                layout.chartH
+            );
+            
+            // Cursors
+            drawCursors(ctx, layout.container, layout.cnv, chartX, currentY);
+            
+            // Move to next plot position
+            currentY += layout.chartH;
+            if (index < plotLayouts.length - 1) {
+                currentY += PLOT_GAP;
+            }
         });
 
         return composite;
@@ -377,6 +673,7 @@
     // Modale
     // ---------------------------------------------------------------------
     function close() {
+        closeColorPopover();
         if (overlay) { overlay.remove(); overlay = null; }
         annotations = [];
         floatingTexts.forEach(ft => { if (ft._el && ft._el.remove) ft._el.remove(); });
@@ -385,6 +682,8 @@
         annCtx = null;
         composite = null;
         reportListEl = null;
+        restoreLayout();
+
         // `report` survit deliberement: la structure du rapport est conservee pour
         // accumuler les captures suivantes jusqu'a l'export ou au vidage explicite.
         document.removeEventListener('keydown', onKey, true);
@@ -516,7 +815,12 @@
         const b = document.createElement('button');
         b.className = 'exp-tool' + (tool === id ? ' active' : '');
         b.dataset.tool = id;
-        b.textContent = label;
+        b.title = label; 
+        if (TOOL_ICONS[id]) {
+            b.innerHTML = TOOL_ICONS[id];
+        } else {
+            b.textContent = label;
+        }
         return b;
     }
 
@@ -592,11 +896,10 @@
     function renderReport() {
         if (!reportListEl) return;
         reportListEl.innerHTML = '';
-
         if (!report.blocks.length) {
             const empty = document.createElement('div');
             empty.className = 'exp-rep-empty';
-            empty.textContent = 'Rapport vide. Capturez la vue annotee ou ajoutez un bloc de texte.';
+            empty.textContent = 'Rapport vide. Ajoutez la vue annotee ou ajoutez un bloc de texte.';
             reportListEl.appendChild(empty);
             return;
         }
@@ -688,7 +991,7 @@ body { font-family: -apple-system, 'Segoe UI', sans-serif; color: #1a1a1a; backg
        max-width: 920px; margin: 0 auto; padding: 32px 24px; }
 h1 { font-size: 20px; border-bottom: 2px solid #1a1a1a; padding-bottom: 8px; }
 .gen { color: #666; font-size: 12px; margin-bottom: 28px; }
-figure { margin: 0 0 28px; page-break-inside: avoid; max-width: 800px; }
+figure { margin: 0 0 28px; page-break-inside: avoid; max-width: 1134px; }
 figure a { display: inline-block; }
 figure img { width: 100%; max-width: 100%; border: 1px solid #ddd; border-radius: 4px; }
 figure a:hover img { box-shadow: 0 0 8px rgba(0,0,0,0.2); transition: box-shadow 0.2s; cursor: pointer; }
@@ -731,19 +1034,13 @@ ${body}
         const titleInput = document.createElement('input');
         titleInput.type = 'text';
         titleInput.className = 'exp-rep-input exp-rep-title';
-        titleInput.placeholder = `Rapport - ${new Date().toLocaleDateString()}`;
+        titleInput.placeholder = `Saisir un titre (ex: Rapport - ${new Date().toLocaleDateString()})`;
         titleInput.value = report.title;
         titleInput.addEventListener('input', () => { report.title = titleInput.value; });
         pane.appendChild(titleInput);
 
         const actions = document.createElement('div');
         actions.className = 'exp-rep-actions';
-
-        const captureBtn = document.createElement('button');
-        captureBtn.className = 'exp-tool exp-primary';
-        captureBtn.textContent = 'Capturer vers le rapport';
-        captureBtn.addEventListener('click', addCaptureToReport);
-        actions.appendChild(captureBtn);
 
         const textBtn = document.createElement('button');
         textBtn.className = 'exp-tool';
@@ -821,224 +1118,464 @@ ${body}
         });
     }
 
-    function open() {
-        if (overlay) close();
-        if (!buildComposite()) {
-            if (typeof window.showNotification === 'function') {
-                window.showNotification('Aucun graphe a exporter dans cet onglet.', 'warning');
-            }
+    function presetColors() {
+        const light = document.documentElement.getAttribute('data-theme') === 'light';
+        return light ? PRESET_COLORS_LIGHT : PRESET_COLORS_DARK;
+    }
+
+    // --- Conversions HSV <-> hex (nuancier inline) ---
+    let colorPopoverEl = null;
+    let colorPopoverInput = null;
+
+    function closeColorPopover() {
+        if (colorPopoverEl) {
+            colorPopoverEl.remove();
+            colorPopoverEl = null;
+            colorPopoverInput = null;
+        }
+    }
+
+    function openColorPopover(input) {
+        // Re-clic sur la meme pastille: bascule fermer/ouvrir
+        if (colorPopoverInput === input) {
+            closeColorPopover();
             return;
         }
+        closeColorPopover();
 
-        const maxW = window.innerWidth * 0.96 - 30 - REPORT_PANE_W - 12;
-        const maxH = window.innerHeight * 0.94 - 92;
-        displayScale = Math.min(1, maxW / contentW, maxH / contentH);
-        const dispW = Math.round(contentW * displayScale);
-        const dispH = Math.round(contentH * displayScale);
-
-        overlay = document.createElement('div');
-        overlay.className = 'exp-overlay';
-
-        const panel = document.createElement('div');
-        panel.className = 'exp-panel';
-
-        // Barre d'outils
-        const toolbar = document.createElement('div');
-        toolbar.className = 'exp-toolbar';
-        const tools = [['text', 'Texte'], ['arrow', 'Fleche'], ['rect', 'Rectangle'], ['pen', 'Trait libre']];
-        const toolBtns = tools.map(([id, label]) => makeToolButton(id, label));
-        toolBtns.forEach(b => {
-            b.addEventListener('click', () => {
-                tool = b.dataset.tool;
-                toolBtns.forEach(x => x.classList.toggle('active', x.dataset.tool === tool));
-            });
-            toolbar.appendChild(b);
-        });
-
-        const colorInput = document.createElement('input');
-        colorInput.type = 'color';
-        colorInput.className = 'exp-color';
-        colorInput.value = color;
-        colorInput.title = 'Couleur';
-        colorInput.addEventListener('input', () => { color = colorInput.value; });
-        toolbar.appendChild(colorInput);
-
-        const spacer = document.createElement('span');
-        spacer.className = 'exp-spacer';
-        toolbar.appendChild(spacer);
-
-        const undoBtn = document.createElement('button');
-        undoBtn.className = 'exp-tool';
-        undoBtn.textContent = 'Annuler';
-        undoBtn.title = 'Annuler (Ctrl+Z)';
-        undoBtn.addEventListener('click', undo);
-        toolbar.appendChild(undoBtn);
-
-        const redoBtn = document.createElement('button');
-        redoBtn.className = 'exp-tool';
-        redoBtn.textContent = 'Refaire';
-        redoBtn.title = 'Refaire (Ctrl+Y)';
-        redoBtn.addEventListener('click', redo);
-        toolbar.appendChild(redoBtn);
-
-        const clearBtn = document.createElement('button');
-        clearBtn.className = 'exp-tool';
-        clearBtn.textContent = 'Effacer';
-        clearBtn.addEventListener('click', () => {
-            annotations = [];
-            floatingTexts.forEach(ft => { if (ft._el && ft._el.remove) ft._el.remove(); });
-            floatingTexts = [];
-            redraw();
-        });
-        toolbar.appendChild(clearBtn);
-
-        const divider = document.createElement('span');
-        divider.className = 'toolbar-divider';
-        toolbar.appendChild(divider);
-
-        const dlBtn = document.createElement('button');
-        dlBtn.className = 'exp-tool exp-primary';
-        dlBtn.type = 'button';
-        dlBtn.title = 'Télécharger PNG';
-        dlBtn.innerHTML = `
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                <polyline points="17 8 12 3 7 8"/>
-                <line x1="12" y1="3" x2="12" y2="15"/>
-            </svg>`;
-        dlBtn.addEventListener('click', download);
-        toolbar.appendChild(dlBtn);
-
-        const copyBtn = document.createElement('button');
-        copyBtn.className = 'exp-tool exp-primary';
-        copyBtn.type = 'button';
-        copyBtn.title = 'Copier PNG';
-        copyBtn.innerHTML = `
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-            </svg>`;
-        copyBtn.addEventListener('click', async () => {
-            try {
-                await copyImageToClipboard();
-            } catch (e) {
-                console.error('Copy failed', e);
-            }
-        });
-        toolbar.appendChild(copyBtn);
-
-        const closeBtn = document.createElement('button');
-        closeBtn.className = 'exp-close';
-        closeBtn.textContent = '\u00d7';
-        closeBtn.title = 'Fermer (Echap)';
-        closeBtn.addEventListener('click', close);
-        panel.appendChild(closeBtn);
-
-        // Zone de dessin: capture (dessous) + couche d'annotation (dessus)
-        const stage = document.createElement('div');
-        stage.className = 'exp-stage';
-        stage.style.width = dispW + 'px';
-        stage.style.height = dispH + 'px';
-
-        composite.style.width = dispW + 'px';
-        composite.style.height = dispH + 'px';
-        composite.className = 'exp-snapshot';
-
-        const annCanvas = document.createElement('canvas');
-        annCanvas.className = 'exp-annlayer';
-        annCanvas.width = composite.width;
-        annCanvas.height = composite.height;
-        annCanvas.style.width = dispW + 'px';
-        annCanvas.style.height = dispH + 'px';
-        annCtx = annCanvas.getContext('2d');
-        annCtx.scale(dpr, dpr);
-
-        stage.appendChild(composite);
-        stage.appendChild(annCanvas);
-
-        const body = document.createElement('div');
-        body.className = 'exp-body';
-        const left = document.createElement('div');
-        left.className = 'exp-left';
-        const leftTitle = document.createElement('div');
-        leftTitle.className = 'exp-section-title';
-        leftTitle.textContent = 'Capture et annotations';
-        left.appendChild(leftTitle);
-        left.appendChild(toolbar);
-        left.appendChild(stage);
-        body.appendChild(left);
-        body.appendChild(buildReportPane());
-        panel.appendChild(body);
-        overlay.appendChild(panel);
-        document.body.appendChild(overlay);
-        // Interactions de dessin
-        let textInput = null;
-        annCanvas.addEventListener('mousedown', (e) => {
-            if (e.button !== 0) return;
-            const p = toCanvasPos(e, annCanvas);
-            if (tool === 'text') {
-                if (textInput) return;
-                e.preventDefault(); // empeche le canvas de reprendre le focus a l'input
-                textInput = document.createElement('input');
-                textInput.className = 'exp-textinput';
-                textInput.style.left = (e.clientX) + 'px';
-                textInput.style.top = (e.clientY) + 'px';
-                textInput.style.color = color;
-                document.body.appendChild(textInput);
-                setTimeout(() => { if (textInput) textInput.focus(); }, 0);
-                const commit = () => {
-                    if (!textInput) return;
-                    const val = textInput.value;
-                    textInput.remove();
-                    textInput = null;
-                    commitText(p.x, p.y, val);
-                };
-                textInput.addEventListener('keydown', (ev) => {
-                    ev.stopPropagation();
-                    if (ev.key === 'Enter') { ev.preventDefault(); commit(); }
-                    else if (ev.key === 'Escape') { textInput.remove(); textInput = null; }
-                });
-                textInput.addEventListener('blur', commit);
+        const pop = document.createElement('div');
+        pop.className = 'color-preset-popover';
+        pop.style.position = 'fixed';
+        pop.style.zIndex = '10000'; 
+        pop.style.pointerEvents = 'auto';
+    
+        // Etat HSV courant du nuancier, initialise depuis la couleur du signal.
+        const rgb = hexToRgb(input.value) || { r: 232, g: 62, b: 62 };
+        const hsv = rgbToHsv(rgb.r, rgb.g, rgb.b);
+    
+        // Application live throttlee par frame
+        let rafPending = false;
+        function applyColor(hex, immediate = false) {
+            input.value = hex;
+            preview.style.background = hex;
+            hexField.value = hex;
+            if (immediate) {
+                color = hex;
+                const toolbar = input.closest('.exp-toolbar');
+                if (toolbar) toolbar.style.setProperty('--selected-color', hex);
                 return;
             }
-            if (tool === 'pen') {
-                draft = { type: 'pen', color, width: 2.5, points: [{ x: p.x, y: p.y }] };
-            } else if (tool === 'arrow') {
-                draft = { type: 'arrow', color, width: 2.5, x1: p.x, y1: p.y, x2: p.x, y2: p.y };
-            } else if (tool === 'rect') {
-                draft = { type: 'rect', color, width: 2.5, x: p.x, y: p.y, w: 0, h: 0, _sx: p.x, _sy: p.y };
-            }
+            if (rafPending) return;
+            rafPending = true;
+            requestAnimationFrame(() => {
+                rafPending = false;
+                color = input.value;
+                const toolbar = input.closest('.exp-toolbar');
+                if (toolbar) toolbar.style.setProperty('--selected-color', input.value);
+            });
+        }
+
+        function refreshPicker() {
+            svArea.style.background =
+                `linear-gradient(to top, #000, rgba(0,0,0,0)), ` +
+                `linear-gradient(to right, #fff, rgba(255,255,255,0)), ` +
+                `hsl(${hsv.h}, 100%, 50%)`;
+            svCursor.style.left = `${hsv.s * 100}%`;
+            svCursor.style.top = `${(1 - hsv.v) * 100}%`;
+            hueCursor.style.left = `${(hsv.h / 360) * 100}%`;
+        }
+
+        // --- Presets (ferment le popover: choix rapide) ---
+        const grid = document.createElement('div');
+        grid.className = 'color-preset-grid';
+        const current = (input.value || '').toLowerCase();
+        presetColors().forEach(hex => {
+            const b = document.createElement('button');
+            b.type = 'button';
+            b.className = 'color-preset-swatch';
+            b.style.background = hex;
+            b.title = hex;
+            if (hex === current) b.classList.add('current');
+            b.addEventListener('click', (e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                input.value = hex;
+                color = hex;
+                const toolbar = input.closest('.exp-toolbar');
+                if (toolbar) toolbar.style.setProperty('--selected-color', hex);
+                closeColorPopover();
+            });
+            grid.appendChild(b);
+        });
+        pop.appendChild(grid);
+
+        // --- Nuancier inline: surface saturation/valeur + barre de teinte + hex ---
+        const svArea = document.createElement('div');
+        svArea.className = 'color-picker-sv';
+        const svCursor = document.createElement('div');
+        svCursor.className = 'color-picker-sv-cursor';
+        svArea.appendChild(svCursor);
+        pop.appendChild(svArea);
+
+        const hueBar = document.createElement('div');
+        hueBar.className = 'color-picker-hue';
+        const hueCursor = document.createElement('div');
+        hueCursor.className = 'color-picker-hue-cursor';
+        hueBar.appendChild(hueCursor);
+        pop.appendChild(hueBar);
+
+        const hexRow = document.createElement('div');
+        hexRow.className = 'color-picker-hex-row';
+        const preview = document.createElement('span');
+        preview.className = 'color-picker-preview';
+        const hexField = document.createElement('input');
+        hexField.type = 'text';
+        hexField.className = 'color-picker-hex';
+        hexField.spellcheck = false;
+        hexField.maxLength = 7;
+        hexRow.appendChild(preview);
+        hexRow.appendChild(hexField);
+        pop.appendChild(hexRow);
+
+        function dragOn(el, onMove) {
+            el.addEventListener('pointerdown', (e) => {
+                e.preventDefault();
+                el.setPointerCapture(e.pointerId);
+                onMove(e);
+                const move = (ev) => onMove(ev);
+                const up = () => {
+                    el.removeEventListener('pointermove', move);
+                    el.removeEventListener('pointerup', up);
+                };
+                el.addEventListener('pointermove', move);
+                el.addEventListener('pointerup', up);
+            });
+        }
+
+        dragOn(svArea, (e) => {
+            const r = svArea.getBoundingClientRect();
+            hsv.s = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width));
+            hsv.v = Math.min(1, Math.max(0, 1 - (e.clientY - r.top) / r.height));
+            refreshPicker();
+            applyColor(hsvToHex(hsv.h, hsv.s, hsv.v));
         });
 
-        annCanvas.addEventListener('mousemove', (e) => {
-            if (!draft) return;
-            const p = toCanvasPos(e, annCanvas);
-            if (draft.type === 'pen') draft.points.push({ x: p.x, y: p.y });
-            else if (draft.type === 'arrow') { draft.x2 = p.x; draft.y2 = p.y; }
-            else if (draft.type === 'rect') {
-                draft.x = Math.min(draft._sx, p.x);
-                draft.y = Math.min(draft._sy, p.y);
-                draft.w = Math.abs(p.x - draft._sx);
-                draft.h = Math.abs(p.y - draft._sy);
-            }
-            redraw();
+        dragOn(hueBar, (e) => {
+            const r = hueBar.getBoundingClientRect();
+            hsv.h = Math.min(359.999, Math.max(0, ((e.clientX - r.left) / r.width) * 360));
+            refreshPicker();
+            applyColor(hsvToHex(hsv.h, hsv.s, hsv.v));
         });
 
-        const endDraft = () => {
-            if (!draft) return;
-            const a = draft;
-            draft = null;
-            const tiny = (a.type === 'rect' && a.w < 3 && a.h < 3)
-                || (a.type === 'arrow' && Math.hypot(a.x2 - a.x1, a.y2 - a.y1) < 3)
-                || (a.type === 'pen' && a.points.length < 2);
-            if (!tiny) { delete a._sx; delete a._sy; pushAnnotation(a); }
-            redraw();
-        };
-        annCanvas.addEventListener('mouseup', endDraft);
-        annCanvas.addEventListener('mouseleave', endDraft);
+        hexField.addEventListener('click', (e) => e.stopPropagation());
+        hexField.addEventListener('change', () => {
+            const parsed = hexToRgb(hexField.value);
+            if (!parsed) {
+                hexField.value = input.value; // saisie invalide: on restaure
+                return;
+            }
+            const nh = rgbToHsv(parsed.r, parsed.g, parsed.b);
+            hsv.h = nh.h; hsv.s = nh.s; hsv.v = nh.v;
+            refreshPicker();
+            applyColor(hsvToHex(hsv.h, hsv.s, hsv.v), true);
+        });
 
-        overlay.addEventListener('mousedown', (e) => { if (e.target === overlay) close(); });
-        document.addEventListener('keydown', onKey, true);
+        document.body.appendChild(pop);
+        preview.style.background = input.value;
+        hexField.value = input.value;
+        refreshPicker();
+
+        // Position fixe pres de la pastille, rabattue au-dessus si depassement bas,
+        // bornee au viewport a droite.
+        const r = input.getBoundingClientRect();
+        const pw = pop.offsetWidth;
+        const ph = pop.offsetHeight;
+        let left = Math.min(r.left, window.innerWidth - pw - 8);
+        let top = r.bottom + 6;
+        if (top + ph > window.innerHeight - 8) top = Math.max(8, r.top - ph - 6);
+        pop.style.left = `${Math.max(8, left)}px`;
+        pop.style.top = `${top}px`;
+
+        colorPopoverEl = pop;
+        colorPopoverInput = input;
+    }
+
+    // Fermeture au clic exterieur, a Escape, et des qu'on scrolle (position fixe:
+    // le popover ne suit pas la pastille).
+    document.addEventListener('pointerdown', (e) => {
+        if (colorPopoverEl && !colorPopoverEl.contains(e.target) && e.target !== colorPopoverInput) {
+            closeColorPopover();
+        }
+    });
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') closeColorPopover();
+    });
+    document.addEventListener('scroll', () => closeColorPopover(), true);
+
+
+    function open() {
+        if (overlay) close();
+
+        const resized = resizePlotsWrapperForTarget();
+
+        setTimeout(() => {
+            try {
+                if (!buildComposite()) {
+                    restoreLayout();
+                    if (typeof window.showNotification === 'function') {
+                        window.showNotification('Aucun graphe à exporter dans cet onglet.', 'warning');
+                    }
+                    return;
+                }
+
+            const maxW = window.innerWidth * 0.96 - 30 - REPORT_PANE_W - 12;
+            const maxH = window.innerHeight * 0.94 - 92;
+            displayScale = Math.min(1, maxW / contentW, maxH / contentH);
+            const dispW = Math.round(contentW * displayScale);
+            const dispH = Math.round(contentH * displayScale);
+
+            overlay = document.createElement('div');
+            overlay.className = 'exp-overlay';
+
+            const panel = document.createElement('div');
+            panel.className = 'exp-panel';
+
+            // Barre d'outils
+            const toolbar = document.createElement('div');
+            toolbar.className = 'exp-toolbar';
+
+            const colorInput = document.createElement('input');
+            colorInput.type = 'color';
+            colorInput.className = 'exp-color';
+            colorInput.value = '#e83e3e';
+            colorInput.title = 'Couleur';
+            toolbar.style.setProperty('--selected-color', '#e83e3e');
+            color = '#e83e3e';
+            colorInput.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                openColorPopover(colorInput);
+            });
+
+            toolbar.appendChild(colorInput);
+
+            const tools = [
+                ['text', 'Texte'], 
+                ['arrow', 'Fleche'], 
+                ['rect', 'Rectangle'], 
+                ['pen', 'Dessin libre']
+            ];
+
+            const toolBtns = tools.map(([id, label]) => makeToolButton(id, label));
+            toolBtns.forEach(b => {
+                b.addEventListener('click', () => {
+                    tool = b.dataset.tool;
+                    toolBtns.forEach(x => x.classList.toggle('active', x.dataset.tool === tool));
+                });
+                toolbar.appendChild(b);
+            });
+
+            const divider = document.createElement('span');
+            divider.className = 'toolbar-divider';
+            toolbar.appendChild(divider);
+
+            const undoBtn = document.createElement('button');
+            undoBtn.className = 'exp-tool';
+            undoBtn.textContent = 'Annuler';
+            undoBtn.title = 'Annuler (Ctrl+Z)';
+            undoBtn.addEventListener('click', undo);
+            toolbar.appendChild(undoBtn);
+
+            const redoBtn = document.createElement('button');
+            redoBtn.className = 'exp-tool';
+            redoBtn.textContent = 'Refaire';
+            redoBtn.title = 'Refaire (Ctrl+Y)';
+            redoBtn.addEventListener('click', redo);
+            toolbar.appendChild(redoBtn);
+
+            const clearBtn = document.createElement('button');
+            clearBtn.className = 'exp-tool';
+            clearBtn.textContent = 'Effacer';
+            clearBtn.addEventListener('click', () => {
+                annotations = [];
+                floatingTexts.forEach(ft => { if (ft._el && ft._el.remove) ft._el.remove(); });
+                floatingTexts = [];
+                redraw();
+            });
+            toolbar.appendChild(clearBtn);
+
+            /*const divider2 = document.createElement('span');
+            divider2.className = 'toolbar-divider';
+            toolbar.appendChild(divider2);*/
+
+            const closeBtn = document.createElement('button');
+            closeBtn.className = 'exp-close';
+            closeBtn.textContent = '\u00d7';
+            closeBtn.title = 'Fermer (Echap)';
+            closeBtn.addEventListener('click', close);
+            panel.appendChild(closeBtn);
+
+            // Zone de dessin: capture (dessous) + couche d'annotation (dessus)
+            const stage = document.createElement('div');
+            stage.className = 'exp-stage';
+            stage.style.width = dispW + 'px';
+            stage.style.height = dispH + 'px';
+
+            composite.style.width = dispW + 'px';
+            composite.style.height = dispH + 'px';
+            composite.className = 'exp-snapshot';
+
+            const annCanvas = document.createElement('canvas');
+            annCanvas.className = 'exp-annlayer';
+            annCanvas.width = composite.width;
+            annCanvas.height = composite.height;
+            annCanvas.style.width = dispW + 'px';
+            annCanvas.style.height = dispH + 'px';
+            annCtx = annCanvas.getContext('2d');
+            annCtx.scale(dpr, dpr);
+
+            stage.appendChild(composite);
+            stage.appendChild(annCanvas);
+
+            const stageActions = document.createElement('div');
+            stageActions.className = 'exp-stage-actions';
+
+            const addToReportBtn = document.createElement('button');
+            addToReportBtn.className = 'exp-tool exp-primary keep-color';
+            addToReportBtn.type = 'button';
+            addToReportBtn.title = 'Ajouter la capture au rapport';
+            addToReportBtn.innerHTML = `
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <line x1="5" y1="12" x2="19" y2="12"/>
+                    <polyline points="12 5 19 12 12 19"/>
+                </svg>`;
+            addToReportBtn.addEventListener('click', addCaptureToReport);
+            stageActions.appendChild(addToReportBtn);
+
+            const dlBtn = document.createElement('button');
+            dlBtn.className = 'exp-tool exp-primary keep-color';
+            dlBtn.type = 'button';
+            dlBtn.title = 'Télécharger PNG';
+            dlBtn.innerHTML = `
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                    <polyline points="17 8 12 3 7 8"/>
+                    <line x1="12" y1="3" x2="12" y2="15"/>
+                </svg>`;
+            dlBtn.addEventListener('click', download);
+            stageActions.appendChild(dlBtn);
+
+            const copyBtn = document.createElement('button');
+            copyBtn.className = 'exp-tool exp-primary keep-color';
+            copyBtn.type = 'button';
+            copyBtn.title = 'Copier PNG';
+            copyBtn.innerHTML = `
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                </svg>`;
+            copyBtn.addEventListener('click', async () => {
+                try {
+                    await copyImageToClipboard();
+                } catch (e) {
+                    console.error('Copy failed', e);
+                }
+            });
+            stageActions.appendChild(copyBtn);
+
+            const stageWrapper = document.createElement('div');
+            stageWrapper.className = 'exp-stage-wrapper';
+            stageWrapper.appendChild(stage);
+            stageWrapper.appendChild(stageActions);
+
+            const body = document.createElement('div');
+            body.className = 'exp-body';
+            const left = document.createElement('div');
+            left.className = 'exp-left';
+            const leftTitle = document.createElement('div');
+            leftTitle.className = 'exp-section-title';
+            leftTitle.textContent = 'Capture et annotations';
+            left.appendChild(leftTitle);
+            left.appendChild(toolbar);
+            left.appendChild(stageWrapper);
+            body.appendChild(left);
+            body.appendChild(buildReportPane());
+            panel.appendChild(body);
+            overlay.appendChild(panel);
+            document.body.appendChild(overlay);
+            // Interactions de dessin
+            let textInput = null;
+            annCanvas.addEventListener('mousedown', (e) => {
+                if (e.button !== 0) return;
+                const p = toCanvasPos(e, annCanvas);
+                if (tool === 'text') {
+                    if (textInput) return;
+                    e.preventDefault(); // empeche le canvas de reprendre le focus a l'input
+                    textInput = document.createElement('input');
+                    textInput.className = 'exp-textinput';
+                    textInput.style.left = (e.clientX) + 'px';
+                    textInput.style.top = (e.clientY) + 'px';
+                    textInput.style.color = color;
+                    document.body.appendChild(textInput);
+                    setTimeout(() => { if (textInput) textInput.focus(); }, 0);
+                    const commit = () => {
+                        if (!textInput) return;
+                        const val = textInput.value;
+                        textInput.remove();
+                        textInput = null;
+                        commitText(p.x, p.y, val);
+                    };
+                    textInput.addEventListener('keydown', (ev) => {
+                        ev.stopPropagation();
+                        if (ev.key === 'Enter') { ev.preventDefault(); commit(); }
+                        else if (ev.key === 'Escape') { textInput.remove(); textInput = null; }
+                    });
+                    textInput.addEventListener('blur', commit);
+                    return;
+                }
+                if (tool === 'pen') {
+                    draft = { type: 'pen', color, width: 2.5, points: [{ x: p.x, y: p.y }] };
+                } else if (tool === 'arrow') {
+                    draft = { type: 'arrow', color, width: 2.5, x1: p.x, y1: p.y, x2: p.x, y2: p.y };
+                } else if (tool === 'rect') {
+                    draft = { type: 'rect', color, width: 2.5, x: p.x, y: p.y, w: 0, h: 0, _sx: p.x, _sy: p.y };
+                }
+            });
+
+            annCanvas.addEventListener('mousemove', (e) => {
+                if (!draft) return;
+                const p = toCanvasPos(e, annCanvas);
+                if (draft.type === 'pen') draft.points.push({ x: p.x, y: p.y });
+                else if (draft.type === 'arrow') { draft.x2 = p.x; draft.y2 = p.y; }
+                else if (draft.type === 'rect') {
+                    draft.x = Math.min(draft._sx, p.x);
+                    draft.y = Math.min(draft._sy, p.y);
+                    draft.w = Math.abs(p.x - draft._sx);
+                    draft.h = Math.abs(p.y - draft._sy);
+                }
+                redraw();
+            });
+
+            const endDraft = () => {
+                if (!draft) return;
+                const a = draft;
+                draft = null;
+                const tiny = (a.type === 'rect' && a.w < 3 && a.h < 3)
+                    || (a.type === 'arrow' && Math.hypot(a.x2 - a.x1, a.y2 - a.y1) < 3)
+                    || (a.type === 'pen' && a.points.length < 2);
+                if (!tiny) { delete a._sx; delete a._sy; pushAnnotation(a); }
+                redraw();
+            };
+            annCanvas.addEventListener('mouseup', endDraft);
+            annCanvas.addEventListener('mouseleave', endDraft);
+
+            overlay.addEventListener('mousedown', (e) => { if (e.target === overlay) close(); });
+            document.addEventListener('keydown', onKey, true);
+        } catch (error) {
+            console.error('Error in open function:', error);
+            restoreLayout();
+        }
+        }, 100);
     }
 
     function wireButton() {

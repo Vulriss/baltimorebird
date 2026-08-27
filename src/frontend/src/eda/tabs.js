@@ -1,5 +1,6 @@
 import { S } from '../core/state.js';
 import { ectx } from './context.js';
+import { updateCursors } from './cursors.js';
 
 // Identifiant de l'onglet en cours de deplacement. Distinct de S.draggedSignal: les zones
 // de drop de signaux et le reordonnancement d'onglets s'ignorent mutuellement.
@@ -194,8 +195,17 @@ function switchTab(tabId) {
     // Restore tab state
     S.activeTabId = tabId;
     S.plots = tab.plots || [];
-    S.cursor1 = tab.cursor1;
-    S.cursor2 = tab.cursor2;
+    if (S.syncCursors) {
+        tab.cursor1 = S.cursor1;
+        tab.cursor2 = S.cursor2;
+    } else {
+        S.cursor1 = tab.cursor1;
+        S.cursor2 = tab.cursor2;
+    }
+
+    if (typeof updateCursors === 'function') {
+        updateCursors();
+    }
 
     // Vues desynchronisees: l'onglet retrouve SA fenetre. Synchronisees: on garde
     // globalView, l'onglet adopte la fenetre courante.

@@ -159,16 +159,6 @@ export function createPlotInTab(tabId, signalIndex = null, { isBoolPlot = false,
         });
         plotStats.appendChild(lockBtn);
 
-        const soloBtn = document.createElement('button');
-        soloBtn.className = 'plot-solo-btn';
-        soloBtn.setAttribute('aria-label', 'Agrandir ce panneau seul');
-        soloBtn.innerHTML = plotIconSvg('maximize');
-        soloBtn.title = 'Agrandir ce panneau seul';
-        soloBtn.addEventListener('click', () => {
-            toggleSoloPlot(S.plots.find(p => p.id === id));
-        });
-        plotStats.appendChild(soloBtn);
-
         const grip = document.createElement('button');
         grip.className = 'plot-grip';
         grip.title = 'Glisser pour deplacer ce panneau';
@@ -193,6 +183,18 @@ export function createPlotInTab(tabId, signalIndex = null, { isBoolPlot = false,
             clearPlotDropMarkers();
         });
         plotStats.appendChild(grip);
+    }
+
+    if (!isCommentPlot) {
+        const soloBtn = document.createElement('button');
+        soloBtn.className = 'plot-solo-btn';
+        soloBtn.setAttribute('aria-label', 'Agrandir ce panneau seul');
+        soloBtn.innerHTML = plotIconSvg('maximize');
+        soloBtn.title = 'Agrandir ce panneau seul';
+        soloBtn.addEventListener('click', () => {
+            toggleSoloPlot(S.plots.find(p => p.id === id));
+        });
+        plotStats.appendChild(soloBtn);
     }
 
     // Panneau survole: cible du raccourci Shift+Y (le keydown a pour cible le
