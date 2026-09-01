@@ -124,6 +124,26 @@ function setupEventListeners() {
     // Largeur partagee des legendes (persistee)
     loadLegendWidth();
 
+    // Eviter curseur 'interdit'
+    document.addEventListener('dragover', (e) => {
+        // Check if we're dragging a signal or plot
+        if (S.draggedSignal !== null || S.draggedPlotId) {
+            e.preventDefault();
+            if (e.dataTransfer) {
+                e.dataTransfer.dropEffect = 'move';
+            }
+        }
+    });
+
+    document.addEventListener('dragenter', (e) => {
+        if (S.draggedSignal !== null || S.draggedPlotId) {
+            e.preventDefault();
+            if (e.dataTransfer) {
+                e.dataTransfer.dropEffect = 'move';
+            }
+        }
+    });
+
     // Search
     const searchInput = document.getElementById('search');
     if (searchInput && !searchInput._listenerAdded) {
