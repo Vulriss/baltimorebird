@@ -25,6 +25,7 @@ ALLOWED_FUNCTIONS: Dict[str, Any] = {
     "floor": np.floor, "ceil": np.ceil, "round": np.round, "trunc": np.trunc,
     "clip": np.clip, "sign": np.sign, "minimum": np.minimum, "maximum": np.maximum,
     "pi": np.pi, "e": np.e,
+    "cumsum": np.cumsum,
     # Logique element-wise (cibles de la reecriture AST, utilisables aussi en direct)
     "logical_and": np.logical_and, "logical_or": np.logical_or,
     "logical_not": np.logical_not, "logical_xor": np.logical_xor,
