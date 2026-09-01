@@ -207,7 +207,7 @@
     /* Sous les modales (z-index 1000): leur voile assombrit le panneau d'analyse */
     z-index: 900;
     padding: 10px;
-    background: $bg-body;
+    background: $ctp-base;
     border: 1px solid $border-color;
     border-radius: 10px;
     box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);

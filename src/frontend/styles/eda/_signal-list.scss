@@ -5,7 +5,7 @@
 /* Selection multiple (clic, Ctrl, Shift) */
 .signal-item.selected {
     background: $bg-hover;
-    border-color: $color-accent;
+
     border-left-color: $color-accent;
 }
 
@@ -69,7 +69,7 @@
 }
 
 .signal-item.loading .signal-name {
-    color: var(--accent, #fab387);
+    color: var(--accent, #fd995b);
 }
 
 /* Erreur de chargement */

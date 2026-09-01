@@ -80,6 +80,12 @@
     --ctp-mantle-rgb: 24, 24, 37;
     --ctp-crust: #11111b;
     --ctp-crust-rgb: 17, 17, 27;
+    --ctp-nav: #11111b;
+    --ctp-nav-rgb: 17, 17, 27;
+    --nav-text-hover: #FFFFFF;
+    --ctp-color-accent: #29ceeb;
+    --ctp-sidebar: #1e1e2e;
+    --ctp-item-list: #005B60;
 }
 
 :root[data-theme="light"] {
@@ -116,6 +122,7 @@
     --ctp-lavender-rgb: 114, 135, 253;
     --ctp-text: #4c4f69;
     --ctp-text-rgb: 76, 79, 105;
+    --ctp-title: #eeeaea;
     --ctp-subtext1: #5c5f77;
     --ctp-subtext1-rgb: 92, 95, 119;
     --ctp-subtext0: #6c6f85;
@@ -124,7 +131,7 @@
     --ctp-overlay2-rgb: 124, 127, 147;
     --ctp-overlay1: #8c8fa1;
     --ctp-overlay1-rgb: 140, 143, 161;
-    --ctp-overlay0: #9ca0b0;
+    --ctp-overlay0: #cdcfd7;
     --ctp-overlay0-rgb: 156, 160, 176;
     --ctp-surface2: #acb0be;
     --ctp-surface2-rgb: 172, 176, 190;
@@ -132,14 +139,22 @@
     --ctp-surface1-rgb: 188, 192, 204;
     --ctp-surface0: #ccd0da;
     --ctp-surface0-rgb: 204, 208, 218;
-    --ctp-base: #eff1f5;
-    --ctp-base-rgb: 239, 241, 245;
-    --ctp-mantle: #e6e9ef;
-    --ctp-mantle-rgb: 230, 233, 239;
-    --ctp-crust: #dce0e8;
+    --ctp-base: #FDFDFD;  //F9FAFB
+    --ctp-base-rgb: 252, 252, 252;
+    --ctp-mantle: #e9edf1;  //e9edf1
+    --ctp-mantle-rgb: 219, 225, 231;
+    --ctp-crust: #dce0e8; //dce0e8
     --ctp-crust-rgb: 220, 224, 232;
+    --ctp-nav: #435465;
+    --ctp-nav-rgb: 6, 34, 59;
+    --nav-text-hover: #FFFFFF;
+    --ctp-color-accent: #29ceeb;
+    --ctp-plot-legend: #f3f5f7;
+    --ctp-sidebar: #F0FFFF;
+    --ctp-item-list: #e0dede;
 }
 
+$ctp-item-list: var(--ctp-item-list);
 $ctp-rosewater: var(--ctp-rosewater);  // HSL: 10°, 56%, 91%  - Rose très pâle, curseur
 $ctp-flamingo: var(--ctp-flamingo);  // HSL: 0°, 59%, 88%   - Rose saumon
 $ctp-pink: var(--ctp-pink);  // HSL: 316°, 72%, 86% - Rose vif
@@ -156,6 +171,7 @@ $ctp-blue: var(--ctp-blue);  // HSL: 217°, 92%, 76% - Bleu, liens
 $ctp-lavender: var(--ctp-lavender);  // HSL: 232°, 97%, 85% - Lavande
 
 // --- Text Colors (du plus visible au plus subtil) ---
+$ctp-title: var(--ctp-title);  // TItre de l'app i.e Baltimorebird
 $ctp-text: var(--ctp-text);  // HSL: 226°, 64%, 88% - Texte principal
 $ctp-subtext1: var(--ctp-subtext1);  // HSL: 227°, 35%, 80% - Sous-titres, labels
 $ctp-subtext0: var(--ctp-subtext0);  // HSL: 228°, 24%, 72% - Texte secondaire
@@ -171,6 +187,7 @@ $ctp-surface1: var(--ctp-surface1);  // HSL: 234°, 13%, 31% - Cards, panels
 $ctp-surface0: var(--ctp-surface0);  // HSL: 237°, 16%, 23% - Inputs, surfaces élevées
 
 // --- Base Colors (fonds principaux, du plus clair au plus sombre) ---
+$ctp-nav: var(--ctp-nav);
 $ctp-base: var(--ctp-base);  // HSL: 240°, 21%, 15% - Fond standard
 $ctp-mantle: var(--ctp-mantle);  // HSL: 240°, 21%, 12% - Sidebars, panels secondaires
 $ctp-crust: var(--ctp-crust);  // HSL: 240°, 23%, 9%  - Fond le plus sombre
@@ -179,10 +196,8 @@ $ctp-crust: var(--ctp-crust);  // HSL: 240°, 23%, 9%  - Fond le plus sombre
 // ============================================================================
 // SECTION 2: COULEUR D'ACCENT PRINCIPALE
 // ============================================================================
-// Peach comme accent principal = look chaleureux et unique
-// Évite le bleu/violet generic "AI dashboard"
 
-$color-accent: $ctp-teal;
+$color-accent: var(--ctp-color-accent);
 $color-accent-hover: $ctp-teal;      // Peach plus clair au hover
 $color-accent-active: $ctp-teal;     // Peach plus saturé au clic
 $color-accent-muted: rgba(var(--ctp-teal-rgb), 0.15);
@@ -246,16 +261,18 @@ $color-link-visited: $ctp-lavender;
 // --- Application backgrounds (sombres) ---
 $bg-app: $ctp-crust;              // Fond global de l'app (le plus sombre)
 $bg-body: $ctp-mantle;            // Body principal
-$bg-sidebar: $ctp-crust;          // Sidebar navigation
+$bg-sidebar: var(--ctp-sidebar);        // Sidebar navigation
 $bg-toolbar: $ctp-mantle;         // Toolbars
 
 // --- Component backgrounds ---
+$bg-list-item: $ctp-item-list;
 $bg-card: $ctp-base;              // Cards, panels principaux
 $bg-card-elevated: $ctp-surface0; // Cards surélevées, modales
 $bg-input: $ctp-surface0;         // Champs de saisie
 $bg-input-focus: $ctp-surface1;   // Input au focus
 
 // --- Interactive states ---
+$nav-text-hover: var(--nav-text-hover);
 $bg-hover: $ctp-surface0;         // Hover sur éléments
 $bg-hover-subtle: rgba(var(--ctp-text-rgb), 0.04);
 $bg-active: $ctp-surface1;        // État actif/sélectionné
@@ -272,6 +289,7 @@ $bg-tooltip: $ctp-surface1;
 $bg-selection: rgba(240, 11, 11, 0.25);
 
 // --- Legacy aliases (compatibilité) ---
+$bg-nav: $ctp-nav;
 $bg-dark: $ctp-crust;
 $bg-darker: $ctp-crust;
 $bg-darkest: $ctp-crust;
@@ -309,7 +327,8 @@ $border-primary: rgba(var(--ctp-teal-rgb), 0.4);
 $text-primary: $ctp-text;         // Texte principal, headlines
 $text-secondary: $ctp-subtext1;   // Labels, sous-titres
 $text-tertiary: $ctp-subtext0;    // Texte moins important
-$text-muted: $ctp-overlay1;       // Placeholders, texte désactivé
+$text-muted: $ctp-overlay2;       // Placeholders, texte désactivé
+$text-muted-variation: $ctp-overlay0; 
 $text-disabled: $ctp-overlay0;    // Texte complètement désactivé
 
 // Texte sur fonds colorés (selon style guide: Base)
@@ -325,6 +344,10 @@ $text-lighter: $ctp-overlay2;
 $text-dark: $ctp-overlay1;
 $text-darker: $ctp-overlay0;
 
+// Wave between navbar and sidebar
+$nav-wave-width: 12px;
+$nav-wave-period: 600px;
+$nav-wave-offset: -50px;
 
 // ============================================================================
 // SECTION 7: TYPOGRAPHIE
@@ -938,7 +961,7 @@ $gradient-accent-warm: $gradient-accent;
     --cursor-delta-fg: #f9e2af;
 }
 :root[data-theme="light"] {
-    --cursor-label-bg: rgba(255, 255, 255, 0.92);
+    --cursor-label-bg: rgba(255, 255, 255, 1);
     --cursor-delta-bg: rgba(255, 246, 235, 0.97);
     --cursor-delta-fg: #9a4f00;
 }

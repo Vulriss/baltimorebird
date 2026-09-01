@@ -100,7 +100,7 @@
 .plot-legend {
     width: 150px;
     flex-shrink: 0;
-    background: var(--ctp-mantle);
+    background: var(--ctp-plot-legend);
     border-left: 1px solid $border-color;
     padding: 8px;
     overflow-y: auto;
@@ -346,21 +346,22 @@
     border-radius: 6px;
     padding: 8px;
     text-align: center;
-    color: $text-darker;
+    color: $ctp-overlay2;
     font-size: 12px;
     flex-shrink: 0;
     margin-top: 4px;
+    background: $ctp-base;
 }
 
-.drop-zone.active { border-color: rgba(var(--ctp-overlay0-rgb), 0.5); background: rgba(85,85,204,0.1); color: rgba(var(--ctp-overlay1-rgb), 0.8); }
+.drop-zone.active { border-color: rgba(var(--ctp-overlay0-rgb), 0.5); color: rgba(var(--ctp-overlay1-rgb), 0.8); }
 
 .empty-plot {
     flex: 1;
     display: flex;
     align-items: center;
     justify-content: center;
-    color: $text-darker;
-    background: $bg-card;
+    color: $ctp-overlay2;
+    background: $ctp-base;
     border: 1px solid $border-color;
     border-radius: 6px;
 }
