@@ -41,7 +41,18 @@
                     <!-- Scripts List -->
                     <div class="execution-scripts">
                         <div class="execution-scripts-header">
-                            <h3>Scripts disponibles</h3>
+                            <div>
+                                <h3>Scripts disponibles</h3>
+                                <div class="execution-source-file">
+                                    <label for="scriptSourceFileId">Fichier source</label>
+                                    <select id="scriptSourceFileId">
+                                        <option value="">Chargement des fichiers MF4...</option>
+                                    </select>
+                                    <button type="button" class="execution-source-upload-btn" id="scriptSourceUploadBtn">Import</button>
+                                    <input type="file" id="scriptSourceFileInput" accept=".mf4,.mdf,.dat" hidden>
+                                </div>
+                                <div class="execution-source-current" id="executionSourceCurrent">Aucun fichier sélectionné</div>
+                            </div>
                             <span class="execution-scripts-count" id="scriptsCount">0 script(s)</span>
                         </div>
                         <div id="scriptsList">
@@ -347,53 +358,29 @@
                  ============================================ -->
             <div class="dashboard-panel">
                 <div class="mapping-panel">
-                    <div class="mapping-header">
-                        <div class="mapping-header-left">
-                            <h2>Signal Mapping</h2>
-                            <p>Définissez les correspondances entre les noms internes et les signaux sources</p>
-                        </div>
-                        <div class="mapping-header-right">
-                            <button class="mapping-btn secondary" onclick="importMappings()">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                                    <polyline points="7 10 12 15 17 10"/>
-                                    <line x1="12" y1="15" x2="12" y2="3"/>
-                                </svg>
-                                Importer
-                            </button>
-                            <button class="mapping-btn secondary" onclick="exportMappings()">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                                    <polyline points="17 8 12 3 7 8"/>
-                                    <line x1="12" y1="3" x2="12" y2="15"/>
-                                </svg>
-                                Exporter
-                            </button>
-                            <button class="mapping-btn primary" onclick="addMappingVariable()">
+                    
+                    <!-- Mapping List Sidebar -->
+                    <div class="mapping-sidebar">
+                        <div class="mapping-sidebar-header">
+                            <h3>Mappings disponibles</h3>
+                            <button class="mapping-add-btn" id="createMappingBtn" title="Nouveau mapping">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                     <line x1="12" y1="5" x2="12" y2="19"/>
                                     <line x1="5" y1="12" x2="19" y2="12"/>
                                 </svg>
-                                Nouvelle variable
                             </button>
                         </div>
-                    </div>
-                    
-                    <div class="mapping-toolbar">
-                        <div class="mapping-search">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <circle cx="11" cy="11" r="8"/>
-                                <path d="M21 21l-4.35-4.35"/>
-                            </svg>
-                            <input type="text" placeholder="Rechercher une variable..." id="mappingSearch">
-                        </div>
-                        <div class="mapping-stats">
-                            <span id="mappingCount">0 variable(s)</span>
+                        <div class="mapping-sidebar-count" id="mappingCount">0 mapping(s)</div>
+                        <div class="mapping-list" id="mappingList">
+                            <!-- Mapping cards rendered by JS -->
                         </div>
                     </div>
                     
-                    <div class="mapping-list" id="mappingList">
-                        <div class="mapping-empty" id="mappingEmpty">
+                    <!-- Mapping Editor Main Area -->
+                    <div class="mapping-main">
+                        
+                        <!-- Empty State (no mapping selected) -->
+                        <div class="mapping-main-empty" id="mappingMainEmpty">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                                 <circle cx="5" cy="6" r="3"/>
                                 <circle cx="19" cy="6" r="3"/>
@@ -401,20 +388,116 @@
                                 <circle cx="19" cy="18" r="3"/>
                                 <path d="M8 6h8M8 18h8M5 9v6M19 9v6"/>
                             </svg>
-                            <h3>Aucun mapping défini</h3>
-                            <p>Créez des variables internes et associez-leur des signaux sources</p>
-                            <button class="mapping-btn primary" onclick="addMappingVariable()">
+                            <h3>Sélectionnez un mapping</h3>
+                            <p>Choisissez un mapping dans la liste pour voir ses variables</p>
+                        </div>
+                        
+                        <!-- Mapping Content (shown when mapping is selected) -->
+                        <div class="mapping-main-content" id="mappingMainContent" style="display: none;">
+                            
+                            <!-- Mapping Header -->
+                            <div class="mapping-editor-header">
+                                <div class="mapping-editor-title">
+                                    <input type="text" 
+                                        class="mapping-name-input" 
+                                        id="mappingName" 
+                                        placeholder="Nom du mapping"
+                                        readonly>
+                                    <div class="mapping-editor-meta">
+                                        <span class="mapping-status-indicator" id="mappingStatus"></span>
+                                        <span class="mapping-readonly-badge" id="mappingReadonlyBadge" style="display: none;">Lecture seule</span>
+                                    </div>
+                                </div>
+                                <div class="mapping-editor-actions">
+                                    <button class="edition-toolbar-btn secondary" id="saveMappingBtn" style="display: none;">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                                            <polyline points="17 21 17 13 7 13 7 21"/>
+                                            <polyline points="7 3 7 8 15 8"/>
+                                        </svg>
+                                        Sauvegarder
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <!-- Mapping Description -->
+                            <textarea class="mapping-description-input" 
+                                    id="mappingDescription" 
+                                    placeholder="Ajouter une description..."
+                                    rows="2"
+                                    readonly></textarea>
+                            
+                            <!-- Variables Section -->
+                            <div class="mapping-variables-section">
+                                <div class="mapping-variables-toolbar">
+                                    <h4>Variables</h4>
+                                    <button class="edition-toolbar-btn primary" id="addMappingVariableBtn" style="display: none;">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <line x1="12" y1="5" x2="12" y2="19"/>
+                                            <line x1="5" y1="12" x2="19" y2="12"/>
+                                        </svg>
+                                        Nouvelle variable
+                                    </button>
+                                </div>
+                                
+                                <!-- Variables List -->
+                                <div class="mapping-variables-list" id="mappingVariablesList">
+                                    <!-- Variables rendered by JS -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Variable Editor Modal -->
+            <div class="modal-overlay" id="variableEditorModal">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h3 id="variableEditorTitle">Nouvelle variable</h3>
+                        <button class="modal-close-btn" data-action="close-variable-editor">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <line x1="18" y1="6" x2="6" y2="18"/>
+                                <line x1="6" y1="6" x2="18" y2="18"/>
+                            </svg>
+                        </button>
+                    </div>
+                    
+                    <div class="modal-body">
+                        <div class="form-group">
+                            <label for="variableName">Nom de la variable *</label>
+                            <input type="text" id="variableName" placeholder="ex: VehicleSpeed">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="variableDescription">Description</label>
+                            <input type="text" id="variableDescription" placeholder="ex: Vitesse véhicule en km/h">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="variableUnit">Unité</label>
+                            <input type="text" id="variableUnit" placeholder="ex: km/h">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Aliases</label>
+                            <p class="form-help">Noms des signaux sources qui correspondent à cette variable</p>
+                            <div class="aliases-container" id="variableAliases">
+                                <!-- Alias inputs rendered by JS -->
+                            </div>
+                            <button type="button" class="add-alias-btn" data-action="add-alias">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                     <line x1="12" y1="5" x2="12" y2="19"/>
                                     <line x1="5" y1="12" x2="19" y2="12"/>
                                 </svg>
-                                Créer une variable
+                                Ajouter un alias
                             </button>
                         </div>
-                        
-                        <div class="mapping-items" id="mappingItems" style="display: none;">
-                            <!-- Mapping items rendered by JS -->
-                        </div>
+                    </div>
+                    
+                    <div class="modal-footer">
+                        <button class="edition-toolbar-btn secondary" data-action="close-variable-editor">Annuler</button>
+                        <button class="edition-toolbar-btn primary" data-action="save-variable">Enregistrer</button>
                     </div>
                 </div>
             </div>

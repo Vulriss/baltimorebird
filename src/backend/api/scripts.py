@@ -3,16 +3,24 @@
 import json
 import uuid
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
+import numpy as np
+import pandas as pd
 from flask import Blueprint, g, jsonify, request
 
 from api.auth import feature_required, login_required
-from config import BASE_DIR
+from api.reports import get_user_reports_dir 
+from config import BASE_DIR, DATA_SOURCES, REPORTS_DIR
 from core import utc_now_iso, is_safe_path, is_valid_uuid, sanitize_string, validate_script_id
+from data_management import datastore
+from data_management.loaders import load_synthetic_data
+from reports.builder import ReportBuilder
+from reports.components import Callout, Histogram, LaTeX, LinePlot, Metrics, ScatterPlot, Section, StatsTable, Table, Text
+from services.storage import storage
 
 try:
-    from services.sandbox import ALLOWED_BUILTINS, ALLOWED_MODULES, check_code_safety
+    from services.sandbox import ALLOWED_BUILTINS, ALLOWED_MODULES, check_code_safety, safe_execute 
     SANDBOX_AVAILABLE = True
 except ImportError:
     SANDBOX_AVAILABLE = False
@@ -169,6 +177,10 @@ def list_default_scripts() -> List[Dict]:
 
     return scripts
 
+VALID_BLOCK_TYPES = (
+    "section", "text", "callout", "metrics", "table",
+    "lineplot", "scatter", "histogram", "stats", "latex", "code",
+)
 
 def validate_blocks(blocks: List[Dict]) -> tuple[bool, str]:
     if not isinstance(blocks, list):
@@ -180,30 +192,94 @@ def validate_blocks(blocks: List[Dict]) -> tuple[bool, str]:
         if not isinstance(block, dict):
             return False, f"Block {i} invalide"
         block_type = block.get("type")
-        if block_type not in ("markdown", "code", "plot", "table", "stats"):
+        if block_type not in VALID_BLOCK_TYPES:
             return False, f"Type de bloc invalide: {block_type}"
+        if not isinstance(block.get("config"), dict):
+            return False, f"Block {i} ('{block_type}') doit avoir un objet 'config'"
 
     return True, ""
 
 
-def generate_python_code(script: Dict) -> str:
-    lines = [
-        "# Auto-generated script",
-        "import numpy as np",
-        "import pandas as pd",
-        "",
-        "# Script blocks:",
-    ]
+def generate_exec_code(script: Dict) -> str:
+    lines: List[str] = []
 
     for block in script.get("blocks", []):
         block_type = block.get("type")
-        if block_type == "code":
-            code = block.get("content", "")
-            lines.append("\n# Code block")
-            lines.append(code)
-        elif block_type == "markdown":
-            content = block.get("content", "")
-            lines.append(f'\n# Markdown: """{content[:100]}..."""')
+        config = block.get("config", {}) if isinstance(block.get("config"), dict) else {}
+
+        if block_type == "section":
+            title = sanitize_string(config.get("title", "Nouvelle Section"), 200)
+            level = config.get("level", "H1")
+            level_value = 1 if level == "H1" else 2 if level == "H2" else 3
+            lines.append(f'report.add(Section({json.dumps(title)}, level={level_value}))')
+        elif block_type == "text":
+            content = sanitize_string(config.get("content", ""), 10000)
+            lines.append(f'report.add(Text({json.dumps(content)}))')
+        elif block_type == "callout":
+            callout_type = sanitize_string(config.get("type", "info"), 20)
+            title = sanitize_string(config.get("title", "Information"), 200)
+            content = sanitize_string(config.get("content", ""), 10000)
+            lines.append(
+                f'report.add(Callout({json.dumps(callout_type)}, {json.dumps(title)}, {json.dumps(content)}))'
+            )
+        elif block_type == "metrics":
+            metrics_text = str(config.get("metrics", "")).strip()
+            if not metrics_text:
+                lines.append("report.add(Metrics([]))")
+            else:
+                metric_lines = []
+                for raw_line in metrics_text.splitlines():
+                    if ":" not in raw_line:
+                        continue
+                    metric_name, metric_expr = raw_line.split(":", 1)
+                    metric_lines.append(f'({json.dumps(metric_name.strip())}, {metric_expr.strip()})')
+                if metric_lines:
+                    lines.append(f'report.add(Metrics([\n    {",\n    ".join(metric_lines)}\n]))')
+                else:
+                    lines.append("report.add(Metrics([]))")
+        elif block_type == "table":
+            data_ref = str(config.get("data", "df") or "df")
+            caption = sanitize_string(config.get("caption", "Tableau de données"), 200)
+            max_rows = int(config.get("max_rows", 20) or 20)
+            lines.append(
+                f'report.add(Table({data_ref}, caption={json.dumps(caption)}, max_rows={max_rows}))'
+            )
+        elif block_type == "lineplot":
+            signal = sanitize_string(config.get("signal", ""), 200)
+            title = sanitize_string(config.get("title", "Graphique"), 200)
+            color = sanitize_string(config.get("color", "#6366f1"), 50)
+            lines.append(
+                f'report.add(LinePlot(df, x="time", y={json.dumps(signal)}, title={json.dumps(title)}, color={json.dumps(color)}))'
+            )
+        elif block_type == "scatter":
+            x = sanitize_string(config.get("x", ""), 200)
+            y = sanitize_string(config.get("y", ""), 200)
+            title = sanitize_string(config.get("title", "Scatter Plot"), 200)
+            color_by = sanitize_string(config.get("color_by", ""), 200)
+            color_arg = f', color={json.dumps(color_by)}' if color_by else ''
+            lines.append(
+                f'report.add(ScatterPlot(df, x={json.dumps(x)}, y={json.dumps(y)}{color_arg}, title={json.dumps(title)}))'
+            )
+        elif block_type == "histogram":
+            signal = sanitize_string(config.get("signal", ""), 200)
+            bins = int(config.get("bins", 30) or 30)
+            title = sanitize_string(config.get("title", "Distribution"), 200)
+            lines.append(
+                f'report.add(Histogram(df, column={json.dumps(signal)}, bins={bins}, title={json.dumps(title)}))'
+            )
+        elif block_type == "stats":
+            signals = sanitize_string(config.get("signals", "*"), 500)
+            caption = sanitize_string(config.get("caption", "Statistiques"), 200)
+            lines.append(
+                f'report.add(StatsTable(df, signals={json.dumps(signals)}, caption={json.dumps(caption)}))'
+            )
+        elif block_type == "latex":
+            expression = sanitize_string(config.get("expression", ""), 10000)
+            lines.append(f'report.add(LaTeX(r{json.dumps(expression)}))')
+        elif block_type == "code":
+            code = str(config.get("code", "")).strip()
+            if code:
+                lines.append(code)
 
     return "\n".join(lines)
 
@@ -246,6 +322,7 @@ def create_script():
         return jsonify({"error": "Données invalides"}), 400
 
     blocks = data.get("blocks", [])
+    exec_code = sanitize_string(data.get("exec_code", ""), MAX_CODE_LENGTH)
     valid, error = validate_blocks(blocks)
     if not valid:
         return jsonify({"error": error}), 400
@@ -260,6 +337,7 @@ def create_script():
         "created": now,
         "modified": now,
         "blocks": blocks,
+        "exec_code": exec_code,
         "settings": {
             "title": sanitize_string(data.get("settings", {}).get("title", "Rapport"), 200),
             "author": sanitize_string(data.get("settings", {}).get("author", ""), 100),
@@ -302,6 +380,9 @@ def update_script(script_id: str):
         if not valid:
             return jsonify({"error": error}), 400
         existing["blocks"] = data["blocks"]
+
+    if "exec_code" in data: 
+        existing["exec_code"] = sanitize_string(data["exec_code"], MAX_CODE_LENGTH)
 
     if "name" in data:
         existing["name"] = sanitize_string(data["name"], 200)
@@ -348,6 +429,17 @@ def delete_script(script_id: str):
 
     return jsonify({"error": "Erreur lors de la suppression"}), 500
 
+def _build_dataframe_from_synthetic() -> pd.DataFrame:
+    """Convertit le format (signals, metadata, t_min, t_max) en DataFrame plat."""
+    signals, metadata, t_min, t_max = load_synthetic_data()
+
+    # On aligne tout sur le timestamp du premier signal (même longueur/pas ici,
+    # car load_synthetic_data génère tous les signaux sur le même axe temps).
+    data = {"time": signals[0]["timestamps"]}
+    for sig, meta in zip(signals, metadata):
+        data[meta["name"]] = sig["values"]
+
+    return pd.DataFrame(data)
 
 @scripts_bp.route("/api/scripts/<script_id>/run", methods=["POST"])
 @feature_required("run_scripts")
@@ -368,33 +460,76 @@ def run_script(script_id: str):
     if not valid:
         return jsonify({"error": f"Script invalide: {error}"}), 400
 
-    code = generate_python_code(script)
-    safety = check_code_safety(code)
+    exec_code = sanitize_string(script.get("exec_code", ""), MAX_CODE_LENGTH)
+    if not exec_code.strip():
+        exec_code = generate_exec_code(script)
+    if not exec_code.strip():
+        return jsonify({"success": False, "error": "Script vide, rien à exécuter"}), 400
 
+    safety = check_code_safety(exec_code)
     if not safety["safe"]:
-        return jsonify({"success": False, "error": "Code généré non sécurisé", "safety_errors": safety["errors"]}), 400
+        return jsonify({
+            "success": False,
+            "error": "Code généré non sécurisé",
+            "safety_errors": safety["errors"],
+        }), 400
 
-    import time
-    start_time = time.time()
-    duration = time.time() - start_time
+    # --- Données : synthétiques pour l'instant, upload réel viendra plus tard ---
+    try:
+        df = _build_dataframe_from_synthetic()
+    except Exception as e:
+        return jsonify({"success": False, "error": f"Erreur de génération des données: {e}"}), 500
+
+    report_id = f"report_{uuid.uuid4().hex[:8]}"
+    output_path = get_user_reports_dir(user.id) / f"{report_id}.html"
+
+    report = ReportBuilder(
+        title=script.get("settings", {}).get("title") or script.get("name"),
+        author=script.get("settings", {}).get("author", ""),
+        source="synthetic_data (test)",
+    )
+
+    full_exec_code = exec_code + "\nreport.save(output_path)\n"
+
+    exec_globals = {
+        "df": df,
+        "report": report,
+        "output_path": str(output_path),
+        "Section": Section, "Text": Text, "Callout": Callout, "Metrics": Metrics,
+        "Table": Table, "LinePlot": LinePlot, "ScatterPlot": ScatterPlot,
+        "Histogram": Histogram, "StatsTable": StatsTable, "LaTeX": LaTeX,
+    }
+
+    result = safe_execute(full_exec_code, data=exec_globals, timeout_seconds=60, max_memory_mb=512)
+
     now = utc_now_iso()
-
     if not script.get("_readonly") and script.get("_owner") == user.id:
         script["lastRun"] = now
-        script["lastRunStatus"] = "success"
-        script["lastRunDuration"] = round(duration, 2)
+        script["lastRunStatus"] = "success" if result.success else "error"
+        if result.success:
+            script["lastRunDuration"] = round(result.execution_time, 2)
         script["modified"] = now
         try:
             save_script(script, user.id)
         except ValueError:
             pass
 
+    if not result.success:
+        return jsonify({"success": False, "error": result.error}), 400
+    
+    if not output_path.exists():
+        return jsonify({
+            "success": False,
+            "error": "Le rapport n'a pas été écrit sur le disque malgré une exécution signalée comme réussie.",
+            "sandbox_output": result.output,   # ce que le code exécuté a produit sur stdout/stderr
+            "expected_path": str(output_path),
+        }), 500
+
     return jsonify({
         "success": True,
         "script_id": script_id,
-        "status": "success",
-        "duration": round(duration, 2),
-        "report_id": f"report_{uuid.uuid4().hex[:8]}"
+        "duration": round(result.execution_time, 2),
+        "report_id": report_id,
     })
 
 
@@ -410,7 +545,7 @@ def preview_script_code(script_id: str):
     if not script:
         return jsonify({"error": "Script non trouvé"}), 404
 
-    code = generate_python_code(script)
+    code = sanitize_string(script.get("exec_code", ""), MAX_CODE_LENGTH) or generate_exec_code(script)
     safety_check = check_code_safety(code) if SANDBOX_AVAILABLE else None
 
     return jsonify({"script_id": script_id, "code": code, "safety": safety_check})

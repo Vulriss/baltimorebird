@@ -9,7 +9,8 @@ const ReportsManager = (() => {
         currentId: null,
         pendingDeleteId: null,
         pendingDeleteName: null,
-        autoRefreshInterval: null
+        autoRefreshInterval: null,
+        activeFrameId: 'reportFrameA',
     };
 
     const $ = (id) => document.getElementById(id);
@@ -40,7 +41,7 @@ const ReportsManager = (() => {
         }
 
         try {
-            const res = await fetch(API);
+            const res = await authFetch(API);
             const data = await res.json();
             const newReports = data.reports || [];
 
@@ -96,53 +97,61 @@ const ReportsManager = (() => {
     function renderList() {
         const listContainer = $('reportsList');
 
-        listContainer.innerHTML = state.reports.map(report => `
-            <div class="report-item ${report.id === state.currentId ? 'active' : ''}"
-                 data-report-id="${report.id}"
-                 data-action="select">
-                <button class="report-item-delete"
-                        data-action="confirmDelete"
-                        data-report-id="${report.id}"
-                        data-report-name="${report.name.replace(/"/g, '&quot;')}"
-                        title="Supprimer">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <polyline points="3 6 5 6 21 6"/>
-                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-                    </svg>
-                </button>
-                <div class="report-item-header">
-                    <div class="report-item-icon">
+        listContainer.innerHTML = state.reports.map(report => {
+            const isDemo = report.name === 'demo' || report.filename === 'demo.html';
+        
+            return `
+                <div class="report-item ${report.id === state.currentId ? 'active' : ''}"
+                    data-report-id="${report.id}"
+                    data-action="select">
+                    ${!isDemo ? `
+                    <button class="report-item-delete"
+                            data-action="confirmDelete"
+                            data-report-id="${report.id}"
+                            data-report-name="${report.name.replace(/"/g, '&quot;')}"
+                            title="Supprimer">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                            <polyline points="14 2 14 8 20 8"/>
-                            <line x1="16" y1="13" x2="8" y2="13"/>
-                            <line x1="16" y1="17" x2="8" y2="17"/>
+                            <polyline points="3 6 5 6 21 6"/>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                            <line x1="10" y1="11" x2="10" y2="17"/>
+                            <line x1="14" y1="11" x2="14" y2="17"/>
                         </svg>
-                    </div>
-                    <div class="report-item-info">
-                        <div class="report-item-name" title="${report.name}">${report.name}</div>
-                        <div class="report-item-meta">
-                            <span>
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <circle cx="12" cy="12" r="10"/>
-                                    <path d="M12 6v6l4 2"/>
-                                </svg>
-                                ${formatDate(report.created)}
-                            </span>
-                            <span>
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                                </svg>
-                                ${report.size_kb} KB
-                            </span>
+                    </button>
+                    ` : ''}
+                    <div class="report-item-header">
+                        <div class="report-item-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                <polyline points="14 2 14 8 20 8"/>
+                                <line x1="16" y1="13" x2="8" y2="13"/>
+                                <line x1="16" y1="17" x2="8" y2="17"/>
+                            </svg>
+                        </div>
+                        <div class="report-item-info">
+                            <div class="report-item-name" title="${report.name}">${report.name}</div>
+                            <div class="report-item-meta">
+                                <span>
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <circle cx="12" cy="12" r="10"/>
+                                        <path d="M12 6v6l4 2"/>
+                                    </svg>
+                                    ${formatDate(report.created)}
+                                </span>
+                                <span>
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                    </svg>
+                                    ${report.size_kb} KB
+                                </span>
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
-        `).join('');
+            `;
+        }).join('');
     }
 
-    function select(reportId) {
+    async function select(reportId) {
         state.currentId = reportId;
 
         document.querySelectorAll('.report-item').forEach(item => {
@@ -163,7 +172,30 @@ const ReportsManager = (() => {
             deleteBtn.title = isDemo ? 'Impossible de supprimer le rapport de démonstration' : 'Supprimer';
         }
 
-        $('reportFrame').src = `${API}/${reportId}`;
+        const activeFrame = $(state.activeFrameId);
+        const bufferId = state.activeFrameId === 'reportFrameA' ? 'reportFrameB' : 'reportFrameA';
+        const bufferFrame = $(bufferId);
+
+        try {
+            const res = await authFetch(`${API}/${reportId}`);
+            if (!res.ok) throw new Error('Impossible de charger le rapport');
+            const html = await res.text();
+
+            const oldBlobUrl = bufferFrame.dataset.blobUrl;
+            const blobUrl = URL.createObjectURL(new Blob([html], { type: 'text/html' }));
+            bufferFrame.dataset.blobUrl = blobUrl;
+
+            bufferFrame.onload = () => {
+                bufferFrame.classList.add('active');
+                activeFrame.classList.remove('active');
+                state.activeFrameId = bufferId;
+
+                if (oldBlobUrl) URL.revokeObjectURL(oldBlobUrl);
+            };
+            bufferFrame.src = blobUrl;
+        } catch (e) {
+            console.error('Failed to load report content:', e);
+        }
     }
 
     function filter(searchTerm) {
@@ -180,60 +212,90 @@ const ReportsManager = (() => {
         );
 
         const listContainer = $('reportsList');
-        listContainer.innerHTML = filtered.map(report => `
-            <div class="report-item ${report.id === state.currentId ? 'active' : ''}"
-                 data-report-id="${report.id}"
-                 data-action="select">
-                <button class="report-item-delete"
-                        data-action="confirmDelete"
-                        data-report-id="${report.id}"
-                        data-report-name="${report.name.replace(/"/g, '&quot;')}"
-                        title="Supprimer">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <polyline points="3 6 5 6 21 6"/>
-                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-                    </svg>
-                </button>
-                <div class="report-item-header">
-                    <div class="report-item-icon">
+        listContainer.innerHTML = filtered.map(report => {
+            const isDemo = report.name === 'demo' || report.filename === 'demo.html';
+            
+            return `
+                <div class="report-item ${report.id === state.currentId ? 'active' : ''}"
+                    data-report-id="${report.id}"
+                    data-action="select">
+                    ${!isDemo ? `
+                    <button class="report-item-delete"
+                            data-action="confirmDelete"
+                            data-report-id="${report.id}"
+                            data-report-name="${report.name.replace(/"/g, '&quot;')}"
+                            title="Supprimer">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                            <polyline points="14 2 14 8 20 8"/>
-                            <line x1="16" y1="13" x2="8" y2="13"/>
-                            <line x1="16" y1="17" x2="8" y2="17"/>
+                            <polyline points="3 6 5 6 21 6"/>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
                         </svg>
-                    </div>
-                    <div class="report-item-info">
-                        <div class="report-item-name" title="${report.name}">${report.name}</div>
-                        <div class="report-item-meta">
-                            <span>
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <circle cx="12" cy="12" r="10"/>
-                                    <path d="M12 6v6l4 2"/>
-                                </svg>
-                                ${formatDate(report.created)}
-                            </span>
-                            <span>
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                                </svg>
-                                ${report.size_kb} KB
-                            </span>
+                    </button>
+                    ` : ''}
+                    <div class="report-item-header">
+                        <div class="report-item-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                <polyline points="14 2 14 8 20 8"/>
+                                <line x1="16" y1="13" x2="8" y2="13"/>
+                                <line x1="16" y1="17" x2="8" y2="17"/>
+                            </svg>
+                        </div>
+                        <div class="report-item-info">
+                            <div class="report-item-name" title="${report.name}">${report.name}</div>
+                            <div class="report-item-meta">
+                                <span>
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <circle cx="12" cy="12" r="10"/>
+                                        <path d="M12 6v6l4 2"/>
+                                    </svg>
+                                    ${formatDate(report.created)}
+                                </span>
+                                <span>
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                    </svg>
+                                    ${report.size_kb} KB
+                                </span>
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
-        `).join('');
+            `;
+        }).join('');
+    }
+    async function openNewTab() {
+        if (!state.currentId) return;
+        try {
+            const res = await authFetch(`${API}/${state.currentId}`);
+            if (!res.ok) throw new Error('Impossible de charger le rapport');
+            const html = await res.text();
+            const blobUrl = URL.createObjectURL(new Blob([html], { type: 'text/html' }));
+            window.open(blobUrl, '_blank');
+        } catch (e) {
+            console.error('Failed to open report:', e);
+            alert(`Erreur: ${e.message}`);
+        }
     }
 
-    function openNewTab() {
+    async function download() {
         if (!state.currentId) return;
-        window.open(`${API}/${state.currentId}`, '_blank');
-    }
+        try {
+            const res = await authFetch(`${API}/${state.currentId}/download`);
+            if (!res.ok) throw new Error('Téléchargement échoué');
+            const blob = await res.blob();
+            const blobUrl = URL.createObjectURL(blob);
 
-    function download() {
-        if (!state.currentId) return;
-        window.open(`${API}/${state.currentId}/download`, '_blank');
+            const a = document.createElement('a');
+            a.href = blobUrl;
+            a.download = `${state.currentId}.html`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            URL.revokeObjectURL(blobUrl);
+        } catch (e) {
+            console.error('Failed to download report:', e);
+            alert(`Erreur: ${e.message}`);
+        }
     }
 
     function confirmDelete(reportId, reportName) {
@@ -256,7 +318,7 @@ const ReportsManager = (() => {
         cancelDelete();
 
         try {
-            const res = await fetch(`${API}/${reportId}`, { method: 'DELETE' });
+            const res = await authFetch(`${API}/${reportId}`, { method: 'DELETE' });
 
             if (!res.ok) {
                 const err = await res.json();

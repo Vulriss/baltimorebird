@@ -28,6 +28,16 @@ const DashboardEditor = (function() {
 
     const SCRIPTS_API = '/api/scripts';
 
+    let mappingsList = [];
+    let currentMappingId = null;
+    let currentMapping = null;
+    let mappingVariables = [];
+    let defaultMappings = [];
+    let isMappingModified = false;
+    let mappingVariableIdCounter = 0;
+
+    const MAPPINGS_API = '/api/mappings';
+    
     // =========================================================================
     // Block Definitions
     // =========================================================================
@@ -313,6 +323,11 @@ const DashboardEditor = (function() {
     // =========================================================================
 
     function switchPanel(panel) {
+        if (currentPanel === 'mapping' && panel !== 'mapping') {
+            if (!confirmDiscardChanges()) {
+                return;
+            }
+        }
         currentPanel = panel;
         
         document.querySelectorAll('.dashboard-toggle-btn').forEach(btn => {
@@ -457,6 +472,16 @@ const DashboardEditor = (function() {
                             </svg>
                             Exécuter
                         </button>
+                        ${!script.readonly ? `
+                            <button class="script-btn-delete" data-action="delete" data-script-id="${script.id}" title="Supprimer">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="3 6 5 6 21 6"/>
+                                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                                    <line x1="10" y1="11" x2="10" y2="17"/>
+                                    <line x1="14" y1="11" x2="14" y2="17"/>
+                                </svg>
+                            </button>
+                        ` : ''}
                     </div>
                 </div>
             `;
@@ -477,6 +502,8 @@ const DashboardEditor = (function() {
             editScript(scriptId);
         } else if (action === 'run') {
             runScript(scriptId);
+        } else if (action === 'delete') {
+            deleteScript(scriptId);
         }
     }
 
@@ -529,6 +556,43 @@ const DashboardEditor = (function() {
         } catch (e) {
             console.error('Failed to load script:', e);
             logToConsole(`✗ Erreur de chargement: ${e.message}`, 'error');
+        }
+    }
+
+    async function deleteScript(scriptId) {
+        const script = scriptsList.find(s => s.id === scriptId);
+        const scriptName = script ? script.name : scriptId;
+
+        if (!confirm(`Supprimer le script "${scriptName}" ? Cette action est irréversible.`)) {
+            return;
+        }
+
+        try {
+            const res = await authFetch(`${SCRIPTS_API}/${scriptId}`, { method: 'DELETE' });
+            const data = await res.json();
+
+            if (!res.ok) {
+                logToConsole(`✗ Erreur: ${data.error || res.status}`, 'error');
+                return;
+            }
+
+            logToConsole(`Script "${scriptName}" supprimé.`, 'success');
+
+            // Si le script supprimé est celui en cours d'édition, on réinitialise l'éditeur
+            if (currentScriptId === scriptId) {
+                currentScriptId = null;
+                canvasBlocks = [];
+                isScriptModified = false;
+                const nameInput = document.getElementById('currentScriptName');
+                if (nameInput) nameInput.value = 'Nouveau Script';
+                updateStatus('Nouveau');
+                render();
+            }
+
+            await loadScriptsList();
+        } catch (e) {
+            console.error('Failed to delete script:', e);
+            logToConsole(`✗ Erreur de suppression: ${e.message}`, 'error');
         }
     }
 
@@ -1265,7 +1329,7 @@ const DashboardEditor = (function() {
         render();
     }
 
-    function saveScript() {
+    async function saveScript() {
         const nameInput = document.getElementById('currentScriptName');
         const scriptName = nameInput ? nameInput.value : 'Sans nom';
         
@@ -1279,32 +1343,88 @@ const DashboardEditor = (function() {
         const scriptData = {
             name: scriptName,
             blocks: flatBlocks,
-            code: generateFullPythonCode(scriptName)
+            code: generateFullPythonCode(scriptName),  
+            exec_code: generateExecutableCode(),
+            settings: {
+                title: scriptName,
+                author: '',
+                mappingId: null,
+            }
         };
 
         console.log('Saving script:', scriptData);
         
-        isScriptModified = false;
-        updateStatus('Sauvegardé');
-        logToConsole(`Script "${scriptName}" sauvegardé.`, 'success');
+        try {
+            let response;
+            let url = SCRIPTS_API;
+            let method = 'POST';
+            
+            if (currentScriptId) {
+                // Mise à jour d'un script existant
+                url = `${SCRIPTS_API}/${currentScriptId}`;
+                method = 'PUT';
+            }
+            
+            response = await authFetch(url, {
+                method: method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(scriptData)
+            });
+            
+            const data = await response.json();
+
+            if (response.ok) {
+                currentScriptId = data.id;
+                isScriptModified = false;
+                updateStatus('Sauvegardé');
+                logToConsole(`Script "${scriptName}" sauvegardé.`, 'success');
+
+                // Recharger la liste des scripts
+                await loadScriptsList();
+                return true;
+            } else {
+                logToConsole(`✗ Erreur: ${data.error || 'Erreur inconnue'}`, 'error');
+                return false;
+            }
+            
+        } catch (e) {
+            console.error('Failed to save script:', e);
+            logToConsole(`✗ Erreur de sauvegarde: ${e.message}`, 'error');
+            return false;
+        }
     }
 
-    function saveAndRun() {
-        saveScript();
-        switchPanel('execution');
-        
-        const nameInput = document.getElementById('currentScriptName');
-        logToConsole(`Exécution de "${nameInput ? nameInput.value : 'Sans nom'}"...`, 'info');
+    async function saveAndRun() {
+        const saved = await saveScript();
+        if (saved && currentScriptId) {
+            switchPanel('execution');
+            const nameInput = document.getElementById('currentScriptName');
+            logToConsole(`Exécution de "${nameInput ? nameInput.value : 'Sans nom'}"...`, 'info');
+            await runScript(currentScriptId);
+        }
+    }
+
+    function generateBlockCodeLines() {
+        return flattenTree()
+            .map(block => {
+                const def = BLOCK_DEFINITIONS[block.type];
+                return def ? def.generateCode(block.config) : '';
+            })
+            .filter(Boolean);
+    }
+
+    function generateExecutableCode() {
+        return generateBlockCodeLines().join('\n');
+    }
+
+    function pythonStringLiteral(value) {
+        return JSON.stringify(String(value ?? ''));
     }
 
     function generateFullPythonCode(scriptName) {
-        const blocks = flattenTree();
-        const codeLines = blocks.map(block => {
-            const def = BLOCK_DEFINITIONS[block.type];
-            return def ? def.generateCode(block.config) : '';
-        }).filter(Boolean);
+        const codeLines = generateBlockCodeLines();
 
-        return `# Auto-generated by Baltimore Bird Dashboard Editor
+                return `# Auto-generated by Baltimore Bird Dashboard Editor
 # Script: ${scriptName}
 
 from pathlib import Path
@@ -1332,39 +1452,640 @@ if __name__ == "__main__":
     }
 
     // =========================================================================
-    // Mapping (kept from original)
+    // Mapping Management
     // =========================================================================
 
-    function addMappingVariable() {
-        signalMappings.push({
-            id: 'mapping_' + (++mappingIdCounter),
-            name: 'NewVariable',
-            aliases: [''],
-            expanded: true
-        });
-        renderMappings();
-    }
-
-    function renderMappings() {
-        const emptyState = document.getElementById('mappingEmpty');
-        const itemsContainer = document.getElementById('mappingItems');
+    async function loadMappingsList() {
+        const listContainer = document.getElementById('mappingList');
         const countEl = document.getElementById('mappingCount');
         
-        if (!emptyState || !itemsContainer) return;
-        if (countEl) countEl.textContent = `${signalMappings.length} variable(s)`;
+        if (!listContainer) return;
         
-        if (signalMappings.length === 0) {
+        listContainer.innerHTML = '<div class="mapping-loading">Chargement des mappings...</div>';
+        
+        try {
+            const res = await authFetch(MAPPINGS_API);
+            const data = await res.json();
+            
+            mappingsList = data.mappings || [];
+
+            defaultMappings = mappingsList.filter(m => m.readonly === true);
+
+            if (countEl) countEl.textContent = `${mappingsList.length} mapping(s)`;
+            
+            if (mappingsList.length === 0) {
+                listContainer.innerHTML = `
+                    <div class="mapping-empty">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+                            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+                        </svg>
+                        <p>Aucun mapping disponible</p>
+                        <p class="mapping-empty-hint">Créez un nouveau mapping pour commencer</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            renderMappingsList();
+            
+        } catch (e) {
+            console.error('Failed to load mappings:', e);
+            listContainer.innerHTML = `
+                <div class="mapping-empty">
+                    <p style="color: #ff6666;">Erreur de chargement</p>
+                    <p class="mapping-empty-hint">${escapeHtml(e.message)}</p>
+                </div>
+            `;
+        }
+    }
+
+    function renderMappingsList() {
+        const listContainer = document.getElementById('mappingList');
+        if (!listContainer) return;
+        
+        listContainer.innerHTML = mappingsList.map(mapping => `
+            <div class="mapping-card ${mapping.readonly ? 'is-default' : ''} ${currentMappingId === mapping.id ? 'active' : ''}" 
+                data-mapping-id="${mapping.id}">
+                <div class="mapping-card-main">
+                    <div class="mapping-card-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+                            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+                        </svg>
+                    </div>
+                    <div class="mapping-card-content">
+                        <div class="mapping-card-name">
+                            ${escapeHtml(mapping.name)}
+                            ${mapping.readonly ? '<span class="mapping-badge">Défaut</span>' : ''}
+                        </div>
+                        <div class="mapping-card-description">${escapeHtml(mapping.description || '')}</div>
+                        <div class="mapping-card-meta">
+                            <span>${mapping.variableCount || 0} variables</span>
+                            ${mapping.modified ? `<span>Modifié ${formatDate(mapping.modified)}</span>` : ''}
+                        </div>
+                    </div>
+                </div>
+                <div class="mapping-card-actions">
+                    <button class="mapping-btn-view" data-action="view-mapping" data-mapping-id="${mapping.id}">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                            <circle cx="12" cy="12" r="3"/>
+                        </svg>
+                    </button>
+                    ${!mapping.readonly ? `
+                        <button class="mapping-btn-delete" data-action="delete-mapping" data-mapping-id="${mapping.id}" title="Supprimer">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="3 6 5 6 21 6"/>
+                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                                <line x1="10" y1="11" x2="10" y2="17"/>
+                                <line x1="14" y1="11" x2="14" y2="17"/>
+                            </svg>
+                        </button>
+                    ` : ''}
+                </div>
+            </div>
+        `).join('');
+        
+        listContainer.addEventListener('click', handleMappingListAction);
+    }
+
+    function handleMappingListAction(e) {
+        const btn = e.target.closest('[data-action]');
+        if (!btn) return;
+        
+        const action = btn.dataset.action;
+        const mappingId = btn.dataset.mappingId;
+        
+        e.stopPropagation();
+        
+        if (action === 'view-mapping') {
+            openMapping(mappingId);
+        } else if (action === 'delete-mapping') {
+            deleteMapping(mappingId);
+        }
+    }
+
+    async function openMapping(mappingId) {
+        if (!confirmDiscardChanges()) {
+            return;
+        }
+
+        logToConsole(`Chargement du mapping...`, 'info');
+        
+        try {
+            const res = await authFetch(`${MAPPINGS_API}/${mappingId}`);
+            const mapping = await res.json();
+            
+            if (mapping.error) {
+                logToConsole(`✗ Erreur: ${mapping.error}`, 'error');
+                return;
+            }
+            
+            currentMappingId = mappingId;
+            currentMapping = mapping;
+            mappingVariables = mapping.variables || [];
+            mappingVariableIdCounter = mappingVariables.length;
+            isMappingModified = false;
+            
+            updateMappingEditor(mapping);
+            renderMappingVariables();
+            updateMappingStatus(mapping.readonly ? 'Lecture seule' : 'Chargé');
+            
+            logToConsole(`✓ Mapping "${mapping.name}" chargé`, 'success');
+            
+            document.querySelectorAll('.mapping-card').forEach(card => {
+                card.classList.toggle('active', card.dataset.mappingId === mappingId);
+            });
+            
+        } catch (e) {
+            console.error('Failed to load mapping:', e);
+            logToConsole(`✗ Erreur de chargement: ${e.message}`, 'error');
+        }
+    }
+
+    function updateMappingEditor(mapping) {
+        const nameInput = document.getElementById('mappingName');
+        const descInput = document.getElementById('mappingDescription');
+        
+        if (nameInput) nameInput.value = mapping.name || '';
+        if (descInput) descInput.value = mapping.description || '';
+        
+        const editorContainer = document.getElementById('mappingEditor');
+        if (editorContainer) {
+            editorContainer.classList.toggle('is-readonly', mapping.readonly);
+        }
+        
+        const addBtn = document.getElementById('addMappingVariableBtn');
+        if (addBtn) {
+            addBtn.style.display = mapping.readonly ? 'none' : 'flex';
+        }
+    }
+
+    function renderMappingVariables() {
+        const container = document.getElementById('mappingVariables');
+        const emptyState = document.getElementById('mappingVariablesEmpty');
+        
+        if (!container || !emptyState) return;
+        
+        if (mappingVariables.length === 0) {
             emptyState.style.display = 'flex';
-            itemsContainer.style.display = 'none';
+            container.style.display = 'none';
             return;
         }
         
         emptyState.style.display = 'none';
-        itemsContainer.style.display = 'flex';
+        container.style.display = 'flex';
         
-        // Mapping rendering code here (kept from original for brevity)
-        // ...
+        container.innerHTML = mappingVariables.map((variable, index) => `
+            <div class="mapping-variable ${currentMapping?.readonly ? 'is-readonly' : ''}" data-variable-id="${variable.id}">
+                <div class="mapping-variable-header">
+                    <div class="mapping-variable-info">
+                        <div class="mapping-variable-name">${escapeHtml(variable.name || 'Sans nom')}</div>
+                        <div class="mapping-variable-meta">
+                            ${variable.unit ? `<span class="mapping-variable-unit">${escapeHtml(variable.unit)}</span>` : ''}
+                            <span>${variable.aliases?.length || 0} alias</span>
+                        </div>
+                    </div>
+                    <div class="mapping-variable-actions">
+                        ${!currentMapping?.readonly ? `
+                            <button class="mapping-var-btn" data-action="edit-variable" data-variable-index="${index}" title="Modifier">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                                </svg>
+                            </button>
+                            <button class="mapping-var-btn delete" data-action="delete-variable" data-variable-index="${index}" title="Supprimer">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="3 6 5 6 21 6"/>
+                                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                                </svg>
+                            </button>
+                        ` : ''}
+                    </div>
+                </div>
+                ${variable.description ? `<div class="mapping-variable-description">${escapeHtml(variable.description)}</div>` : ''}
+                ${variable.aliases?.length > 0 ? `
+                    <div class="mapping-variable-aliases">
+                        ${variable.aliases.map(alias => `<span class="mapping-alias-tag">${escapeHtml(alias)}</span>`).join('')}
+                    </div>
+                ` : ''}
+            </div>
+        `).join('');
+        
+        // Add event listeners for variable actions
+        container.addEventListener('click', handleVariableAction);
     }
+
+    function handleVariableAction(e) {
+        const btn = e.target.closest('[data-action]');
+        if (!btn) return;
+        
+        const action = btn.dataset.action;
+        const index = parseInt(btn.dataset.variableIndex);
+        
+        if (action === 'edit-variable') {
+            openVariableEditor(index);
+        } else if (action === 'delete-variable') {
+            deleteVariable(index);
+        }
+    }
+
+    function openVariableEditor(index = null) {
+        const variable = index !== null ? mappingVariables[index] : null;
+        const isEditing = variable !== null;
+        
+        const modal = document.getElementById('variableEditorModal');
+        if (!modal) return;
+
+        const titleEl = document.getElementById('variableEditorTitle');
+        if (titleEl) titleEl.textContent = isEditing ? 'Modifier la variable' : 'Nouvelle variable';
+        
+        const nameInput = document.getElementById('variableName');
+        const descInput = document.getElementById('variableDescription');
+        const unitInput = document.getElementById('variableUnit');
+        const aliasesContainer = document.getElementById('variableAliases');
+        
+        if (nameInput) nameInput.value = variable?.name || '';
+        if (descInput) descInput.value = variable?.description || '';
+        if (unitInput) unitInput.value = variable?.unit || '';
+
+        if (aliasesContainer) {
+            aliasesContainer.innerHTML = '';
+            const aliases = variable?.aliases || [''];
+            aliases.forEach(alias => addAliasInput(alias));
+        }
+        
+        modal.dataset.editingIndex = isEditing ? index : '';
+        
+        modal.classList.add('show');
+    }
+
+    function closeVariableEditor() {
+        const modal = document.getElementById('variableEditorModal');
+        if (modal) {
+            modal.classList.remove('show');
+        }
+    }
+
+    function addAliasInput(value = '') {
+        const container = document.getElementById('variableAliases');
+        if (!container) return;
+        
+        const aliasRow = document.createElement('div');
+        aliasRow.className = 'alias-input-row';
+        aliasRow.innerHTML = `
+            <input type="text" class="alias-input" value="${escapeHtml(value)}" placeholder="Alias du signal">
+            <button type="button" class="alias-remove-btn" onclick="this.parentElement.remove()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="18" y1="6" x2="6" y2="18"/>
+                    <line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+            </button>
+        `;
+        container.appendChild(aliasRow);
+    }
+
+    async function saveVariableFromEditor() {
+        const modal = document.getElementById('variableEditorModal');
+        if (!modal) return;
+        
+        const editingIndex = modal.dataset.editingIndex;
+        const isEditing = editingIndex !== '';
+        
+        const name = document.getElementById('variableName')?.value?.trim();
+        const description = document.getElementById('variableDescription')?.value?.trim();
+        const unit = document.getElementById('variableUnit')?.value?.trim();
+
+        const aliasInputs = document.querySelectorAll('#variableAliases .alias-input');
+        const aliases = Array.from(aliasInputs)
+            .map(input => input.value.trim())
+            .filter(alias => alias.length > 0);
+        
+        if (!name) {
+            alert('Le nom de la variable est requis');
+            return;
+        }
+        
+        const variableData = {
+            id: isEditing ? mappingVariables[parseInt(editingIndex)].id : `mapping_${++mappingVariableIdCounter}`,
+            name,
+            description,
+            unit,
+            aliases
+        };
+        
+        if (isEditing) {
+            mappingVariables[parseInt(editingIndex)] = variableData;
+        } else {
+            mappingVariables.push(variableData);
+        }
+        
+        isMappingModified = true;
+        renderMappingVariables();
+        updateMappingStatus('Modifié');
+        closeVariableEditor();
+    }
+
+    function deleteVariable(index) {
+        const variable = mappingVariables[index];
+        if (!variable) return;
+        
+        if (!confirm(`Supprimer la variable "${variable.name}" ?`)) {
+            return;
+        }
+        
+        mappingVariables.splice(index, 1);
+        isMappingModified = true;
+        renderMappingVariables();
+        updateMappingStatus('Modifié');
+    }
+
+    function hasUnsavedMappingChanges() {
+        if (!isMappingModified) return false;
+        
+        const nameInput = document.getElementById('mappingName');
+        const descInput = document.getElementById('mappingDescription');
+        
+        if (currentMapping) {
+            if (nameInput && nameInput.value !== currentMapping.name) return true;
+            if (descInput && descInput.value !== currentMapping.description) return true;
+        }
+        
+        return isMappingModified;
+    }
+
+    function confirmDiscardChanges() {
+        if (!hasUnsavedMappingChanges()) return true;
+        
+        return confirm('Vous avez des modifications non sauvegardées.\n\nVoulez-vous continuer sans sauvegarder ?');
+    }
+
+    async function saveMapping() {
+        if (!currentMappingId) {
+            logToConsole('✗ Aucun mapping chargé', 'error');
+            return;
+        }
+        
+        const nameInput = document.getElementById('mappingName');
+        const descInput = document.getElementById('mappingDescription');
+        
+        const mappingData = {
+            id: currentMappingId,
+            name: nameInput?.value?.trim() || 'Sans nom',
+            description: descInput?.value?.trim() || '',
+            variables: mappingVariables
+        };
+        
+        logToConsole(`Sauvegarde du mapping "${mappingData.name}"...`, 'info');
+        
+        try {
+            const res = await authFetch(`${MAPPINGS_API}/${currentMappingId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(mappingData)
+            });
+            
+            const data = await res.json();
+            
+            if (res.ok) {
+                isMappingModified = false;
+                updateMappingStatus('Sauvegardé');
+                logToConsole(`✓ Mapping sauvegardé`, 'success');
+                
+                await loadMappingsList();
+                
+                currentMapping = data;
+                
+                return true;
+            } else {
+                logToConsole(`✗ Erreur: ${data.error || 'Erreur inconnue'}`, 'error');
+                return false;
+            }
+            
+        } catch (e) {
+            console.error('Failed to save mapping:', e);
+            logToConsole(`✗ Erreur de sauvegarde: ${e.message}`, 'error');
+            return false;
+        }
+    }
+
+    async function resetDefaultMapping(mappingId) {
+        if (currentMappingId === mappingId && !confirmDiscardChanges()) {
+            return;
+        }
+        const mapping = mappingsList.find(m => m.id === mappingId);
+        const mappingName = mapping ? mapping.name : mappingId;
+        
+        if (!confirm(`Réinitialiser le mapping "${mappingName}" à sa version par défaut ?\n\nToutes vos modifications personnelles seront supprimées.`)) {
+            return false;
+        }
+        
+        try {
+            const res = await authFetch(`${MAPPINGS_API}/${mappingId}`, {
+                method: 'DELETE'
+            });
+            
+            if (res.ok) {
+                logToConsole(`✓ Mapping "${mappingName}" réinitialisé à la version par défaut`, 'success');
+                
+                if (currentMappingId === mappingId) {
+                    currentMappingId = null;
+                    currentMapping = null;
+                    mappingVariables = [];
+                    isMappingModified = false;
+                    updateMappingEditor({});
+                    renderMappingVariables();
+                    updateMappingStatus('Nouveau');
+                }
+                
+                await loadMappingsList();
+                return true;
+            } else {
+                const data = await res.json();
+                logToConsole(`✗ Erreur: ${data.error || 'Erreur inconnue'}`, 'error');
+                return false;
+            }
+            
+        } catch (e) {
+            console.error('Failed to reset mapping:', e);
+            logToConsole(`✗ Erreur de réinitialisation: ${e.message}`, 'error');
+            return false;
+        }
+    }
+
+    async function deleteMapping(mappingId) {
+        if (currentMappingId === mappingId && !confirmDiscardChanges()) {
+            return;
+        }
+        const mapping = mappingsList.find(m => m.id === mappingId);
+        const mappingName = mapping ? mapping.name : mappingId;
+        
+        const isDefaultCopy = mapping && !mapping.readonly && 
+                            mappingsList.some(m => m.id === mappingId && m.readonly === true) === false &&
+                            defaultMappings.some(m => m.id === mappingId);
+        
+        if (isDefaultCopy) {
+            if (confirm(`Le mapping "${mappingName}" est une version modifiée d'un mapping par défaut.\n\nVoulez-vous :\n- OK : Supprimer complètement ce mapping\n- Annuler : Réinitialiser à la version par défaut ?`)) {
+                await performDeleteMapping(mappingId, mappingName);
+            } else {
+                await resetDefaultMapping(mappingId);
+            }
+        } else {
+            if (!confirm(`Supprimer le mapping "${mappingName}" ? Cette action est irréversible.`)) {
+                return;
+            }
+            await performDeleteMapping(mappingId, mappingName);
+        }
+    }
+
+    async function performDeleteMapping(mappingId, mappingName) {
+        try {
+            const res = await authFetch(`${MAPPINGS_API}/${mappingId}`, {
+                method: 'DELETE'
+            });
+            
+            if (res.ok) {
+                logToConsole(`✓ Mapping "${mappingName}" supprimé`, 'success');
+
+                if (currentMappingId === mappingId) {
+                    currentMappingId = null;
+                    currentMapping = null;
+                    mappingVariables = [];
+                    isMappingModified = false;
+                    updateMappingEditor({});
+                    renderMappingVariables();
+                    updateMappingStatus('Nouveau');
+                }
+                
+                await loadMappingsList();
+            } else {
+                const data = await res.json();
+                logToConsole(`✗ Erreur: ${data.error || 'Erreur inconnue'}`, 'error');
+            }
+            
+        } catch (e) {
+            console.error('Failed to delete mapping:', e);
+            logToConsole(`✗ Erreur de suppression: ${e.message}`, 'error');
+        }
+    }
+    
+    async function createNewMapping() {
+        if (!confirmDiscardChanges()) {
+            return;
+        }
+        const name = prompt('Nom du nouveau mapping :');
+        if (!name || !name.trim()) return;
+        
+        currentMappingId = null;
+        currentMapping = null;
+        mappingVariables = [];
+        isMappingModified = false;
+        updateMappingEditor({});
+        renderMappingVariables();
+        updateMappingStatus('Nouveau');
+
+        const mappingData = {
+            name: name.trim(),
+            description: '',
+            variables: []
+        };
+        
+        logToConsole(`Création du mapping "${name}"...`, 'info');
+        
+        try {
+            const res = await authFetch(MAPPINGS_API, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(mappingData)
+            });
+            
+            const data = await res.json();
+            
+            if (res.ok) {
+                logToConsole(`✓ Mapping créé`, 'success');
+                await loadMappingsList();
+                await openMapping(data.id);
+            } else {
+                logToConsole(`✗ Erreur: ${data.error || 'Erreur inconnue'}`, 'error');
+            }
+            
+        } catch (e) {
+            console.error('Failed to create mapping:', e);
+            logToConsole(`✗ Erreur de création: ${e.message}`, 'error');
+        }
+    }
+
+    function updateMappingStatus(status) {
+        const statusEl = document.getElementById('mappingStatus');
+        if (statusEl) {
+            statusEl.textContent = status;
+            statusEl.className = 'mapping-status-indicator';
+            if (status === 'Modifié') statusEl.classList.add('modified');
+            else if (status === 'Sauvegardé' || status === 'Chargé') statusEl.classList.add('saved');
+            else if (status === 'Lecture seule') statusEl.classList.add('readonly');
+        }
+    }
+
+    function handleMappingNameInput() {
+        if (currentMapping && !currentMapping.readonly) {
+            isMappingModified = true;
+            updateMappingStatus('Modifié');
+        }
+    }
+    
+    function handleMappingDescriptionInput() {
+        if (currentMapping && !currentMapping.readonly) {
+            isMappingModified = true;
+            updateMappingStatus('Modifié');
+        }
+    }
+
+    function setupMappingEventListeners() {
+        const addBtn = document.getElementById('addMappingVariableBtn');
+        if (addBtn) {
+            addBtn.addEventListener('click', () => openVariableEditor());
+        }
+        
+        const createBtn = document.getElementById('createMappingBtn');
+        if (createBtn) {
+            createBtn.addEventListener('click', createNewMapping);
+        }
+        
+        const saveBtn = document.getElementById('saveMappingBtn');
+        if (saveBtn) {
+            saveBtn.addEventListener('click', saveMapping);
+        }
+        
+        const nameInput = document.getElementById('mappingName');
+        const descInput = document.getElementById('mappingDescription');
+        
+        if (nameInput) nameInput.addEventListener('input', handleMappingNameInput);
+        if (descInput) descInput.addEventListener('input', handleMappingDescriptionInput);
+        
+        const modal = document.getElementById('variableEditorModal');
+        if (modal) {
+            // Close button
+            const closeBtn = modal.querySelector('[data-action="close-variable-editor"]');
+            if (closeBtn) closeBtn.addEventListener('click', closeVariableEditor);
+            
+            // Save button
+            const saveBtn = modal.querySelector('[data-action="save-variable"]');
+            if (saveBtn) saveBtn.addEventListener('click', saveVariableFromEditor);
+            
+            // Add alias button
+            const addAliasBtn = modal.querySelector('[data-action="add-alias"]');
+            if (addAliasBtn) addAliasBtn.addEventListener('click', () => addAliasInput());
+        }
+    }
+
+    window.addEventListener('beforeunload', (e) => {
+        if (hasUnsavedMappingChanges()) {
+            e.preventDefault();
+            e.returnValue = 'Vous avez des modifications non sauvegardées. Voulez-vous vraiment quitter ?';
+            return e.returnValue;
+        }
+    });
 
     // =========================================================================
     // Initialization
@@ -1388,7 +2109,8 @@ if __name__ == "__main__":
         setupEventListeners();
         setupDragAndDrop();
         loadScriptsList();
-        renderMappings();
+        setupMappingEventListeners();
+        loadMappingsList();
         
         initialized = true;
         console.log('Dashboard V2: Initialisation terminée');
@@ -1405,6 +2127,11 @@ if __name__ == "__main__":
         newScript,
         saveScript,
         setAllCollapsed,
+        createNewMapping,
+        saveMapping,
+        deleteMapping,
+        resetDefaultMapping,
+        openMapping,
         addMappingVariable
     };
 

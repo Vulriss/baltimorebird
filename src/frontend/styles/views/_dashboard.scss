@@ -140,6 +140,13 @@
     align-items: center;
     justify-content: space-between;
     margin-bottom: 16px;
+    gap: 16px;
+}
+
+.execution-scripts-header > div {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
 }
 
 .execution-scripts-header h3 {
@@ -238,8 +245,20 @@
     transition: all 0.2s;
 }
 
+.script-btn-delete {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    padding: 0;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
 .script-btn-edit svg,
-.script-btn-run svg {
+.script-btn-run svg,
+.script-btn-delete svg {
     width: 16px;
     height: 16px;
 }
@@ -266,6 +285,18 @@
     transform: translateY(-1px);
     box-shadow: 0 4px 12px rgba(var(--ctp-green-rgb), 0.4);
     filter: brightness(1.05);
+}
+
+.script-btn-delete {
+    background: transparent;
+    border: 1px solid $ctp-surface1;
+    color: $ctp-subtext0;
+}
+
+.script-btn-delete:hover {
+    background: rgba(var(--ctp-red-rgb), 0.1);
+    border-color: $ctp-red;
+    color: $ctp-red;
 }
 
 /* Scripts Loading & Empty */

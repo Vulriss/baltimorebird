@@ -191,10 +191,10 @@
     position: absolute;
     top: 8px;
     right: 8px;
-    width: 24px;
+    width: 26px;
     height: 24px;
     background: transparent;
-    border: none;
+    border: 1px solid $ctp-surface1;
     border-radius: 4px;
     color: $text-darker;
     cursor: pointer;
@@ -203,20 +203,28 @@
     justify-content: center;
     opacity: 0;
     transition: all 0.15s;
+    padding: 0;
 }
 
 .report-item:hover .report-item-delete {
     opacity: 1;
+    background: rgba(var(--ctp-surface1-rgb), 0.3); 
+    border-color: $ctp-surface1;
+    color: $ctp-subtext0;
 }
 
 .report-item-delete:hover {
-    background: rgba(var(--ctp-red-rgb), 0.15);
-    color: $color-error;
+    background: rgba(var(--ctp-red-rgb), 0.15) !important;
+    border-color: $ctp-red !important;
+    color: $ctp-red !important;
+    opacity: 1;
 }
 
 .report-item-delete svg {
     width: 14px;
     height: 14px;
+    display: block;
+    flex-shrink: 0;
 }
 
 .reports-sidebar-footer {
@@ -370,11 +378,27 @@
 }
 
 /* Report iframe */
-.reports-iframe {
+.reports-iframe-wrapper {
+    position: relative;
     flex: 1;
     width: 100%;
+    overflow: hidden;
+}
+
+.reports-iframe {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
     border: none;
     background: $text-white;
+    visibility: hidden;
+    z-index: 1;
+}
+
+.reports-iframe.active {
+    visibility: visible;
+    z-index: 2;
 }
 
 /* === Delete Confirmation Modal === */
