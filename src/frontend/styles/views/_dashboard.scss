@@ -1386,41 +1386,285 @@
 
 .mapping-panel {
     display: flex;
-    flex-direction: column;
     width: 100%;
     height: 100%;
     background: $bg-dark;
 }
 
-.mapping-header {
+/* Left Sidebar */
+.mapping-sidebar {
+    width: 350px;
+    min-width: 350px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    background: $bg-darkest;
+    border-right: 1px solid $border-color;
+}
+
+.mapping-sidebar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px;
+    border-bottom: 1px solid $border-color;
+}
+
+.mapping-sidebar-header h3 {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 600;
+    color: $text-white;
+}
+
+.mapping-sidebar-count {
+    font-size: 11px;
+    color: $text-dark;
+}
+
+.mapping-sidebar-actions {
+    display: flex;
+    gap: 8px;
+    padding: 12px;
+    border-bottom: 1px solid $border-color;
+}
+
+.mapping-import-btn,
+.mapping-new-btn {
     display: flex;
     align-items: center;
+    gap: 6px;
+    padding: 8px 12px;
+    border: 1px solid $border-color;
+    border-radius: 6px;
+    background: $bg-card;
+    color: $text-light;
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.mapping-import-btn {
+    flex: 1;
+    justify-content: center;
+}
+
+.mapping-import-btn:hover,
+.mapping-new-btn:hover {
+    border-color: $color-primary;
+    color: $text-white;
+}
+
+.mapping-new-btn {
+    width: 32px;
+    padding: 8px;
+    justify-content: center;
+}
+
+.mapping-import-btn svg,
+.mapping-new-btn svg {
+    width: 14px;
+    height: 14px;
+}
+
+.mapping-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+/* Mapping Card */
+.mapping-card {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    background: $bg-card;
+    border: 1px solid $border-color;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+}
+
+.mapping-card:hover {
+    background: $bg-hover;
+    border-color: $border-light;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.mapping-card.active {
+    border-color: $color-primary;
+    background: rgba(var(--ctp-teal-rgb), 0.1);
+}
+
+.mapping-card.is-default {
+    border-style: dashed;
+}
+
+.mapping-card-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.mapping-card-name {
+    font-weight: 500;
+    font-size: 12px;
+    color: $text-white;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 4px;
+}
+
+.mapping-badge {
+    padding: 2px 6px;
+    background: rgba(var(--ctp-teal-rgb), 0.2);
+    color: $color-primary;
+    border-radius: 4px;
+    font-size: 9px;
+    font-weight: 500;
+}
+
+.mapping-card-description {
+    font-size: 11px;
+    color: $text-dark;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 4px;
+}
+
+.mapping-card-meta {
+    display: flex;
+    gap: 8px;
+    font-size: 10px;
+    color: $text-darker;
+}
+
+.mapping-card-actions {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    display: none;
+    gap: 4px;
+    flex-shrink: 0;
+}
+
+.mapping-card:hover .mapping-card-actions {
+    display: flex;
+}
+
+.mapping-card-actions button {
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    border-radius: 4px;
+    color: $text-dark;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.mapping-card-actions .mapping-btn-view:hover {
+    background: rgba(var(--ctp-teal-rgb), 0.2);
+    color: $color-primary;
+}
+
+.mapping-card-actions .mapping-btn-delete:hover {
+    background: rgba(var(--ctp-red-rgb), 0.2);
+    color: $color-error;
+}
+
+.mapping-card-actions svg {
+    width: 14px;
+    height: 14px;
+}
+
+/* Right Editor */
+.mapping-editor {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: $bg-dark;
+}
+
+.mapping-editor-header {
+    display: flex;
     justify-content: space-between;
-    padding: 20px 24px;
+    align-items: center;
+    padding: 16px 20px;
     background: $bg-darkest;
     border-bottom: 1px solid $border-color;
 }
 
-.mapping-header-left h2 {
-    font-size: 18px;
-    font-weight: 600;
-    color: $text-white;
-    margin: 0 0 4px 0;
-}
-
-.mapping-header-left p {
-    font-size: 13px;
-    color: $text-muted;
-    margin: 0;
-}
-
-.mapping-header-right {
+.mapping-editor-info {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 12px;
+    flex: 1;
 }
 
-.mapping-btn {
+.mapping-name-input {
+    font-size: 16px;
+    font-weight: 600;
+    color: $text-white;
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid transparent;
+    padding: 4px 0;
+    min-width: 200px;
+    transition: all 0.2s;
+}
+
+.mapping-name-input:hover {
+    border-bottom-color: $border-light;
+}
+
+.mapping-name-input:focus {
+    outline: none;
+    border-bottom-color: $color-primary;
+}
+
+.mapping-status-indicator {
+    font-size: 11px;
+    color: $text-dark;
+    padding: 3px 8px;
+    background: $bg-card;
+    border-radius: 4px;
+    white-space: nowrap;
+}
+
+.mapping-status-indicator.modified {
+    color: $color-warning;
+    background: rgba(245, 158, 11, 0.1);
+}
+
+.mapping-status-indicator.saved {
+    color: $color-success;
+    background: rgba(var(--ctp-green-rgb), 0.1);
+}
+
+.mapping-status-indicator.readonly {
+    color: $color-info;
+    background: rgba(var(--ctp-blue-rgb), 0.1);
+}
+
+.mapping-editor-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.mapping-action-btn {
     display: flex;
     align-items: center;
     gap: 6px;
@@ -1432,198 +1676,416 @@
     transition: all 0.2s;
 }
 
-.mapping-btn svg {
+.mapping-action-btn svg {
     width: 14px;
     height: 14px;
 }
 
-.mapping-btn.secondary {
+.mapping-action-btn.secondary {
     background: transparent;
     border: 1px solid $border-light;
     color: $text-light;
 }
 
-.mapping-btn.secondary:hover {
+.mapping-action-btn.secondary:hover {
     border-color: $color-primary;
     color: $text-white;
 }
 
-.mapping-btn.primary {
+.mapping-action-btn.primary {
     background: linear-gradient(135deg, $color-primary, $color-primary-dark);
     border: none;
     color: $ctp-crust;
 }
 
-.mapping-btn.primary:hover {
+.mapping-action-btn.primary:hover {
     transform: translateY(-1px);
     box-shadow: 0 4px 12px rgba(var(--ctp-teal-rgb), 0.4);
     filter: brightness(1.05);
 }
 
-.mapping-toolbar {
+/* Search Bar */
+.mapping-search-bar {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    padding: 12px 24px;
-    background: $ctp-crust;
+    gap: 8px;
+    padding: 12px 20px;
+    background: $bg-darkest;
     border-bottom: 1px solid $border-color;
 }
 
-.mapping-search {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    background: $bg-card;
-    border: 1px solid $border-color;
-    border-radius: 6px;
-    padding: 8px 12px;
-    width: 300px;
+.mapping-search-bar svg {
+    width: 14px;
+    height: 14px;
+    color: $text-darker;
+    flex-shrink: 0;
 }
 
-.mapping-search svg {
-    width: 16px;
-    height: 16px;
-    color: $text-dark;
-}
-
-.mapping-search input {
-    background: transparent;
+.mapping-search-bar input {
+    flex: 1;
     border: none;
-    color: $text-white;
+    outline: none;
+    background: transparent;
+    color: $text-primary;
     font-size: 13px;
-    width: 100%;
 }
 
-.mapping-search input::placeholder {
+.mapping-search-bar input::placeholder {
     color: $text-darker;
 }
 
-.mapping-search input:focus {
-    outline: none;
+.mapping-variables-count {
+    font-size: 11px;
+    color: $text-dark;
+    white-space: nowrap;
 }
 
-.mapping-stats {
-    font-size: 13px;
-    color: $text-muted;
-}
-
-.mapping-list {
+/* Variables List */
+.mapping-variables {
     flex: 1;
     overflow-y: auto;
-    padding: 20px 24px;
-}
-
-.mapping-empty {
+    padding: 20px;
     display: flex;
     flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    height: 100%;
-    min-height: 300px;
-    text-align: center;
-    color: $text-darker;
-}
-
-.mapping-empty svg {
-    width: 64px;
-    height: 64px;
-    margin-bottom: 20px;
-    opacity: 0.5;
-}
-
-.mapping-empty h3 {
-    font-size: 16px;
-    color: $text-muted;
-    margin: 0 0 8px 0;
-}
-
-.mapping-empty p {
-    font-size: 13px;
-    color: $text-darker;
-    margin: 0 0 20px 0;
-}
-
-.mapping-items {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-}
-
-.mapping-item {
-    background: $bg-card;
-    border: 1px solid $border-color;
-    border-radius: 10px;
-    overflow: hidden;
-}
-
-.mapping-item:hover {
-    border-color: $border-light;
-}
-
-.mapping-item-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 14px 16px;
-    background: $bg-hover;
-    cursor: pointer;
-}
-
-.mapping-item-header-left {
-    display: flex;
-    align-items: center;
     gap: 12px;
 }
 
-.mapping-item-icon {
-    width: 36px;
-    height: 36px;
-    background: linear-gradient(135deg, $color-primary, $color-primary-dark);
-    border-radius: 8px;
+.mapping-variables-empty {
+    flex: 1;
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
+    gap: 12px;
+    text-align: center;
+    border: 2px dashed $border-color;
+    border-radius: 12px;
+    color: $text-darker;
+    min-height: 300px;
 }
 
-.mapping-item-icon svg {
-    width: 18px;
-    height: 18px;
-    color: $ctp-crust;
+.mapping-variables-empty svg {
+    width: 48px;
+    height: 48px;
+    opacity: 0.5;
 }
 
-.mapping-item-name input {
-    background: transparent;
-    border: none;
-    border-bottom: 1px solid transparent;
-    color: $text-white;
-    font-size: 14px;
+.mapping-variables-empty h3 {
+    margin: 0;
+    font-size: 16px;
+    color: $text-muted;
+}
+
+.mapping-variables-empty p {
+    margin: 0;
+    font-size: 13px;
+    color: $text-darker;
+}
+
+/* Variable Card */
+.mapping-variable {
+    background: $ctp-surface0;
+    border: 1px solid $border-color;
+    border-radius: 8px;
+    padding: 14px;
+    transition: all 0.2s;
+}
+
+.mapping-variable:hover {
+    border-color: $border-light;
+}
+
+.mapping-variable.is-readonly {
+    opacity: 0.7;
+}
+
+.mapping-variable-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 8px;
+}
+
+.mapping-variable-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.mapping-variable-name {
     font-weight: 600;
-    padding: 2px 0;
-    width: 200px;
+    font-size: 13px;
+    color: $text-white;
+    margin-bottom: 4px;
 }
 
-.mapping-item-name input:hover {
-    border-bottom-color: $border-light;
-}
-
-.mapping-item-name input:focus {
-    outline: none;
-    border-bottom-color: $color-primary;
-}
-
-.mapping-item-meta {
+.mapping-variable-meta {
+    display: flex;
+    gap: 8px;
+    align-items: center;
     font-size: 11px;
     color: $text-muted;
 }
 
-.mapping-item-content {
+.mapping-variable-unit {
+    padding: 2px 8px;
+    background: $bg-card;
+    border: 1px solid $border-color;
+    border-radius: 4px;
+    font-weight: 500;
+    color: $text-light;
+}
+
+.mapping-variable-actions {
+    display: flex;
+    gap: 4px;
+    flex-shrink: 0;
+    opacity: 0;
+    transition: opacity 0.15s;
+}
+
+.mapping-variable:hover .mapping-variable-actions {
+    opacity: 1;
+}
+
+.mapping-variable-actions button {
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    border-radius: 4px;
+    color: $text-dark;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.mapping-variable-actions .mapping-var-btn:hover {
+    background: rgba(var(--ctp-teal-rgb), 0.2);
+    color: $color-primary;
+}
+
+.mapping-variable-actions .mapping-var-btn.delete:hover {
+    background: rgba(var(--ctp-red-rgb), 0.2);
+    color: $color-error;
+}
+
+.mapping-variable-actions svg {
+    width: 14px;
+    height: 14px;
+}
+
+.mapping-variable-description {
+    font-size: 12px;
+    color: $text-muted;
+    margin-bottom: 8px;
+}
+
+.mapping-variable-aliases {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.mapping-alias-tag {
+    padding: 4px 8px;
+    background: $bg-card;
+    border: 1px solid $border-color;
+    border-radius: 4px;
+    font-size: 10px;
+    color: $text-light;
+    font-family: 'Fira Code', 'SF Mono', Monaco, monospace;
+}
+
+/* Modal */
+.modal-overlay {
     display: none;
-    padding: 16px;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.7);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-overlay.show {
+    display: flex;
+}
+
+.modal-content {
+    background: $bg-darkest;
+    border-radius: 12px;
+    width: 100%;
+    max-width: 500px;
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    border: 1px solid $border-color;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px;
+    border-bottom: 1px solid $border-color;
+}
+
+.modal-header h3 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: $text-white;
+}
+
+.modal-close-btn {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    color: $text-dark;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.modal-close-btn:hover {
+    background: $bg-card;
+    color: $text-white;
+}
+
+.modal-close-btn svg {
+    width: 18px;
+    height: 18px;
+}
+
+.modal-body {
+    padding: 20px;
+    overflow-y: auto;
+    flex: 1;
+}
+
+.modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 16px 20px;
     border-top: 1px solid $border-color;
 }
 
-.mapping-item.expanded .mapping-item-content {
+/* Form */
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group:last-child {
+    margin-bottom: 0;
+}
+
+.form-group label {
     display: block;
+    font-weight: 500;
+    color: $text-white;
+    margin-bottom: 6px;
+    font-size: 13px;
+}
+
+.form-group input[type="text"] {
+    width: 100%;
+    padding: 10px;
+    background: $bg-card;
+    border: 1px solid $border-color;
+    border-radius: 6px;
+    color: $text-primary;
+    font-size: 13px;
+    transition: all 0.2s;
+}
+
+.form-group input[type="text"]:focus {
+    outline: none;
+    border-color: $color-primary;
+    box-shadow: 0 0 0 3px rgba(var(--ctp-teal-rgb), 0.15);
+}
+
+.form-help {
+    font-size: 11px;
+    color: $text-darker;
+    margin: 4px 0 8px;
+}
+
+.aliases-container {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.alias-input-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.alias-input {
+    flex: 1;
+}
+
+.alias-remove-btn {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    color: $text-dark;
+    cursor: pointer;
+    transition: all 0.2s;
+    flex-shrink: 0;
+}
+
+.alias-remove-btn:hover {
+    background: rgba(var(--ctp-red-rgb), 0.2);
+    color: $color-error;
+}
+
+.alias-remove-btn svg {
+    width: 16px;
+    height: 16px;
+}
+
+.add-alias-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 12px;
+    background: transparent;
+    border: 1px dashed $border-color;
+    border-radius: 6px;
+    color: $text-dark;
+    cursor: pointer;
+    font-size: 12px;
+    transition: all 0.2s;
+}
+
+.add-alias-btn:hover {
+    border-color: $color-primary;
+    color: $color-primary;
+}
+
+.add-alias-btn svg {
+    width: 12px;
+    height: 12px;
 }
 
 /* ===================================================

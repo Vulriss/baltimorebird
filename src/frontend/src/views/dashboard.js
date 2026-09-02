@@ -1507,23 +1507,15 @@ if __name__ == "__main__":
         listContainer.innerHTML = mappingsList.map(mapping => `
             <div class="mapping-card ${mapping.readonly ? 'is-default' : ''} ${currentMappingId === mapping.id ? 'active' : ''}" 
                 data-mapping-id="${mapping.id}">
-                <div class="mapping-card-main">
-                    <div class="mapping-card-icon">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
-                            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
-                        </svg>
+                <div class="mapping-card-content">
+                    <div class="mapping-card-name">
+                        ${escapeHtml(mapping.name)}
+                        ${mapping.readonly ? '<span class="mapping-badge">Default</span>' : ''}
                     </div>
-                    <div class="mapping-card-content">
-                        <div class="mapping-card-name">
-                            ${escapeHtml(mapping.name)}
-                            ${mapping.readonly ? '<span class="mapping-badge">Défaut</span>' : ''}
-                        </div>
-                        <div class="mapping-card-description">${escapeHtml(mapping.description || '')}</div>
-                        <div class="mapping-card-meta">
-                            <span>${mapping.variableCount || 0} variables</span>
-                            ${mapping.modified ? `<span>Modifié ${formatDate(mapping.modified)}</span>` : ''}
-                        </div>
+                    <div class="mapping-card-description">${escapeHtml(mapping.description || '')}</div>
+                    <div class="mapping-card-meta">
+                        <span>${mapping.variableCount || 0} variables</span>
+                        ${mapping.modified ? `<span>Modifié ${formatDate(mapping.modified)}</span>` : ''}
                     </div>
                 </div>
                 <div class="mapping-card-actions">
