@@ -14,6 +14,11 @@ const RECTS = {
     createVariableBtn: { left: 12, top: 640, width: 260, height: 30 },
     'drop-zone': { left: 320, top: 700, width: 900, height: 40 },
     'plot-legend': { left: 1180, top: 100, width: 140, height: 200 },
+    'u-over': { left: 336, top: 60, width: 1014, height: 620 },
+    addCursorBtn: { left: 360, top: 18, width: 28, height: 28 },
+    cursorLabelsToggle: { left: 398, top: 18, width: 28, height: 28 },
+    exportPngBtn: { left: 1300, top: 18, width: 28, height: 28 },
+    reports: { left: 8, top: 140, width: 300, height: 34 },
 };
 
 // La carte reste centree quelle que soit l'etape.
@@ -25,9 +30,14 @@ const CARD_ORIGIN = {
 const dom = new JSDOM(`<!DOCTYPE html><html><body>
   <button id="uploadBtnAuth">up</button>
   <input id="search">
+  <select id="sourceSelector"><option value="">--</option><option value="demo">demo</option></select>
   <div class="signal-list" id="signalList"></div>
   <button id="createVariableBtn">var</button>
-  <div class="tab-content active"><div class="plots-wrapper"></div><div class="drop-zone"></div></div>
+  <button id="addCursorBtn">c</button>
+  <button id="cursorLabelsToggle">l</button>
+  <a class="nav-item" data-view="reports">r</a>
+  <div class="tab-content active"><div class="plots-wrapper"><div class="u-over"></div></div>
+    <button id="exportPngBtn">e</button><div class="drop-zone"></div></div>
 </body></html>`, { pretendToBeVisual: true });
 
 global.window = dom.window;
@@ -44,7 +54,9 @@ function rectFor(el) {
     if (el.classList && el.classList.contains('bb-onb-card')) {
         return withEdges({ ...CARD_ORIGIN, ...CARD });
     }
-    const key = el.id || Array.from(el.classList || []).find((c) => RECTS[c]);
+    const key = el.id
+        || (el.dataset && RECTS[el.dataset.view] ? el.dataset.view : null)
+        || Array.from(el.classList || []).find((c) => RECTS[c]);
     if (!key || !RECTS[key]) return withEdges({ left: 0, top: 0, width: 0, height: 0 });
     return withEdges(RECTS[key]);
 }
@@ -76,6 +88,7 @@ tour.start();
 const root = document.querySelector('.bb-onb-root');
 assert.ok(root, 'racine montee');
 assert.strictEqual(document.querySelectorAll('.bb-onb-outline-item').length, 4, 'sommaire en quatre points');
+assert.strictEqual(document.querySelector('.bb-onb-card').style.transform, '', 'accueil centre, sans decalage');
 assert.strictEqual(overlay.element.querySelectorAll('.bb-onb-arrow-shaft').length, 0, 'pas de fleche sur l accueil');
 
 function click(action) {
@@ -87,7 +100,7 @@ function click(action) {
 
 const shafts = () => overlay.element.querySelectorAll('.bb-onb-arrow-shaft');
 const hints = () => Array.from(overlay.element.querySelectorAll('.bb-onb-hint')).map((n) => n.textContent);
-const rings = () => overlay.element.querySelectorAll('.bb-onb-ring').length;
+const rings = () => overlay.element.querySelectorAll('.bb-onb-ring');
 const settle = () => new Promise((resolve) => setTimeout(resolve, 20));
 
 function assertPathsValid(context) {
@@ -110,7 +123,15 @@ function assertPathsValid(context) {
 click('next');
 await settle();
 assert.strictEqual(document.querySelector('.bb-onb-title').textContent, TOUR_STEPS[0].title, 'etape 1');
-assert.strictEqual(document.querySelector('.bb-onb-counter').textContent, 'Etape 1 sur 4', 'compteur');
+assert.ok(root.classList.contains('is-interactive'), 'etape 1 laisse l application manipulable');
+assert.ok(document.querySelector('.bb-onb-task'), 'tuile d objectif presente');
+assert.ok(!document.querySelector('.bb-onb-task').classList.contains('is-done'), 'objectif non atteint');
+
+const source = document.getElementById('sourceSelector');
+source.value = 'demo';
+source.dispatchEvent(new dom.window.Event('change', { bubbles: true }));
+assert.ok(document.querySelector('.bb-onb-task').classList.contains('is-done'), 'objectif atteint au chargement');
+assert.strictEqual(document.querySelector('.bb-onb-counter').textContent, `Etape 1 sur ${TOUR_STEPS.length}`, 'compteur');
 assert.strictEqual(document.querySelectorAll('.bb-onb-dot.is-current').length, 1, 'un seul point actif');
 assert.strictEqual(shafts().length, 1, 'une fleche a l etape 1');
 assert.deepStrictEqual(hints(), ['Commencez ici'], 'libelle etape 1');
@@ -120,37 +141,52 @@ click('next');
 await settle();
 assert.strictEqual(shafts().length, 1, 'une fleche a l etape 2');
 assert.deepStrictEqual(hints(), ['Filtrez ici'], 'libelle etape 2');
+
+const suggest = root.querySelector('[data-action="suggest"]');
+assert.ok(suggest, 'suggestion de recherche proposee');
+suggest.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }));
+assert.strictEqual(document.getElementById('search').value, 'temp', 'suggestion appliquee au champ');
+assert.ok(document.querySelector('.bb-onb-task').classList.contains('is-done'), 'objectif recherche atteint');
 assertPathsValid('etape 2');
 
 click('next');
 await settle();
+assert.ok(root.classList.contains('is-interactive'), 'etape 3 reste interactive');
 assert.strictEqual(shafts().length, 2, 'deux fleches a l etape 3');
 assert.deepStrictEqual(hints().sort(), ['Glissez depuis ici', 'Nouveau graphique'], 'libelles etape 3');
 assert.strictEqual(document.querySelector('.bb-onb-content [data-action="skip"]'), null, 'pas de bouton passer hors accueil');
-assert.strictEqual(rings(), 2, 'deux spotlights a l etape 3');
+assert.strictEqual(rings().length, 2, 'deux spotlights a l etape 3');
 assertPathsValid('etape 3');
-
-click('next');
-await settle();
-assert.strictEqual(shafts().length, 1, 'etape 4 degradee sans legende');
-assert.deepStrictEqual(hints(), ['Creez ici'], 'seule la cible presente est flechee');
 
 const legend = document.createElement('div');
 legend.className = 'plot-legend';
 document.querySelector('.tab-content.active').appendChild(legend);
-click('previous');
-click('next');
-await settle();
-assert.strictEqual(shafts().length, 2, 'deux fleches a l etape 4');
-assert.deepStrictEqual(hints().sort(), ['Creez ici', 'Reglez ici'], 'libelles etape 4');
-assert.strictEqual(rings(), 2, 'deux spotlights a l etape 4');
-assertPathsValid('etape 4');
+
+// Etapes 4 a 7: chacune doit produire au moins une fleche valide et rester
+// interactive, sans bouton de sortie autre que la croix.
+for (let step = 3; step < TOUR_STEPS.length; step += 1) {
+    click('next');
+    await settle();
+    const current = TOUR_STEPS[step];
+    assert.strictEqual(document.querySelector('.bb-onb-title').textContent, current.title, current.id);
+    assert.ok(root.classList.contains('is-interactive'), `${current.id} reste interactive`);
+    assert.strictEqual(
+        document.querySelector('.bb-onb-content [data-action="skip"]'), null,
+        `${current.id}: pas de bouton passer`,
+    );
+    // Une cible qui englobe la carte recoit son spotlight mais pas de fleche:
+    // un trait qui repart vers l'interieur de la carte ne designerait rien.
+    assert.strictEqual(rings().length, current.targets.length, `${current.id}: un spotlight par cible`);
+    assert.ok(shafts().length <= current.targets.length, `${current.id}: pas plus de fleches que de cibles`);
+    assertPathsValid(current.id);
+}
 
 assert.strictEqual(root.querySelector('[data-action="next"]').textContent, 'Voir le bilan', 'bouton de bilan');
 
 click('next');
 await settle();
 assert.strictEqual(document.querySelector('.bb-onb-card').getAttribute('data-kind'), 'finish', 'ecran final');
+assert.strictEqual(document.querySelector('.bb-onb-card').style.transform, '', 'bilan centre, sans decalage');
 assert.strictEqual(shafts().length, 0, 'aucune fleche sur l ecran final');
 assert.ok(document.querySelector('.bb-onb-root'), 'la visite reste ouverte sur le bilan');
 

@@ -56,7 +56,12 @@ export async function initOnboarding(options) {
     if (!settings.force && store.hasSeen()) return false;
 
     const ready = await waitForElement(READY_SELECTORS, READY_TIMEOUT_MS);
-    if (!ready) return false;
+    if (!ready) {
+        // Abandon silencieux cote utilisateur, mais tracable: sans cela, une
+        // visite qui ne demarre pas est indiscernable d'une visite deja vue.
+        console.debug('[onboarding] vue EDA introuvable, visite non demarree');
+        return false;
+    }
 
     startOnboarding();
     return true;
@@ -74,6 +79,11 @@ window.baltimoreOnboarding = {
     start: startOnboarding,
     reset: resetOnboarding,
     hasSeen: () => store.hasSeen(),
+    status: () => ({
+        seen: store.hasSeen(),
+        ready: READY_SELECTORS.some((selector) => document.querySelector(selector) !== null),
+        running: Boolean(tour) && tour.isRunning(),
+    }),
 };
 
 if (document.readyState === 'loading') {

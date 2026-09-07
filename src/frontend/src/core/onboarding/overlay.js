@@ -13,12 +13,17 @@ const MAX_ARROW_LENGTH = 180;
 const CURVATURE = 0.22;
 const HEAD_LENGTH = 18;
 const HEAD_SPREAD = 0.42;
-const LABEL_BACK = 18;
-const LABEL_OFFSET = 16;
+const LABEL_OFFSET = 30;
+const LABEL_ALONG = 0.28;
 const LABEL_MARGIN = 96;
+const LABEL_FONT_SIZE = 22;
+const LABEL_CHAR_WIDTH = 0.58;
+const LABEL_PUSH_STEP = 14;
+const LABEL_PUSH_TRIES = 6;
 const SKETCH_SEGMENTS = 9;
 const SKETCH_JITTER = 1.6;
 const DEFAULT_PADDING = 8;
+const REVEAL_PADDING = 4;
 const DEFAULT_RADIUS = 10;
 
 function svg(tag, attributes) {
@@ -166,17 +171,53 @@ function buildArrowGeometry(cardRect, targetRect, seed) {
         },
     ];
 
-    // Le libelle se pose derriere la base du trait, dans le prolongement arriere
-    // de la fleche: il se lit avant elle et ne croise jamais la courbe. Son
-    // ancrage suit ce prolongement, sinon un texte centre repasse sur le trait.
-    const backward = { x: -dx / length, y: -dy / length };
+    // Le libelle se pose a la base du trait, decale le long de la normale. Il ne
+    // recule jamais vers la carte, qui est juste derriere, et s'etend dans le
+    // sens de la fleche. Sur un trait vertical, ou la direction ne donne aucun
+    // sens horizontal, c'est la normale qui decide de l'ancrage.
+    // Cote oppose au bombement: la courbe etant entierement d'un cote de sa corde,
+    // un libelle pose de l'autre cote ne peut pas la croiser. L'ancrage depend du
+    // sens du decalage et non de celui de la fleche: sur un trait vertical, le
+    // decalage est horizontal et un texte centre reviendrait sur la courbe.
+    const direction = { x: dx / length, y: dy / length };
+    const offset = { x: -normal.x * bend, y: -normal.y * bend };
+    const along = length * LABEL_ALONG;
     const label = {
-        x: start.x + backward.x * LABEL_BACK + normal.x * bend * LABEL_OFFSET,
-        y: start.y + backward.y * LABEL_BACK + normal.y * bend * LABEL_OFFSET,
-        anchor: Math.abs(backward.x) > 0.35 ? (backward.x > 0 ? 'start' : 'end') : 'middle',
+        x: start.x + direction.x * along + offset.x * LABEL_OFFSET,
+        y: start.y + direction.y * along + offset.y * LABEL_OFFSET,
+        anchor: Math.abs(offset.x) > 0.35 ? (offset.x > 0 ? 'start' : 'end') : 'middle',
+        offset,
     };
 
     return { start, control, tip, head, label, seed };
+}
+
+// Boite approchee du texte: le SVG n'est pas encore dans le document au moment
+// du calcul, donc getBBox n'est pas disponible. La largeur par caractere est
+// mesuree sur la fonte manuscrite en capitales.
+function labelBox(point, text, anchor) {
+    const width = text.length * LABEL_FONT_SIZE * LABEL_CHAR_WIDTH;
+    const height = LABEL_FONT_SIZE;
+    let left = point.x - width / 2;
+    if (anchor === 'start') left = point.x;
+    if (anchor === 'end') left = point.x - width;
+    return { left, right: left + width, top: point.y - height / 2, bottom: point.y + height / 2 };
+}
+
+function intersects(a, b) {
+    return a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
+}
+
+// La carte est dessinee par-dessus le calque: un libelle qui tombe dessous
+// disparait. On l'ecarte le long de la normale jusqu'a le degager.
+function pushOutOfCard(point, text, anchor, offset, cardRect) {
+    if (!cardRect) return point;
+    let current = point;
+    for (let i = 0; i < LABEL_PUSH_TRIES; i += 1) {
+        if (!intersects(labelBox(current, text, anchor), cardRect)) return current;
+        current = { x: current.x + offset.x * LABEL_PUSH_STEP, y: current.y + offset.y * LABEL_PUSH_STEP };
+    }
+    return current;
 }
 
 function clampLabel(point) {
@@ -229,7 +270,7 @@ export function createOnboardingOverlay() {
         rings.appendChild(svg('rect', { ...geometry, class: 'bb-onb-ring' }));
     }
 
-    function drawArrow(geometry, label) {
+    function drawArrow(geometry, label, cardRect) {
         const group = svg('g', { class: 'bb-onb-arrow' });
         const stroke = sketchPoints(geometry.start, geometry.control, geometry.tip, geometry.seed);
         group.appendChild(svg('path', { class: 'bb-onb-arrow-shaft', d: smoothPath(stroke) }));
@@ -242,7 +283,9 @@ export function createOnboardingOverlay() {
         arrows.appendChild(group);
 
         if (!label) return;
-        const position = clampLabel(geometry.label);
+        const position = clampLabel(pushOutOfCard(
+            geometry.label, label, geometry.label.anchor, geometry.label.offset, cardRect,
+        ));
         const text = svg('text', {
             class: 'bb-onb-hint',
             x: position.x,
@@ -257,12 +300,26 @@ export function createOnboardingOverlay() {
     return {
         element: root,
 
-        // targets: [{ rect, label, padding, radius }], cardRect optionnel.
-        update(targets, cardRect) {
+        // targets: [{ rect, label, padding, radius }], cardRect et reveals optionnels.
+        // Les zones revelees sont percees dans le voile sans anneau ni fleche:
+        // elles doivent rester lisibles, pas attirer le regard.
+        update(targets, cardRect, reveals) {
             clearChildren(holes);
             clearChildren(rings);
             clearChildren(arrows);
             clearChildren(labels);
+
+            (reveals || []).forEach((rect) => {
+                if (!rect) return;
+                holes.appendChild(svg('rect', {
+                    x: rect.left - REVEAL_PADDING,
+                    y: rect.top - REVEAL_PADDING,
+                    width: rect.width + REVEAL_PADDING * 2,
+                    height: rect.height + REVEAL_PADDING * 2,
+                    rx: DEFAULT_RADIUS,
+                    fill: '#000000',
+                }));
+            });
 
             (targets || []).forEach((target, position) => {
                 if (!target.rect) return;
@@ -274,7 +331,7 @@ export function createOnboardingOverlay() {
                 if (!cardRect) return;
                 const seed = hashText(`${target.label || ''}#${position}`);
                 const geometry = buildArrowGeometry(cardRect, target.rect, seed);
-                if (geometry) drawArrow(geometry, target.label);
+                if (geometry) drawArrow(geometry, target.label, cardRect);
             });
         },
 

@@ -59,6 +59,24 @@ function buildProgress(index, total) {
     return h('div', { class: 'bb-onb-progress', 'aria-hidden': 'true' }, dots);
 }
 
+function buildTask(interaction, satisfied) {
+    const children = [
+        h('span', { class: 'bb-onb-task-mark', 'aria-hidden': 'true' }, [
+            strokeIcon(satisfied ? 'M20 6L9 17l-5-5' : 'M12 8v5M12 16v.5', 14),
+        ]),
+        h('span', { class: 'bb-onb-task-text', text: satisfied ? interaction.done : interaction.task }),
+    ];
+    if (!satisfied && interaction.suggestion) {
+        children.push(h('button', {
+            type: 'button',
+            class: 'bb-onb-task-action',
+            dataset: { action: 'suggest' },
+            text: interaction.suggestion.label,
+        }));
+    }
+    return h('div', { class: satisfied ? 'bb-onb-task is-done' : 'bb-onb-task' }, children);
+}
+
 function buildLink(link) {
     return h('p', { class: 'bb-onb-link-row' }, [
         h('a', {
@@ -96,10 +114,11 @@ function buildWelcome(step) {
     ];
 }
 
-function buildStep(step, index, total, nextLabel) {
+function buildStep(step, index, total, nextLabel, satisfied) {
     const body = step.paragraphs.map((paragraph) => h('p', { class: 'bb-onb-text', text: paragraph }));
     if (step.note) body.push(h('p', { class: 'bb-onb-note', text: step.note }));
     if (step.link) body.push(buildLink(step.link));
+    if (step.interaction) body.push(buildTask(step.interaction, satisfied));
 
     return [
         h('div', { class: 'bb-onb-head' }, [
@@ -189,7 +208,7 @@ export function createOnboardingPanel() {
     function nodesFor(state) {
         if (state.kind === 'welcome') return buildWelcome(state.step);
         if (state.kind === 'finish') return buildFinish(state.step);
-        return buildStep(state.step, state.index, state.total, state.nextLabel);
+        return buildStep(state.step, state.index, state.total, state.nextLabel, state.satisfied);
     }
 
     return {
@@ -211,11 +230,26 @@ export function createOnboardingPanel() {
             previousFocus = null;
         },
 
+        // Etape interactive: la racine cesse de capter les clics, l'application
+        // redevient manipulable sous le voile.
+        setInteractive(interactive) {
+            root.classList.toggle('is-interactive', Boolean(interactive));
+        },
+
         onAction(handler) {
             actionHandler = handler;
         },
 
+        // Rafraichit la seule tuile d'objectif, sans reconstruire la carte: un
+        // rendu complet volerait le focus a l'utilisateur en pleine action.
+        refreshTask(step, satisfied) {
+            const current = content.querySelector('.bb-onb-task');
+            if (!current || !step.interaction) return;
+            current.replaceWith(buildTask(step.interaction, satisfied));
+        },
+
         render(state) {
+            card.style.transform = '';
             while (content.firstChild) content.removeChild(content.firstChild);
             nodesFor(state).forEach((node) => content.appendChild(node));
             card.setAttribute('data-kind', state.kind);
@@ -224,7 +258,31 @@ export function createOnboardingPanel() {
             if (previous && !state.canGoBack) previous.setAttribute('disabled', 'disabled');
 
             const primary = content.querySelector('[data-action="next"]');
-            if (primary) primary.focus();
+            // Sur une etape interactive, le focus reste a l'application: c'est
+            // l'utilisateur qui doit pouvoir taper dans la barre de recherche.
+            if (primary && !state.step.interaction && !state.step.interactive) primary.focus();
+        },
+
+        // Position de la carte sans decalage: base de calcul du placement. Elle est
+        // deduite des dimensions et du viewport, jamais mesuree en remettant le
+        // transform a zero: la propriete est animee, et getBoundingClientRect
+        // renverrait alors une valeur en cours d'interpolation. Le decalage se
+        // calculerait sur une reference mouvante et la carte deriverait a chaque
+        // repaint.
+        centeredRect() {
+            const rect = card.getBoundingClientRect();
+            const left = (window.innerWidth - rect.width) / 2;
+            const top = (window.innerHeight - rect.height) / 2;
+            return {
+                left, top, right: left + rect.width, bottom: top + rect.height,
+                width: rect.width, height: rect.height,
+            };
+        },
+
+        setOffset(offset) {
+            card.style.transform = offset.x === 0 && offset.y === 0
+                ? ''
+                : `translate(${offset.x}px, ${offset.y}px)`;
         },
 
         cardRect() {

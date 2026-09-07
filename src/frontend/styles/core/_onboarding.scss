@@ -26,6 +26,13 @@
 // ne creuse pas assez le contraste pour faire ressortir le spotlight.
 .bb-onb-dim {
     fill: rgba(0, 0, 0, 0.7);
+    transition: fill $transition-base;
+}
+
+// Etape interactive: le voile s'allege. Il ne sert plus a isoler la carte mais a
+// designer, et un ecran trop sombre dissuade d'agir meme quand les clics passent.
+.bb-onb-root.is-interactive .bb-onb-dim {
+    fill: rgba(0, 0, 0, 0.42);
 }
 
 .bb-onb-ring {
@@ -65,6 +72,7 @@
     border-radius: $radius-xl;
     box-shadow: 0 1px 0 rgba(var(--ctp-text-rgb), 0.04) inset, 0 28px 64px rgba(0, 0, 0, 0.5);
     color: var(--ctp-text);
+    transition: transform $transition-base;
 
     &[data-kind='finish'] {
         text-align: center;
@@ -339,7 +347,9 @@
 @media (prefers-reduced-motion: reduce) {
     .bb-onb-dot,
     .bb-onb-btn,
-    .bb-onb-close {
+    .bb-onb-close,
+    .bb-onb-card,
+    .bb-onb-dim {
         transition: none;
     }
 }
@@ -393,5 +403,65 @@
 @media (prefers-reduced-motion: reduce) {
     .bb-hint {
         animation: none;
+    }
+}
+
+// Etape interactive: seule la carte reste cliquable, l'application dessous
+// redevient manipulable pendant que la visite explique quoi faire.
+.bb-onb-root.is-interactive {
+    pointer-events: none;
+
+    .bb-onb-card {
+        pointer-events: auto;
+    }
+}
+
+.bb-onb-task {
+    display: flex;
+    align-items: center;
+    gap: $spacing-2-5;
+    margin-top: $spacing-2;
+    padding: $spacing-3 $spacing-3-5;
+    background: var(--ctp-surface0);
+    border: 1px solid var(--ctp-surface1);
+    border-radius: $radius-lg;
+    color: var(--ctp-subtext1);
+    font-size: $font-size-base;
+
+    &.is-done {
+        border-color: rgba(var(--ctp-teal-rgb), 0.45);
+        color: var(--ctp-teal);
+    }
+}
+
+.bb-onb-task-mark {
+    display: flex;
+    flex: 0 0 auto;
+    color: var(--ctp-overlay1);
+
+    .bb-onb-task.is-done & {
+        color: var(--ctp-teal);
+    }
+}
+
+.bb-onb-task-text {
+    flex: 1;
+    line-height: $line-height-normal;
+}
+
+.bb-onb-task-action {
+    flex: 0 0 auto;
+    padding: $spacing-1 $spacing-2-5;
+    background: transparent;
+    border: 1px solid var(--ctp-surface2);
+    border-radius: $radius-base;
+    color: var(--ctp-text);
+    font-family: $font-mono;
+    font-size: $font-size-xs;
+    cursor: pointer;
+
+    &:hover {
+        border-color: var(--ctp-teal);
+        color: var(--ctp-teal);
     }
 }
