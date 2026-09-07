@@ -1,0 +1,397 @@
+@use '../abstracts/variables' as *;
+
+// Visite guidee d'accueil. Le calque SVG et la carte partagent le meme
+// empilement: le voile perce laisse voir la cible, la carte reste au-dessus.
+
+.bb-onb-root {
+    position: fixed;
+    inset: 0;
+    z-index: 6000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: $spacing-8;
+    overflow: hidden;
+}
+
+.bb-onb-overlay {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+}
+
+// Meme voile que les modales existantes: sur fond Mocha, un crust translucide
+// ne creuse pas assez le contraste pour faire ressortir le spotlight.
+.bb-onb-dim {
+    fill: rgba(0, 0, 0, 0.7);
+}
+
+.bb-onb-ring {
+    fill: none;
+    stroke: var(--ctp-teal);
+    stroke-width: 1.5;
+    opacity: 0.85;
+}
+
+.bb-onb-arrow-shaft,
+.bb-onb-arrow-head {
+    fill: none;
+    stroke: var(--ctp-teal);
+    stroke-width: 2.4;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.bb-onb-hint {
+    fill: var(--ctp-teal);
+    font-family: $font-hand;
+    font-size: 1.375rem;
+    font-weight: $font-weight-semibold;
+    letter-spacing: $letter-spacing-wide;
+    text-transform: uppercase;
+    dominant-baseline: middle;
+}
+
+.bb-onb-card {
+    position: relative;
+    width: min(460px, 100%);
+    max-height: calc(100vh - #{$spacing-16});
+    overflow-y: auto;
+    padding: $spacing-7 $spacing-7 $spacing-6;
+    background: var(--ctp-mantle);
+    border: 1px solid var(--ctp-surface1);
+    border-radius: $radius-xl;
+    box-shadow: 0 1px 0 rgba(var(--ctp-text-rgb), 0.04) inset, 0 28px 64px rgba(0, 0, 0, 0.5);
+    color: var(--ctp-text);
+
+    &[data-kind='finish'] {
+        text-align: center;
+    }
+}
+
+.bb-onb-head {
+    display: flex;
+    align-items: center;
+    gap: $spacing-3;
+    margin-bottom: $spacing-5;
+
+    &.is-centered {
+        justify-content: center;
+    }
+}
+
+.bb-onb-badge {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    flex: 0 0 auto;
+    background: rgba(var(--ctp-teal-rgb), 0.12);
+    border: 1px solid rgba(var(--ctp-teal-rgb), 0.28);
+    border-radius: $radius-lg;
+    color: var(--ctp-teal);
+}
+
+.bb-onb-close {
+    position: absolute;
+    top: $spacing-3;
+    right: $spacing-3;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    background: transparent;
+    border: none;
+    border-radius: $radius-base;
+    color: var(--ctp-overlay1);
+    cursor: pointer;
+    transition: color $transition-fast, background $transition-fast;
+
+    svg {
+        width: 16px;
+        height: 16px;
+    }
+
+    &:hover {
+        background: var(--ctp-surface0);
+        color: var(--ctp-text);
+    }
+}
+
+.bb-onb-counter {
+    margin: 0;
+    color: var(--ctp-overlay1);
+    font-family: $font-mono;
+    font-size: $font-size-xs;
+    letter-spacing: $letter-spacing-wide;
+    text-transform: uppercase;
+}
+
+.bb-onb-title {
+    margin: 0 0 $spacing-3;
+    padding-right: $spacing-8;
+    font-size: $font-size-2xl;
+    font-weight: $font-weight-semibold;
+    line-height: 1.3;
+}
+
+.bb-onb-lead {
+    margin: 0 0 $spacing-5;
+    color: var(--ctp-subtext0);
+    font-size: $font-size-md;
+    line-height: $line-height-relaxed;
+}
+
+.bb-onb-body {
+    display: flex;
+    flex-direction: column;
+    gap: $spacing-2;
+    margin-bottom: $spacing-5;
+}
+
+.bb-onb-text {
+    margin: 0;
+    color: var(--ctp-subtext1);
+    font-size: $font-size-md;
+    line-height: $line-height-relaxed;
+}
+
+.bb-onb-note {
+    margin: 0;
+    padding-left: $spacing-3;
+    border-left: 2px solid var(--ctp-surface2);
+    color: var(--ctp-overlay1);
+    font-size: $font-size-base;
+    line-height: $line-height-normal;
+}
+
+.bb-onb-link-row {
+    margin: 0;
+}
+
+.bb-onb-link {
+    color: var(--ctp-teal);
+    font-size: $font-size-base;
+    text-decoration: none;
+    border-bottom: 1px solid rgba(var(--ctp-teal-rgb), 0.4);
+
+    &:hover {
+        border-bottom-color: var(--ctp-teal);
+    }
+}
+
+.bb-onb-outline {
+    display: flex;
+    flex-direction: column;
+    gap: $spacing-3;
+    margin: 0 0 $spacing-6;
+    padding: 0;
+    list-style: none;
+    counter-reset: none;
+}
+
+.bb-onb-outline-item {
+    display: flex;
+    align-items: flex-start;
+    gap: $spacing-3;
+}
+
+.bb-onb-outline-rank {
+    flex: 0 0 auto;
+    width: 22px;
+    height: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--ctp-surface0);
+    border-radius: $radius-full;
+    color: var(--ctp-teal);
+    font-family: $font-mono;
+    font-size: $font-size-xs;
+}
+
+.bb-onb-outline-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    font-size: $font-size-md;
+
+    strong {
+        font-weight: $font-weight-medium;
+    }
+
+    span {
+        color: var(--ctp-overlay1);
+        font-size: $font-size-base;
+    }
+}
+
+.bb-onb-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: $spacing-4;
+    margin-top: $spacing-6;
+    padding-top: $spacing-5;
+    border-top: 1px solid var(--ctp-surface0);
+}
+
+.bb-onb-progress {
+    display: flex;
+    gap: $spacing-1-5;
+}
+
+.bb-onb-dot {
+    width: 7px;
+    height: 7px;
+    background: var(--ctp-surface2);
+    border-radius: $radius-full;
+    transition: background $transition-fast, width $transition-fast;
+
+    &.is-current {
+        width: 22px;
+        background: var(--ctp-teal);
+    }
+}
+
+.bb-onb-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: $spacing-3;
+    margin-top: $spacing-6;
+    padding-top: $spacing-5;
+    border-top: 1px solid var(--ctp-surface0);
+
+    &.is-centered {
+        justify-content: center;
+    }
+}
+
+.bb-onb-actions-main {
+    display: flex;
+    gap: $spacing-2;
+}
+
+.bb-onb-btn {
+    padding: $spacing-2 $spacing-4;
+    background: var(--ctp-surface0);
+    border: 1px solid var(--ctp-surface1);
+    border-radius: $radius-base;
+    color: var(--ctp-text);
+    font-family: inherit;
+    font-size: $font-size-base;
+    cursor: pointer;
+    transition: background $transition-fast, border-color $transition-fast, color $transition-fast;
+
+    &:hover:not(:disabled) {
+        background: var(--ctp-surface1);
+    }
+
+    &:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+    }
+
+    &.is-primary {
+        background: var(--ctp-teal);
+        border-color: var(--ctp-teal);
+        color: var(--ctp-crust);
+        font-weight: $font-weight-medium;
+
+        &:hover:not(:disabled) {
+            filter: brightness(1.08);
+        }
+    }
+
+    &.is-ghost {
+        background: transparent;
+        border-color: transparent;
+        color: var(--ctp-overlay1);
+
+        &:hover:not(:disabled) {
+            background: transparent;
+            color: var(--ctp-text);
+        }
+    }
+}
+
+@media (max-width: 900px) {
+    .bb-onb-root {
+        padding: $spacing-4;
+
+        &[data-placement] {
+            align-items: flex-end;
+            justify-content: center;
+        }
+    }
+
+    .bb-onb-card {
+        width: 100%;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .bb-onb-dot,
+    .bb-onb-btn,
+    .bb-onb-close {
+        transition: none;
+    }
+}
+
+// Bouton de relance dans le pied du menu lateral, entre bascule de theme et
+// lien GitHub. Reprend la geometrie de .nav-item pour rester aligne.
+.nav-item.nav-wizard {
+    cursor: pointer;
+
+    &:hover .nav-icon {
+        color: var(--ctp-teal);
+    }
+}
+
+// Indice contextuel: fleche manuscrite qui pointe le bouton de repli du menu.
+.bb-hint {
+    position: fixed;
+    z-index: 5900;
+    display: flex;
+    align-items: center;
+    gap: $spacing-2;
+    transform: translateY(-50%);
+    pointer-events: none;
+    animation: bb-hint-bounce 1.4s ease-in-out infinite;
+}
+
+.bb-hint-label {
+    color: var(--ctp-teal);
+    font-family: $font-hand;
+    font-size: 1.25rem;
+    font-weight: $font-weight-semibold;
+    letter-spacing: $letter-spacing-wide;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.bb-hint-arrow {
+    fill: none;
+    stroke: var(--ctp-teal);
+    stroke-width: 2.2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    transform: scaleX(-1);
+}
+
+@keyframes bb-hint-bounce {
+    0%, 100% { transform: translate(0, -50%); }
+    50% { transform: translate(-8px, -50%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .bb-hint {
+        animation: none;
+    }
+}

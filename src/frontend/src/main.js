@@ -47,6 +47,7 @@ import './core/auth.js'
 import './views/storage.js'
 import './core/init.js'
 import './core/code-editor.js'
+import './core/onboarding/index.js'
 
 // ============================================================================
 // Ready
