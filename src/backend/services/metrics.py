@@ -27,6 +27,8 @@ logger = logging.getLogger(__name__)
 SESSION_TIMEOUT_S = 1800
 CLEANUP_INTERVAL_S = 300
 LATENCY_MAX_SAMPLES = 500
+PERIOD_MIN_DAYS = 2
+PERIOD_MAX_DAYS = 365
 
 
 def hash_ip(ip: str) -> str:
@@ -385,6 +387,7 @@ class MetricsCollector:
             "total_requests": stats["total_requests"],
             "sessions": {
                 "count": session_count,
+                "total_duration_min": round(sessions["total_duration"] / 60, 1),
                 "avg_duration_min": round(sessions["total_duration"] / session_count / 60, 1)
                 if session_count > 0 else 0,
                 "max_duration_min": round(sessions["max_duration"] / 60, 1),
@@ -403,13 +406,27 @@ class MetricsCollector:
         with self._lock:
             return self._daily_report_locked(date_str)
 
-    def get_weekly_summary(self) -> dict:
+    def get_period_summary(self, days: int = 7) -> dict:
+        """Résumé agrégé sur les N derniers jours.
+
+        Args:
+            days: Profondeur de la période, bornée entre PERIOD_MIN_DAYS et
+                PERIOD_MAX_DAYS. Les jours sans donnée sont ignorés plutôt que
+                comptés à zéro : une journée d'arrêt du service ne doit pas
+                écraser les moyennes.
+
+        Returns:
+            Résumé de la période, ou ``{"no_data": True, ...}`` si aucun jour
+            de la fenêtre ne porte de donnée.
+        """
+        window = max(PERIOD_MIN_DAYS, min(int(days), PERIOD_MAX_DAYS))
         self.flush()
 
         with self._lock:
+            available_days = len(self.daily_stats)
             reports: List[dict] = []
             period_users: set = set()
-            for i in range(7):
+            for i in range(window):
                 date_str = (datetime.now() - timedelta(days=i)).strftime("%Y-%m-%d")
                 if date_str not in self.daily_stats:
                     continue
@@ -417,19 +434,33 @@ class MetricsCollector:
                 period_users |= self.daily_stats[date_str]["unique_users"]
 
         if not reports:
-            return {"no_data": True}
+            return {"no_data": True, "requested_days": window, "available_days": available_days}
+
+        total_sessions = sum(report["sessions"]["count"] for report in reports)
+        total_minutes = sum(report["sessions"]["total_duration_min"] for report in reports)
 
         return {
             "period": f"{reports[-1]['date']} to {reports[0]['date']}",
             "days": len(reports),
+            "requested_days": window,
+            # Jours réellement stockés, toutes périodes confondues : permet au
+            # client de ne proposer que des fenêtres qui ont de la matière.
+            "available_days": available_days,
             # Union des hashs sur la période : un même visiteur présent plusieurs jours
             # compte pour un, contrairement à la somme des uniques journaliers.
             "total_unique_users": len(period_users),
             "total_requests": sum(report["total_requests"] for report in reports),
-            "total_sessions": sum(report["sessions"]["count"] for report in reports),
+            "total_sessions": total_sessions,
+            "total_session_minutes": round(total_minutes, 1),
+            "avg_session_min": round(total_minutes / total_sessions, 1) if total_sessions > 0 else 0,
+            "avg_daily_minutes": round(total_minutes / len(reports), 1),
             "avg_daily_users": round(sum(report["unique_users"] for report in reports) / len(reports), 1),
             "daily_breakdown": reports,
         }
+
+    def get_weekly_summary(self) -> dict:
+        """Résumé sur sept jours. Conservé pour les appelants existants."""
+        return self.get_period_summary(7)
 
     def cleanup_old_data(self, keep_days: int = 30) -> None:
         cutoff = (datetime.now() - timedelta(days=keep_days)).strftime("%Y-%m-%d")

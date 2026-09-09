@@ -660,11 +660,44 @@
     padding: 20px;
 }
 
+// Six tuiles depuis l'ajout du temps passe: une grille fixe a quatre colonnes
+// laissait deux tuiles orphelines sur la seconde ligne.
 .metrics-weekly-stats {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
     gap: 16px;
     margin-bottom: 24px;
+}
+
+// Selecteur de plage temporelle des agregats.
+.metrics-range {
+    display: flex;
+    gap: 4px;
+    padding: 3px;
+    background: $bg-darkest;
+    border-radius: 8px;
+}
+
+.metrics-range-btn {
+    padding: 5px 12px;
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    color: $text-muted;
+    font-family: inherit;
+    font-size: 12px;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+
+    &:hover {
+        color: $text-white;
+    }
+
+    &.is-active {
+        background: var(--ctp-surface1);
+        color: var(--ctp-teal);
+        font-weight: 600;
+    }
 }
 
 .metrics-weekly-stat {

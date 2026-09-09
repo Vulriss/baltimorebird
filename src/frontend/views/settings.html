@@ -569,8 +569,14 @@
                                 <line x1="8" y1="2" x2="8" y2="6"/>
                                 <line x1="3" y1="10" x2="21" y2="10"/>
                             </svg>
-                            Résumé des 7 derniers jours
+                            <span id="metricsSummaryTitle">Résumé des 7 derniers jours</span>
                         </h4>
+                        <div class="metrics-range" role="group" aria-label="Plage temporelle">
+                            <button type="button" class="metrics-range-btn is-active" data-action="setMetricsRange" data-days="7">7 j</button>
+                            <button type="button" class="metrics-range-btn" data-action="setMetricsRange" data-days="14">14 j</button>
+                            <button type="button" class="metrics-range-btn" data-action="setMetricsRange" data-days="30">30 j</button>
+                            <button type="button" class="metrics-range-btn" data-action="setMetricsRange" data-days="90">90 j</button>
+                        </div>
                         <button class="settings-btn small secondary" data-action="refreshMetrics">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <polyline points="23 4 23 10 17 10"/>
@@ -593,7 +599,7 @@
                                 <path d="M3 3v18h18"/>
                                 <path d="M7 14l4-4 3 3 5-6"/>
                             </svg>
-                            Tendances (7 derniers jours)
+                            <span id="metricsChartsTitle">Tendances (7 derniers jours)</span>
                         </h4>
                     </div>
                     <div class="metrics-charts" id="metricsCharts"></div>

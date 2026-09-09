@@ -339,7 +339,58 @@ const SettingsManager = (() => {
         }
     }
 
+    // Minutes vers une forme lisible: au-dela de l'heure, un nombre de minutes
+    // brut devient illisible sur une tuile comme sur un axe.
+    function formatDuration(minutes) {
+        const value = Number(minutes) || 0;
+        if (value < 60) return `${Math.round(value)} min`;
+        const hours = value / 60;
+        if (hours < 24) return `${hours.toFixed(hours < 10 ? 1 : 0)} h`;
+        return `${(hours / 24).toFixed(1)} j`;
+    }
+
+    // Plage temporelle des agregats. Persistee: revenir sur le panneau avec la
+    // fenetre precedemment choisie evite de reselectionner a chaque consultation.
+    const METRICS_RANGE_KEY = 'bb.metrics.rangeDays';
+    const METRICS_RANGES = [7, 14, 30, 90];
+    const DEFAULT_METRICS_RANGE = 7;
+
+    function readMetricsRange() {
+        try {
+            const stored = parseInt(localStorage.getItem(METRICS_RANGE_KEY), 10);
+            return METRICS_RANGES.includes(stored) ? stored : DEFAULT_METRICS_RANGE;
+        } catch (e) {
+            return DEFAULT_METRICS_RANGE;
+        }
+    }
+
+    let metricsRangeDays = readMetricsRange();
+
+    function syncMetricsRangeUI() {
+        document.querySelectorAll('.metrics-range-btn').forEach(btn => {
+            btn.classList.toggle('is-active', parseInt(btn.dataset.days, 10) === metricsRangeDays);
+        });
+        setText('metricsSummaryTitle', `Résumé des ${metricsRangeDays} derniers jours`);
+        setText('metricsChartsTitle', `Tendances (${metricsRangeDays} derniers jours)`);
+    }
+
+    function setMetricsRange(days, btn) {
+        const value = parseInt(days, 10);
+        if (!METRICS_RANGES.includes(value) || value === metricsRangeDays) return;
+
+        metricsRangeDays = value;
+        try {
+            localStorage.setItem(METRICS_RANGE_KEY, String(value));
+        } catch (e) {
+            // Sans stockage, la plage retombe simplement au defaut a la prochaine visite.
+        }
+        syncMetricsRangeUI();
+        if (btn) btn.blur();
+        loadMetrics();
+    }
+
     async function loadMetrics() {
+        syncMetricsRangeUI();
         try {
             await Promise.all([
                 loadCurrentMetrics(),
@@ -413,7 +464,7 @@ const SettingsManager = (() => {
         if (token) headers['Authorization'] = 'Bearer ' + token;
 
         try {
-            const res = await fetch('/api/metrics/weekly', { headers });
+            const res = await fetch(`/api/metrics/summary?days=${metricsRangeDays}`, { headers });
             const data = await res.json();
 
             if (data.no_data) {
@@ -445,6 +496,14 @@ const SettingsManager = (() => {
                     <div class="metrics-weekly-stat">
                         <div class="metrics-weekly-stat-value">${data.avg_daily_users || 0}</div>
                         <div class="metrics-weekly-stat-label">Moy. utilisateurs/jour</div>
+                    </div>
+                    <div class="metrics-weekly-stat">
+                        <div class="metrics-weekly-stat-value">${formatDuration(data.total_session_minutes)}</div>
+                        <div class="metrics-weekly-stat-label">Temps passé cumulé</div>
+                    </div>
+                    <div class="metrics-weekly-stat">
+                        <div class="metrics-weekly-stat-value">${formatDuration(data.avg_session_min)}</div>
+                        <div class="metrics-weekly-stat-label">Durée moyenne / session</div>
                     </div>
                 </div>
                 <div class="metrics-period-info" style="text-align: center; color: #666; font-size: 12px;">
@@ -603,6 +662,27 @@ const SettingsManager = (() => {
                 ]
                 : [{ label: 'P50 (médiane)', data: p50, color: teal }],
             v => `${v}ms`);
+
+        // 3) Temps passe: le cumul journalier dit l'usage reel de la plateforme,
+        // la duree moyenne par session dit la profondeur d'une visite. Les deux
+        // ensemble distinguent "beaucoup de visiteurs pressés" de "peu
+        // d'utilisateurs qui travaillent longtemps".
+        const totalMinutes = ordered.map(d => d.sessions?.total_duration_min ?? 0);
+        const avgMinutes = ordered.map(d => d.sessions?.avg_duration_min ?? 0);
+        const hasSessionTime = totalMinutes.some(v => v > 0);
+
+        if (hasSessionTime) {
+            makeChart('Temps passé (cumul journalier)',
+                [{ label: 'Temps cumulé', data: totalMinutes, color: blue }],
+                v => formatDuration(v));
+
+            makeChart('Durée moyenne par session',
+                [
+                    { label: 'Moyenne', data: avgMinutes, color: teal },
+                    { label: 'Plus longue', data: ordered.map(d => d.sessions?.max_duration_min ?? 0), color: peach },
+                ],
+                v => formatDuration(v));
+        }
 
         observeMetricsContainer();
     }
@@ -789,7 +869,7 @@ const SettingsManager = (() => {
             if (!target) return;
 
             e.preventDefault();
-            const { action, section, userId, active } = target.dataset;
+            const { action, section, userId, active, days } = target.dataset;
 
             switch (action) {
                 case 'switchSection': switchSection(section, target); break;
@@ -798,6 +878,7 @@ const SettingsManager = (() => {
                 case 'savePreferences': savePreferences(); break;
                 case 'refreshUsers': loadUsersList(); break;
                 case 'refreshMetrics': refreshMetrics(target); break;
+                case 'setMetricsRange': setMetricsRange(days, target); break;
                 case 'saveBanner': saveBanner(); break;
                 case 'editUser': editUser(userId); break;
                 case 'toggleUserActive': toggleUserActive(userId, active === 'true'); break;

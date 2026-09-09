@@ -7,7 +7,7 @@ from typing import Optional, Tuple
 from flask import Blueprint, Response, jsonify, request
 
 from api.auth import admin_required
-from services.metrics import metrics
+from services.metrics import PERIOD_MAX_DAYS, PERIOD_MIN_DAYS, metrics
 
 metrics_api_bp = Blueprint("metrics_api", __name__)
 
@@ -35,8 +35,30 @@ def get_daily_metrics(date_str: Optional[str] = None) -> Response | Tuple[Respon
 @metrics_api_bp.route("/api/metrics/weekly")
 @admin_required
 def get_weekly_metrics() -> Response:
-    """Resume hebdomadaire (admin)."""
+    """Resume hebdomadaire (admin). Conserve pour compatibilite."""
     return jsonify(metrics.get_weekly_summary())
+
+
+@metrics_api_bp.route("/api/metrics/summary")
+@admin_required
+def get_summary_metrics() -> Response | Tuple[Response, int]:
+    """Resume agrege sur une periode parametrable (admin).
+
+    Query params:
+        days: profondeur de la periode, entre PERIOD_MIN_DAYS et PERIOD_MAX_DAYS.
+    """
+    raw = request.args.get("days", "7")
+    try:
+        days = int(raw)
+    except (TypeError, ValueError):
+        return jsonify({"error": "Parametre days invalide"}), 400
+
+    if not PERIOD_MIN_DAYS <= days <= PERIOD_MAX_DAYS:
+        return jsonify({
+            "error": f"days doit etre compris entre {PERIOD_MIN_DAYS} et {PERIOD_MAX_DAYS}",
+        }), 400
+
+    return jsonify(metrics.get_period_summary(days))
 
 
 @metrics_api_bp.route("/api/metrics/health")
