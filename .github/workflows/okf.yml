@@ -1,0 +1,27 @@
+name: OKF bundle
+
+on:
+  push:
+    paths:
+      - '.okf/**'
+      - 'scripts/okf_validate.py'
+      - '.github/workflows/okf.yml'
+  pull_request:
+    paths:
+      - '.okf/**'
+      - 'scripts/okf_validate.py'
+      - '.github/workflows/okf.yml'
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      # Le validateur n'a aucune dependance : rien a installer.
+      - name: Valider le bundle
+        run: python3 scripts/okf_validate.py .okf --strict
