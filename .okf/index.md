@@ -10,7 +10,8 @@ invariants et les procédures que le code ne dit pas.
 
 ## architecture
 
-- [Pile technique](/architecture/stack.md) — ce qui tourne où, et comment le front est servi
+- [Pile technique](/architecture/stack.md) - ce qui tourne où, et comment le front est servi
+- [Pipeline de rendu](/architecture/rendering-pipeline.md) - pyramide min-max, LOD, binary format
 - [Variables calculées](/architecture/computed-variables.md) — interpréteur AST sur liste blanche
 
 ## workflows
