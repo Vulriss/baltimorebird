@@ -1,0 +1,256 @@
+{
+  "id": "script_analyse_standard",
+  "name": "Analyse standard (démo complète)",
+  "description": "Rapport de référence : un exemplaire de chaque type de bloc disponible (titre, source synthétique, section, texte, métriques, callout, courbe, bloc Python figure et table, tableau) sur un essai de roulage synthétique.",
+  "created": "2026-09-11T00:00:00Z",
+  "modified": "2026-09-11T00:00:00Z",
+  "blocks": [
+    {
+      "id": "block_title",
+      "type": "title",
+      "config": {
+        "title": "Analyse standard d'un essai de roulage",
+        "subtitle": "Jeu de données synthétique reproductible — 60 s échantillonnées à 50 Hz",
+        "author": "Baltimore Bird"
+      }
+    },
+    {
+      "id": "block_source",
+      "type": "synthetic_source",
+      "config": {
+        "name": "df",
+        "samples": 3000,
+        "period": 0.02,
+        "seed": 42,
+        "signals": [
+          {
+            "name": "vehicle_speed",
+            "unit": "km/h",
+            "kind": "sine",
+            "amplitude": 45.0,
+            "frequency": 0.02,
+            "offset": 55.0,
+            "noise": 1.2
+          },
+          {
+            "name": "engine_rpm",
+            "unit": "rpm",
+            "kind": "sine",
+            "amplitude": 900.0,
+            "frequency": 0.02,
+            "offset": 2300.0,
+            "noise": 45.0
+          },
+          {
+            "name": "coolant_temp",
+            "unit": "degC",
+            "kind": "ramp",
+            "amplitude": 28.0,
+            "frequency": 0.0,
+            "offset": 62.0,
+            "noise": 0.25
+          },
+          {
+            "name": "brake_pressure",
+            "unit": "bar",
+            "kind": "square",
+            "amplitude": 9.0,
+            "frequency": 0.04,
+            "offset": 9.5,
+            "noise": 0.4
+          }
+        ]
+      }
+    },
+    {
+      "id": "block_sec_synthese",
+      "type": "section",
+      "config": {
+        "title": "Synthèse de l'essai",
+        "level": 1
+      }
+    },
+    {
+      "id": "block_intro",
+      "type": "text",
+      "config": {
+        "content": "Ce rapport parcourt un essai de roulage de 60 secondes échantillonné à 50 Hz. Les quatre signaux — vitesse véhicule, régime moteur, température du liquide de refroidissement et pression de freinage — proviennent d'une source synthétique déterministe : à graine identique, le rapport est reproductible à l'octet près.\n\nL'objectif est double : vérifier la cohérence du couple vitesse / régime sur l'ensemble du roulage, et confirmer que la montée en température reste dans le gabarit attendu."
+      }
+    },
+    {
+      "id": "block_metrics",
+      "type": "metrics",
+      "config": {
+        "source": "df",
+        "metrics": "Durée (s): float(df[\"time\"][-1])\nPoints par signal: len(df[\"time\"])\nVitesse max (km/h): float(np.max(df[\"vehicle_speed\"]))\nVitesse moyenne (km/h): float(np.mean(df[\"vehicle_speed\"]))\nRégime max (tr/min): float(np.max(df[\"engine_rpm\"]))\nTempérature finale (°C): float(df[\"coolant_temp\"][-1])\nFreinage (% du temps): float(100.0 * np.mean(np.asarray(df[\"brake_pressure\"]) > 12.0))"
+      }
+    },
+    {
+      "id": "block_callout",
+      "type": "callout",
+      "config": {
+        "type": "info",
+        "title": "Données synthétiques",
+        "content": "Aucune mesure véhicule réelle n'est utilisée ici : la source est générée dans le module Python compilé, puis exécutée dans le bac à sable. Ce rapport sert de référence fonctionnelle pour tous les types de blocs disponibles."
+      }
+    },
+    {
+      "id": "block_sec_dynamique",
+      "type": "section",
+      "config": {
+        "title": "Dynamique véhicule",
+        "level": 1
+      }
+    },
+    {
+      "id": "block_plot_speed",
+      "type": "lineplot",
+      "config": {
+        "source": "df",
+        "x": "time",
+        "y": "vehicle_speed",
+        "title": "Vitesse véhicule",
+        "color": "#89b4fa",
+        "unit": "km/h"
+      }
+    },
+    {
+      "id": "block_txt_speed",
+      "type": "text",
+      "config": {
+        "content": "Le profil de vitesse alterne phases de montée et de décroissance, sans discontinuité : le signal est exploitable pour l'analyse du couple vitesse / régime ci-dessous."
+      }
+    },
+    {
+      "id": "block_plot_rpm",
+      "type": "lineplot",
+      "config": {
+        "source": "df",
+        "x": "time",
+        "y": "engine_rpm",
+        "title": "Régime moteur",
+        "color": "#f38ba8",
+        "unit": "rpm"
+      }
+    },
+    {
+      "id": "block_sec_rapport",
+      "type": "section",
+      "config": {
+        "title": "Rapport régime / vitesse",
+        "level": 2
+      }
+    },
+    {
+      "id": "block_py_figure",
+      "type": "python",
+      "config": {
+        "code": "speed = np.asarray(df[\"vehicle_speed\"])\nrpm = np.asarray(df[\"engine_rpm\"])\nmoving = speed > 5.0\nratio = np.where(moving, rpm / np.maximum(speed, 1.0), np.nan)\ncounts, edges = np.histogram(ratio[moving], bins=30)\ncenters = [float((edges[i] + edges[i + 1]) / 2.0) for i in range(len(counts))]\ntrace = {\n    \"type\": \"bar\",\n    \"name\": \"regime / vitesse\",\n    \"x\": centers,\n    \"y\": [int(value) for value in counts],\n    \"marker\": {\"color\": \"#89b4fa\"},\n}\nlayout = {\n    \"title\": {\"text\": \"Distribution du rapport regime / vitesse (vehicule en mouvement)\"},\n    \"xaxis\": {\"title\": {\"text\": \"tr/min par km/h\"}},\n    \"yaxis\": {\"title\": {\"text\": \"occurrences\"}},\n    \"bargap\": 0.05,\n}\nreturn {\"data\": [trace], \"layout\": layout}\n",
+        "inputs": [
+          "df"
+        ],
+        "output": "figure"
+      }
+    },
+    {
+      "id": "block_txt_rapport",
+      "type": "text",
+      "config": {
+        "content": "Le bloc Python ci-dessus est écrit par l'utilisateur : il est validé statiquement contre la liste blanche AST, inliné dans le module généré, puis exécuté dans le sous-processus confiné. Une distribution resserrée traduit un rapport de transmission stable sur la plage de roulage."
+      }
+    },
+    {
+      "id": "block_sec_thermique",
+      "type": "section",
+      "config": {
+        "title": "Thermique et freinage",
+        "level": 1
+      }
+    },
+    {
+      "id": "block_plot_temp",
+      "type": "lineplot",
+      "config": {
+        "source": "df",
+        "x": "time",
+        "y": "coolant_temp",
+        "title": "Température liquide de refroidissement",
+        "color": "#fab387",
+        "unit": "degC"
+      }
+    },
+    {
+      "id": "block_callout_temp",
+      "type": "callout",
+      "config": {
+        "type": "warning",
+        "title": "Montée en température",
+        "content": "La température progresse de manière monotone sur tout l'essai et termine au-delà de 85 °C. Sur un roulage plus long, vérifier l'apparition du palier de régulation."
+      }
+    },
+    {
+      "id": "block_plot_brake",
+      "type": "lineplot",
+      "config": {
+        "source": "df",
+        "x": "time",
+        "y": "brake_pressure",
+        "title": "Pression de freinage",
+        "color": "#a6e3a1",
+        "unit": "bar"
+      }
+    },
+    {
+      "id": "block_sec_annexes",
+      "type": "section",
+      "config": {
+        "title": "Annexes",
+        "level": 1
+      }
+    },
+    {
+      "id": "block_sec_stats",
+      "type": "section",
+      "config": {
+        "title": "Statistiques descriptives",
+        "level": 2
+      }
+    },
+    {
+      "id": "block_py_table",
+      "type": "python",
+      "config": {
+        "code": "columns = [\"Signal\", \"Minimum\", \"Moyenne\", \"Maximum\", \"Ecart-type\"]\nrows = []\nfor name in [\"vehicle_speed\", \"engine_rpm\", \"coolant_temp\", \"brake_pressure\"]:\n    values = np.asarray(df[name], dtype=float)\n    rows.append([\n        name,\n        round(float(np.min(values)), 2),\n        round(float(np.mean(values)), 2),\n        round(float(np.max(values)), 2),\n        round(float(np.std(values)), 2),\n    ])\nreturn {\n    \"columns\": columns,\n    \"rows\": rows,\n    \"caption\": \"Statistiques descriptives par signal\",\n    \"truncated\": False,\n    \"total_rows\": len(rows),\n}\n",
+        "inputs": [
+          "df"
+        ],
+        "output": "table"
+      }
+    },
+    {
+      "id": "block_sec_extrait",
+      "type": "section",
+      "config": {
+        "title": "Extrait des données brutes",
+        "level": 2
+      }
+    },
+    {
+      "id": "block_table",
+      "type": "table",
+      "config": {
+        "source": "df",
+        "caption": "Premières mesures de l'essai (50 Hz)",
+        "max_rows": 15
+      }
+    }
+  ],
+  "settings": {
+    "title": "Analyse standard d'un essai de roulage",
+    "author": "Baltimore Bird",
+    "mappingId": null
+  },
+  "lastRun": null,
+  "lastRunStatus": null,
+  "lastRunDuration": null
+}

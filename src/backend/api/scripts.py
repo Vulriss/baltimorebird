@@ -5,14 +5,23 @@ import uuid
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from flask import Blueprint, g, jsonify, request
+from flask import Blueprint, Response, g, jsonify, request
 
 from api.auth import feature_required, login_required
 from config import BASE_DIR
 from core import utc_now_iso, is_safe_path, is_valid_uuid, sanitize_string, validate_script_id
+from services.dashboard import (
+    block_schema,
+    build_html_report,
+    compile_recipe,
+    validate_generated_module_source,
+    validate_recipe,
+)
+from services.dashboard.compiler import MODULE_RESULT_MARKER
+from services.dashboard.formatting import FormattedModule, format_module
 
 try:
-    from services.sandbox import ALLOWED_BUILTINS, ALLOWED_MODULES, check_code_safety
+    from services.sandbox import ALLOWED_BUILTINS, ALLOWED_MODULES, check_code_safety, safe_execute
     SANDBOX_AVAILABLE = True
 except ImportError:
     SANDBOX_AVAILABLE = False
@@ -171,41 +180,164 @@ def list_default_scripts() -> List[Dict]:
 
 
 def validate_blocks(blocks: List[Dict]) -> tuple[bool, str]:
+    """Validate a recipe's block tree via the declarative compiler validator.
+
+    Args:
+        blocks: The list of top-level blocks (each may hold nested ``children``).
+
+    Returns:
+        A ``(is_valid, message)`` tuple; ``message`` is empty when valid.
+    """
     if not isinstance(blocks, list):
         return False, "blocks doit être une liste"
-    if len(blocks) > MAX_BLOCKS:
+    if _count_blocks(blocks) > MAX_BLOCKS:
         return False, f"Trop de blocs (max {MAX_BLOCKS})"
 
-    for i, block in enumerate(blocks):
-        if not isinstance(block, dict):
-            return False, f"Block {i} invalide"
-        block_type = block.get("type")
-        if block_type not in ("markdown", "code", "plot", "table", "stats"):
-            return False, f"Type de bloc invalide: {block_type}"
-
+    errors = validate_recipe({"blocks": blocks})
+    if errors:
+        first = errors[0]
+        return False, f"{first['block_id']}: {first['message']}"
     return True, ""
 
 
-def generate_python_code(script: Dict) -> str:
-    lines = [
-        "# Auto-generated script",
-        "import numpy as np",
-        "import pandas as pd",
-        "",
-        "# Script blocks:",
-    ]
+def _count_blocks(blocks: List[Dict]) -> int:
+    total = 0
+    for block in blocks:
+        if isinstance(block, dict):
+            total += 1
+            children = block.get("children")
+            if isinstance(children, list):
+                total += _count_blocks(children)
+    return total
 
-    for block in script.get("blocks", []):
-        block_type = block.get("type")
-        if block_type == "code":
-            code = block.get("content", "")
-            lines.append("\n# Code block")
-            lines.append(code)
-        elif block_type == "markdown":
-            content = block.get("content", "")
-            lines.append(f'\n# Markdown: """{content[:100]}..."""')
 
-    return "\n".join(lines)
+def compile_and_format(script: Dict) -> FormattedModule:
+    """Compile a script recipe and Ruff-format it before it is shown or executed.
+
+    Every route that needs generated source calls this, never ``compile_recipe`` directly, so
+    what the user sees and what the sandbox executes are guaranteed to be the same bytes for the
+    same recipe state. A Ruff failure never raises: it falls back to the original, already-valid
+    generated source with a warning (see ``services.dashboard.formatting``).
+
+    Args:
+        script: The persisted script/recipe document.
+
+    Returns:
+        The formatted (or original, on Ruff failure) module.
+
+    Raises:
+        ValueError: If the recipe is statically invalid.
+    """
+    return format_module(compile_recipe(script))
+
+
+PLATFORM_VERSION = "poc"
+RUN_TIMEOUT_SECONDS = 30
+RUN_MAX_MEMORY_MB = 512
+_BLOCK_STATUS_BY_KIND = {"error": "failed", "skipped": "skipped"}
+
+
+class SafetyError(Exception):
+    """Raised when the generated module fails the AST allowlist safety check."""
+
+    def __init__(self, errors: List[str]) -> None:
+        super().__init__("generated module failed the safety check")
+        self.errors = errors
+
+
+def _mapping_names(script: Dict) -> List[str]:
+    """Collect the mapped data-source variable names declared in a recipe."""
+    names: List[str] = []
+
+    def _walk(blocks: List[Dict]) -> None:
+        for block in blocks:
+            if not isinstance(block, dict):
+                continue
+            if block.get("type") == "synthetic_source":
+                name = str(block.get("config", {}).get("name", "")).strip()
+                if name:
+                    names.append(name)
+            children = block.get("children")
+            if isinstance(children, list):
+                _walk(children)
+
+    _walk(script.get("blocks", []) or [])
+    return names
+
+
+def _parse_artefacts(output: str) -> Dict:
+    """Extract the JSON artefact document printed by a generated module."""
+    marker_index = output.rfind(MODULE_RESULT_MARKER)
+    if marker_index == -1:
+        return {"document": []}
+    payload = output[marker_index + len(MODULE_RESULT_MARKER):]
+    try:
+        return json.loads(payload)
+    except json.JSONDecodeError:
+        return {"document": []}
+
+
+def _execute_recipe(script: Dict, script_id: str) -> Dict:
+    """Compile, safety-check and run a recipe in the confined runner.
+
+    Args:
+        script: The recipe document.
+        script_id: The recipe identifier (used for provenance).
+
+    Returns:
+        A run outcome with document artefacts, per-block statuses and provenance.
+
+    Raises:
+        ValueError: If the recipe is statically invalid.
+        SafetyError: If the generated module fails the safety check.
+    """
+    module = compile_and_format(script)
+    safety = check_code_safety(module.source)
+    if not safety["safe"]:
+        raise SafetyError(safety["errors"])
+
+    result = safe_execute(module.source, timeout_seconds=RUN_TIMEOUT_SECONDS, max_memory_mb=RUN_MAX_MEMORY_MB)
+    artefacts = _parse_artefacts(result.output)
+    document = artefacts.get("document", [])
+
+    block_status = {
+        item["block_id"]: _BLOCK_STATUS_BY_KIND.get(item.get("kind"), "succeeded")
+        for item in document
+        if isinstance(item, dict) and item.get("block_id")
+    }
+    block_errors = {
+        item["block_id"]: str(item.get("message", "Erreur inconnue"))
+        for item in document
+        if isinstance(item, dict) and item.get("kind") in ("error", "skipped") and item.get("block_id")
+    }
+    has_failure = any(status != "succeeded" for status in block_status.values())
+    if not result.success:
+        status = "failed"
+    elif has_failure:
+        status = "partial"
+    else:
+        status = "succeeded"
+
+    provenance = {
+        "title": script.get("settings", {}).get("title", script.get("name", "Dashboard")),
+        "recipe_id": script_id,
+        "recipe_version": script.get("version", 1),
+        "module_hash": module.provenance_hash,
+        "platform_version": PLATFORM_VERSION,
+        "generated_at": utc_now_iso(),
+        "mapping": _mapping_names(script),
+    }
+    return {
+        "status": status,
+        "duration": round(result.execution_time, 3),
+        "document": document,
+        "block_status": block_status,
+        "block_errors": block_errors,
+        "output": result.output.split(MODULE_RESULT_MARKER)[0][-4000:],
+        "error": result.error,
+        "provenance": provenance,
+        "format_warning": module.warning,
+    }
 
 
 @scripts_bp.route("/api/scripts")
@@ -219,6 +351,13 @@ def list_scripts():
         "user_count": len(user_scripts),
         "default_count": len(default_scripts),
     })
+
+
+@scripts_bp.route("/api/scripts/catalogue")
+@login_required
+def scripts_catalogue():
+    """Return the declarative block catalogue for the editor palette."""
+    return jsonify({"blocks": block_schema()})
 
 
 @scripts_bp.route("/api/scripts/<script_id>")
@@ -368,34 +507,135 @@ def run_script(script_id: str):
     if not valid:
         return jsonify({"error": f"Script invalide: {error}"}), 400
 
-    code = generate_python_code(script)
-    safety = check_code_safety(code)
+    try:
+        outcome = _execute_recipe(script, script_id)
+    except ValueError as exc:
+        return jsonify({"success": False, "error": str(exc)}), 400
+    except SafetyError as exc:
+        return jsonify({"success": False, "error": "Code généré non sécurisé", "safety_errors": exc.errors}), 400
 
-    if not safety["safe"]:
-        return jsonify({"success": False, "error": "Code généré non sécurisé", "safety_errors": safety["errors"]}), 400
-
-    import time
-    start_time = time.time()
-    duration = time.time() - start_time
     now = utc_now_iso()
-
     if not script.get("_readonly") and script.get("_owner") == user.id:
         script["lastRun"] = now
-        script["lastRunStatus"] = "success"
-        script["lastRunDuration"] = round(duration, 2)
+        script["lastRunStatus"] = outcome["status"]
+        script["lastRunDuration"] = outcome["duration"]
         script["modified"] = now
         try:
             save_script(script, user.id)
         except ValueError:
             pass
 
+    return jsonify({"success": True, "script_id": script_id, **outcome})
+
+
+@scripts_bp.route("/api/scripts/<script_id>/compile", methods=["POST"])
+@feature_required("create_scripts")
+def compile_script(script_id: str):
+    """Compile a script to its generated module without executing it (EXIT-03)."""
+    if not validate_script_id(script_id):
+        return jsonify({"error": "ID de script invalide"}), 400
+
+    user = g.current_user
+    script = load_script(script_id, user.id)
+    if not script:
+        return jsonify({"error": "Script non trouvé"}), 404
+
+    errors = validate_recipe(script)
+    if errors:
+        return jsonify({"success": False, "errors": errors}), 400
+
+    module = compile_and_format(script)
+    safety = check_code_safety(module.source) if SANDBOX_AVAILABLE else {"safe": True, "errors": []}
+    validation_errors = validate_generated_module_source(module.source)
+    if validation_errors:
+        return jsonify({"success": False, "errors": [{"block_id": "generated_module", "message": message} for message in validation_errors]}), 400
     return jsonify({
         "success": True,
-        "script_id": script_id,
-        "status": "success",
-        "duration": round(duration, 2),
-        "report_id": f"report_{uuid.uuid4().hex[:8]}"
+        "source": module.source,
+        "provenance_hash": module.provenance_hash,
+        "safe": safety["safe"],
+        "safety_errors": safety["errors"],
+        "validation_errors": validation_errors,
+        "format_warning": module.warning,
     })
+
+
+@scripts_bp.route("/api/scripts/compile-preview", methods=["POST"])
+@feature_required("create_scripts")
+def compile_script_preview():
+    """Compile an in-memory recipe draft without persisting it (live preview, EXIT-03)."""
+    data = request.get_json(silent=True) or {}
+    blocks = data.get("blocks", [])
+    if not isinstance(blocks, list):
+        return jsonify({"success": False, "errors": [{"block_id": "recipe", "message": "blocks doit être une liste"}]}), 400
+    if _count_blocks(blocks) > MAX_BLOCKS:
+        return jsonify({"success": False, "errors": [{"block_id": "recipe", "message": f"Trop de blocs (max {MAX_BLOCKS})"}]}), 400
+
+    recipe = {
+        "blocks": blocks,
+        "settings": data.get("settings", {}),
+        "name": data.get("name", ""),
+    }
+
+    errors = validate_recipe(recipe)
+    if errors:
+        return jsonify({"success": False, "errors": errors}), 400
+
+    module = compile_and_format(recipe)
+    safety = check_code_safety(module.source) if SANDBOX_AVAILABLE else {"safe": True, "errors": []}
+    validation_errors = validate_generated_module_source(module.source)
+    if validation_errors:
+        return jsonify({"success": False, "errors": [{"block_id": "generated_module", "message": message} for message in validation_errors]}), 400
+    return jsonify({
+        "success": True,
+        "source": module.source,
+        "provenance_hash": module.provenance_hash,
+        "safe": safety["safe"],
+        "safety_errors": safety["errors"],
+        "validation_errors": validation_errors,
+        "format_warning": module.warning,
+    })
+
+
+@scripts_bp.route("/api/scripts/<script_id>/report", methods=["POST"])
+@feature_required("run_scripts")
+def report_script(script_id: str):
+    """Compile, run and render a standalone HTML report (EXIT-06)."""
+    if not SANDBOX_AVAILABLE:
+        return jsonify({"error": "Exécution de scripts non disponible"}), 503
+    if not validate_script_id(script_id):
+        return jsonify({"error": "ID de script invalide"}), 400
+
+    user = g.current_user
+    script = load_script(script_id, user.id)
+    if not script:
+        return jsonify({"error": "Script non trouvé"}), 404
+
+    valid, error = validate_blocks(script.get("blocks", []))
+    if not valid:
+        return jsonify({"error": f"Script invalide: {error}"}), 400
+
+    try:
+        outcome = _execute_recipe(script, script_id)
+    except ValueError as exc:
+        return jsonify({"success": False, "error": str(exc)}), 400
+    except SafetyError as exc:
+        return jsonify({"success": False, "error": "Code généré non sécurisé", "safety_errors": exc.errors}), 400
+
+    html = build_html_report(script, outcome["document"], outcome["provenance"])
+    filename = f"{sanitize_string(script.get('name', 'report'), 80) or 'report'}.html"
+    # Served as a download from a non-application response so its content cannot reach the
+    # authenticated session origin (SEC-16).
+    return Response(
+        html,
+        mimetype="text/html",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "X-Content-Type-Options": "nosniff",
+        },
+    )
+
+
 
 
 @scripts_bp.route("/api/scripts/<script_id>/preview")
@@ -410,10 +650,15 @@ def preview_script_code(script_id: str):
     if not script:
         return jsonify({"error": "Script non trouvé"}), 404
 
-    code = generate_python_code(script)
-    safety_check = check_code_safety(code) if SANDBOX_AVAILABLE else None
+    module = compile_and_format(script)
+    safety_check = check_code_safety(module.source) if SANDBOX_AVAILABLE else None
 
-    return jsonify({"script_id": script_id, "code": code, "safety": safety_check})
+    return jsonify({
+        "script_id": script_id,
+        "code": module.source,
+        "safety": safety_check,
+        "format_warning": module.warning,
+    })
 
 
 @scripts_bp.route("/api/scripts/validate", methods=["POST"])

@@ -12,7 +12,8 @@
   },
   "dependencies": {
     "canvas-confetti": "^1.9.4",
-    "monaco-editor": "^0.52.2"
+    "monaco-editor": "^0.52.2",
+    "plotly.js-dist-min": "^4.0.0"
   },
   "devDependencies": {
     "sass": "^1.101.7",
