@@ -95,6 +95,7 @@ const CodeEditor = (function() {
         const {
             value = '',
             onChange = null,
+            onFocus = null,
             minHeight = 150
         } = options;
 
@@ -142,6 +143,11 @@ const CodeEditor = (function() {
             editor.onDidChangeModelContent(() => {
                 onChange(editor.getValue());
             });
+        }
+
+        // Listener pour le focus (Monaco ne laisse pas toujours le focusin natif remonter)
+        if (onFocus) {
+            editor.onDidFocusEditorText(() => onFocus());
         }
 
         const id = container.id || `editor_${Date.now()}`;

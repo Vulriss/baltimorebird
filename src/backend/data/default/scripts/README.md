@@ -14,58 +14,75 @@ Les scripts sont stockés au format JSON avec l'extension `.json`.
 
 ```json
 {
-  "id": "script_001",
-  "name": "Analyse OBD2",
-  "description": "Script d'exemple pour l'analyse des données OBD2",
-  "created": "2024-01-15T10:30:00Z",
-  "modified": "2024-01-15T14:45:00Z",
+  "id": "script_analyse_standard",
+  "name": "Analyse standard (démo complète)",
+  "description": "Rapport de référence couvrant tous les types de blocs",
+  "created": "2026-09-11T00:00:00Z",
+  "modified": "2026-09-11T00:00:00Z",
   "blocks": [
     {
-      "id": "block_1",
+      "id": "block_source",
+      "type": "synthetic_source",
+      "config": {
+        "name": "df",
+        "samples": 3000,
+        "period": 0.02,
+        "seed": 42,
+        "signals": [
+          {"name": "vehicle_speed", "unit": "km/h", "kind": "sine",
+           "amplitude": 45.0, "frequency": 0.02, "offset": 55.0, "noise": 1.2}
+        ]
+      }
+    },
+    {
+      "id": "block_sec",
       "type": "section",
-      "config": { "title": "Introduction", "level": "H1" }
+      "config": { "title": "Dynamique véhicule", "level": 1 }
     },
     {
-      "id": "block_2",
-      "type": "text",
-      "config": { "content": "Ce rapport présente une analyse..." }
-    },
-    {
-      "id": "block_3",
+      "id": "block_plot",
       "type": "lineplot",
-      "config": { 
-        "signal": "VehicleSpeed", 
-        "title": "Vitesse véhicule", 
-        "color": "#6366f1" 
+      "config": {
+        "source": "df",
+        "x": "time",
+        "y": "vehicle_speed",
+        "title": "Vitesse véhicule",
+        "color": "#89b4fa",
+        "unit": "km/h"
       }
     }
   ],
   "settings": {
-    "title": "Rapport d'analyse",
-    "author": "User",
-    "mappingId": "mapping_obd2_standard"
+    "title": "Analyse standard d'un essai de roulage",
+    "author": "Baltimore Bird"
   },
-  "lastRun": "2024-01-15T14:50:00Z",
-  "lastRunStatus": "success",
-  "lastRunDuration": 2.34
+  "lastRun": null,
+  "lastRunStatus": null,
+  "lastRunDuration": null
 }
 ```
 
 ## Types de blocs supportés
 
-| Type | Description | Config |
-|------|-------------|--------|
-| `section` | Titre de section | `title`, `level` (H1/H2/H3) |
-| `text` | Paragraphe Markdown | `content` |
-| `callout` | Encadré info/warning | `content`, `type` |
-| `metrics` | Cartes KPI | `columns` |
-| `table` | Tableau de données | `caption`, `columns` |
-| `lineplot` | Graphique linéaire | `signal`, `title`, `color` |
-| `scatter` | Nuage de points | `x`, `y`, `title`, `color` |
-| `histogram` | Histogramme | `signal`, `bins`, `title` |
-| `stats` | Bloc statistiques | `signals` |
-| `latex` | Équation LaTeX | `equation` |
-| `code` | Code Python custom | `code` |
+Le catalogue fait foi : `services/dashboard/blocks.py` (`BLOCK_REGISTRY`). Chaque type ci-dessous
+est présent au moins une fois dans le script par défaut `script_analyse_standard.json`, garanti
+par le test `test_default_standard_recipe_covers_every_block_type`.
+
+| Type | Catégorie | Description | Config |
+|------|-----------|-------------|--------|
+| `synthetic_source` | data | Source de données synthétique déterministe | `name`, `samples`, `period`, `seed`, `signals[]` |
+| `title` | layout | Page de titre du rapport | `title`, `subtitle`, `author` |
+| `section` | layout | Titre de section | `title`, `level` (1/2/3) |
+| `text` | layout | Paragraphe | `content` |
+| `callout` | layout | Encadré info/success/warning/danger | `type`, `title`, `content` |
+| `metrics` | viz | Cartes KPI, une ligne `label: expression` par métrique | `source`, `metrics` |
+| `table` | viz | Tableau de données | `source`, `caption`, `max_rows` |
+| `lineplot` | viz | Courbe temporelle | `source`, `x`, `y`, `title`, `color`, `unit` |
+| `python` | code | Code Python utilisateur, validé par la liste blanche AST | `code`, `inputs[]`, `output` (`figure`/`table`) |
+
+Les expressions des blocs `metrics` et le code des blocs `python` s'exécutent dans le module
+généré : ils passent la même analyse statique (liste blanche AST) que n'importe quel code
+utilisateur, puis le sous-processus confiné.
 
 ## Workflow d'exécution
 

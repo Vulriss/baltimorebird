@@ -59,7 +59,9 @@
                                 </svg>
                                 Console
                             </h4>
-                            <button class="console-clear-btn" onclick="clearConsole()">Effacer</button>
+                            <div class="execution-console-actions">
+                                <button class="console-clear-btn" onclick="clearConsole()">Effacer</button>
+                            </div>
                         </div>
                         <div class="execution-console-content" id="consoleContent">
                             <div class="console-line">
@@ -86,6 +88,36 @@
                             <input type="text" placeholder="Rechercher..." id="paletteSearch">
                         </div>
                         <div class="edition-palette-blocks" id="paletteBlocks">
+
+                            <!-- Title block -->
+                            <div class="palette-block" draggable="true" data-block-type="title" style="--block-color: #f38ba8;">
+                                <div class="palette-block-icon">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M4 7h16"/>
+                                        <path d="M8 7v10"/>
+                                        <path d="M16 7v10"/>
+                                        <path d="M12 7v10"/>
+                                    </svg>
+                                </div>
+                                <div class="palette-block-info">
+                                    <div class="palette-block-name">Titre</div>
+                                    <div class="palette-block-desc">En-tête du rapport</div>
+                                </div>
+                            </div>
+
+                            <!-- Synthetic source block -->
+                            <div class="palette-block" draggable="true" data-block-type="synthetic_source" style="--block-color: #f9e2af;">
+                                <div class="palette-block-icon">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M4 19V5M4 19h16"/>
+                                        <path d="m7 15 3-4 3 2 5-7"/>
+                                    </svg>
+                                </div>
+                                <div class="palette-block-info">
+                                    <div class="palette-block-name">Source synthétique</div>
+                                    <div class="palette-block-desc">Données reproductibles</div>
+                                </div>
+                            </div>
                             
                             <!-- Section Block -->
                             <div class="palette-block" draggable="true" data-block-type="section" style="--block-color: #8b5cf6;">
@@ -130,7 +162,7 @@
                             </div>
                             
                             <!-- Metrics Block -->
-                            <div class="palette-block" draggable="true" data-block-type="metrics" style="--block-color: #22c55e;">
+                     <!--   <div class="palette-block" hidden="true" draggable="true" data-block-type="metrics" style="--block-color: #22c55e;">
                                 <div class="palette-block-icon">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                         <rect x="3" y="3" width="7" height="7"/>
@@ -144,7 +176,7 @@
                                     <div class="palette-block-desc">Cartes KPI</div>
                                 </div>
                             </div>
-                            
+                            -->
                             <!-- Table Block -->
                             <div class="palette-block" draggable="true" data-block-type="table" style="--block-color: #06b6d4;">
                                 <div class="palette-block-icon">
@@ -176,7 +208,7 @@
                             </div>
                             
                             <!-- Scatter Plot Block -->
-                            <div class="palette-block" draggable="true" data-block-type="scatter" style="--block-color: #ec4899;">
+                            <div class="palette-block" draggable="false" data-block-type="scatter" style="--block-color: #ec4899;">
                                 <div class="palette-block-icon">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                         <circle cx="7.5" cy="7.5" r="2"/>
@@ -193,7 +225,7 @@
                             </div>
                             
                             <!-- Histogram Block -->
-                            <div class="palette-block" draggable="true" data-block-type="histogram" style="--block-color: #14b8a6;">
+                            <div class="palette-block" draggable="false" data-block-type="histogram" style="--block-color: #14b8a6;">
                                 <div class="palette-block-icon">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                         <rect x="3" y="12" width="4" height="9"/>
@@ -208,7 +240,7 @@
                             </div>
                             
                             <!-- Stats Block -->
-                            <div class="palette-block" draggable="true" data-block-type="stats" style="--block-color: #a855f7;">
+                            <div class="palette-block" draggable="false" data-block-type="stats" style="--block-color: #a855f7;">
                                 <div class="palette-block-icon">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                         <path d="M18 20V10M12 20V4M6 20v-6"/>
@@ -234,7 +266,7 @@
                             </div>
                             
                             <!-- Code Block -->
-                            <div class="palette-block" draggable="true" data-block-type="code" style="--block-color: #334155;">
+                            <div class="palette-block" draggable="true" data-block-type="python" style="--block-color: #334155;">
                                 <div class="palette-block-icon">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                         <polyline points="16 18 22 12 16 6"/>
@@ -242,7 +274,7 @@
                                     </svg>
                                 </div>
                                 <div class="palette-block-info">
-                                    <div class="palette-block-name">Code</div>
+                                    <div class="palette-block-name">Python</div>
                                     <div class="palette-block-desc">Python custom</div>
                                 </div>
                             </div>
@@ -277,15 +309,31 @@
                                     </svg>
                                     Sauvegarder
                                 </button>
+                                <button class="edition-toolbar-btn secondary" data-toolbar-action="save-as">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                                        <polyline points="17 21 17 13 7 13 7 21"/>
+                                        <polyline points="7 3 7 8 15 8"/>
+                                    </svg>
+                                    Enregistrer sous
+                                </button>
                                 <button class="edition-toolbar-btn success" data-toolbar-action="save-run">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                         <polygon points="5 3 19 12 5 21 5 3"/>
                                     </svg>
                                     Exécuter
                                 </button>
+                                <button class="edition-toolbar-btn primary" data-toolbar-action="generate-report">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                        <polyline points="14 2 14 8 20 8"/>
+                                    </svg>
+                                    Générer le rapport
+                                </button>
                             </div>
                         </div>
-                        
+
+                        <div class="edition-canvas-split" id="editionCanvasSplit">
                         <div class="edition-canvas" id="editionCanvas">
                             <!-- Empty state -->
                             <div class="edition-canvas-empty" id="canvasEmpty">
@@ -297,11 +345,25 @@
                                 <h3>Glissez des blocs ici</h3>
                                 <p>Construisez votre rapport en ajoutant des blocs depuis la palette</p>
                             </div>
-                            
+
                             <!-- Blocks container -->
                             <div class="edition-canvas-blocks" id="canvasBlocks" style="display: none;">
                                 <!-- Canvas blocks rendered by JS -->
                             </div>
+                        </div>
+
+                        <!-- Splitter vertical entre canvas et code genere -->
+                        <div class="edition-code-splitter" id="editionCodeSplitter" role="separator"
+                             aria-orientation="vertical" title="Redimensionner le panneau de code"></div>
+
+                        <!-- Live-generated Python code (read-only, EXIT-03 auditability) -->
+                        <div class="edition-code-panel" id="editionCodePanel">
+                            <div class="edition-code-panel-header">
+                                <h4>Code Python généré</h4>
+                            </div>
+                            <div class="edition-code-panel-error" id="editionCodePanelError" hidden></div>
+                            <pre class="edition-code-panel-pre" id="editionCodePanelPre"><code class="language-python" id="editionCodePanelCode"></code></pre>
+                        </div>
                         </div>
                     </div>
                     
