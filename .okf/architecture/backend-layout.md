@@ -4,6 +4,9 @@ title: Organisation du backend
 description: Carte des modules Python, et la règle qui dit où une logique doit atterrir.
 tags: [flask, backend, modules]
 status: stable
+generated:
+  by: human:Geo
+  at: 2026-09-10
 ---
 
 # Organisation du backend

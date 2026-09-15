@@ -4,6 +4,12 @@ title: Invariants de sécurité
 description: Ce qui ne doit être contourné sous aucun prétexte.
 tags: [securite, csp]
 status: stable
+generated:
+  by: human:Geo
+  at: 2026-09-09
+verified:
+  by: human:Geo
+  at: 2026-09-15
 ---
 
 # Invariants de sécurité

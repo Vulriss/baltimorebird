@@ -4,6 +4,12 @@ title: Conventions de code
 description: Règles de style et de langue appliquées dans tout le dépôt.
 tags: [conventions, style]
 status: stable
+generated:
+  by: human:Geo
+  at: 2026-09-09
+verified:
+  by: human:Geo
+  at: 2026-09-15
 ---
 
 # Conventions de code

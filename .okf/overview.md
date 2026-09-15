@@ -4,6 +4,12 @@ title: Baltimore Bird, vue d'ensemble
 description: Ce qu'est le produit, pour qui, et ce qui est explicitement hors périmètre.
 tags: [produit, perimetre]
 status: stable
+generated:
+  by: claude/opus-5
+  at: 2026-09-15
+verified:
+  by: human:Geo
+  at: 2026-09-15
 ---
  
 # Baltimore Bird

@@ -4,6 +4,9 @@ title: Maintenir le bundle OKF
 description: Ce que le validateur exige, et la seule règle qui fait vraiment tomber l'intégration continue.
 tags: [okf, documentation, ci]
 status: stable
+generated:
+  by: claude/opus-5
+  at: 2026-09-15
 ---
 
 # Maintenir le bundle OKF

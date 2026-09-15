@@ -4,6 +4,9 @@ title: Interpréteur AST sur liste blanche plutôt qu'eval filtré
 description: Pourquoi le filtrage par blacklist a été abandonné pour les variables calculées.
 tags: [securite, ast]
 status: stable
+generated:
+  by: human:Geo
+  at: 2026-09-10
 ---
 
 # Interpréteur AST sur liste blanche plutôt qu'eval filtré
