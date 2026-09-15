@@ -66,6 +66,17 @@ RATE_LIMIT_LOCKOUT = 1800  # 30min
 
 ALLOWED_EXTENSIONS: Set[str] = {".mf4", ".csv", ".mat", ".dat", ".blf", ".dbc", ".arxml"}
 
+# Conversion de fichiers de mesure: coupee par defaut, reactivable sans redeploiement par la
+# variable d'environnement CONVERSION_ENABLED. Une conversion de fichier entier produit un CSV
+# de plusieurs gigaoctets et occupe le processus des dizaines de minutes; la fonction reste
+# fermee tant que la selection des canaux a exporter n'existe pas. La concatenation MF4 n'est
+# pas concernee.
+CONVERSION_ENABLED = os.environ.get("CONVERSION_ENABLED", "false").lower() == "true"
+CONVERSION_DISABLED_MESSAGE = (
+    "La conversion de fichiers est temporairement indisponible, le temps d'ajouter la sélection "
+    "des canaux à exporter."
+)
+
 DATA_SOURCES = {
     "mf4": {
         "name": "OBD2 Data (MF4)",

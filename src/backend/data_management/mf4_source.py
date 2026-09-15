@@ -269,8 +269,22 @@ def _clean(values: NDArray, timestamps: NDArray) -> Optional[tuple[NDArray, NDAr
     return timestamps, values
 
 
-def get_column(index: Mf4Index, i: int) -> Optional[dict[str, NDArray]]:
-    """Relit une colonne à la demande. Retourne {"timestamps","values"} ou None."""
+def get_column_raw(index: Mf4Index, i: int) -> Optional[tuple[NDArray, NDArray]]:
+    """Read one column without applying any numeric policy.
+
+    Samples keep their stored dtype, text channels included, and NaN gaps are
+    preserved. Callers that need plottable float64 series use `get_column`
+    instead; callers that must round-trip the file faithfully, such as the
+    conversion plugins, use this one.
+
+    Args:
+        index: Index returned by `build_index`.
+        i: Position of the column in `index.columns`.
+
+    Returns:
+        The `(timestamps, samples)` pair, or None when the column is out of
+        range or cannot be read.
+    """
     if i < 0 or i >= len(index.columns):
         return None
     col = index.columns[i]
@@ -286,23 +300,28 @@ def get_column(index: Mf4Index, i: int) -> Optional[dict[str, NDArray]]:
             return None
         if tt is None:
             return None
-        cleaned = _clean(vv, tt)
-        if cleaned is None:
-            return None
-        ts, vals = cleaned
-        return {"timestamps": ts, "values": vals}
+        return np.asarray(tt), np.asarray(vv)
 
     # asammdf
     from asammdf import MDF
     m = MDF(index.path)
     try:
         sig = m.get(col.raw_name, group=col.dg)
-        cleaned = _clean(sig.samples, sig.timestamps)
+        return np.asarray(sig.timestamps), np.asarray(sig.samples)
     except Exception:
         logger.debug(f"asammdf get failed for {col.raw_name}", exc_info=True)
-        cleaned = None
+        return None
     finally:
         m.close()
+
+
+def get_column(index: Mf4Index, i: int) -> Optional[dict[str, NDArray]]:
+    """Relit une colonne à la demande. Retourne {"timestamps","values"} ou None."""
+    raw = get_column_raw(index, i)
+    if raw is None:
+        return None
+    timestamps, samples = raw
+    cleaned = _clean(samples, timestamps)
     if cleaned is None:
         return None
     ts, vals = cleaned
