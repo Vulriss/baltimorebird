@@ -4,7 +4,7 @@
 import { S } from '../core/state.js';
 import { ectx } from './context.js';
 import { schedulePyramidBuild, sliceWindow, targetPointsForPlot, windowBounds } from './data-views.js';
-import { mergeIndexSets, pyramidSelect, pyramidView } from './minmax-pyramid.js';
+import { mergeIndexSets, pyramidSelect, pyramidView, scanSelect, scanView } from './minmax-pyramid.js';
 import { plotHasSynth, renderOverlayFromCache } from './overlay.js';
 import { autoEnableExtendedZones, updatePlotHeader } from './plot-legend.js';
 import { buildBands, commitPlotRender, resolveSignalStyle } from './plot-ui.js';
@@ -111,6 +111,12 @@ export function windowedView(cached, viewMin, viewMax, maxPts) {
     if (cached.pyramid) {
         const view = pyramidView(cached.pyramid, ts, cached.values, startIdx, endIdx, maxPts);
         if (view) return view;
+    } else {
+        // Pyramide pas encore construite (idle apres full-send): le balayage M4 tient le
+        // budget de points. Sans lui, la fenetre entiere partait a uPlot, soit plusieurs
+        // millions de points sur un fichier reel, et le trace n'apparaissait plus.
+        const view = scanView(ts, cached.values, startIdx, endIdx, maxPts);
+        if (view) return view;
     }
     return {
         timestamps: sliceWindow(ts, startIdx, endIdx),
@@ -160,7 +166,7 @@ export function groupedWindowedViews(plot, viewMin, viewMax, maxPts) {
         const { startIdx, endIdx } = windowBounds(ref.timestamps, viewMin, viewMax);
         const nVisible = endIdx - startIdx + 1;
 
-        if (nVisible <= maxPts || !group.every(e => e.cached.pyramid)) {
+        if (nVisible <= maxPts) {
             for (const e of group) {
                 views.set(e.sigIdx, {
                     timestamps: sliceWindow(e.cached.timestamps, startIdx, endIdx),
@@ -170,9 +176,12 @@ export function groupedWindowedViews(plot, viewMin, viewMax, maxPts) {
             continue;
         }
 
-        const merged = mergeIndexSets(group.map(
-            e => pyramidSelect(e.cached.pyramid, e.cached.values, startIdx, endIdx, maxPts)
-        ));
+        // Selection par signal: pyramide quand elle est prete, balayage M4 sinon. Les deux
+        // emettent des indices bruts croissants, donc un groupe mi-pyramide mi-balayage
+        // (transition apres full-send) fusionne sans cas particulier.
+        const merged = mergeIndexSets(group.map(e => (e.cached.pyramid
+            ? pyramidSelect(e.cached.pyramid, e.cached.values, startIdx, endIdx, maxPts)
+            : scanSelect(e.cached.values, startIdx, endIdx, maxPts))));
         const ts = new Float64Array(merged.length);
         for (let i = 0; i < merged.length; i++) ts[i] = ref.timestamps[merged[i]];
         for (const e of group) {

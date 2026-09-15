@@ -320,12 +320,31 @@ export function mergeIndexSets(sets) {
 }
 
 /**
- * Materialise une vue decimee {timestamps, values} depuis les indices selectionnes.
+ * Selection M4 par balayage direct, sans pyramide: decoupe [startIdx, endIdx] en buckets
+ * uniformes et emet {premier, argmin, argmax, dernier} de chacun. Sert de repli tant que la
+ * pyramide n'est pas construite - elle l'est en idle apres le full-send, et le rendu qui
+ * suit immediatement le full-send tombe donc toujours ici. L'enveloppe reste exacte a cette
+ * granularite, au prix d'un balayage lineaire unique de la fenetre.
+ * Retourne null si la plage tient deja dans maxPts.
  */
-export function pyramidView(pyramid, timestamps, values, startIdx, endIdx, maxPts) {
-    const indices = pyramidSelect(pyramid, values, startIdx, endIdx, maxPts);
-    if (indices === null) return null;
+export function scanSelect(values, startIdx, endIdx, maxPts) {
+    const nVisible = endIdx - startIdx + 1;
+    if (nVisible <= maxPts) return null;
 
+    const buckets = Math.max(1, Math.floor(maxPts / POINTS_PER_BUCKET));
+    const out = [];
+    for (let b = 0; b < buckets; b++) {
+        const lo = startIdx + Math.floor((nVisible * b) / buckets);
+        const hi = startIdx + Math.floor((nVisible * (b + 1)) / buckets);
+        if (hi > lo) emitRawScan(values, lo, hi, out);
+    }
+    return out;
+}
+
+/**
+ * Materialise une vue {timestamps, values} depuis des indices bruts selectionnes.
+ */
+function materializeSelection(timestamps, values, indices) {
     const m = indices.length;
     const ts = new Float64Array(m);
     const vs = new Float32Array(m);
@@ -335,4 +354,22 @@ export function pyramidView(pyramid, timestamps, values, startIdx, endIdx, maxPt
         vs[i] = values[idx];
     }
     return { timestamps: ts, values: vs };
+}
+
+/**
+ * Materialise une vue decimee {timestamps, values} depuis les indices selectionnes.
+ */
+export function pyramidView(pyramid, timestamps, values, startIdx, endIdx, maxPts) {
+    const indices = pyramidSelect(pyramid, values, startIdx, endIdx, maxPts);
+    if (indices === null) return null;
+    return materializeSelection(timestamps, values, indices);
+}
+
+/**
+ * Equivalent de pyramidView pour le repli par balayage.
+ */
+export function scanView(timestamps, values, startIdx, endIdx, maxPts) {
+    const indices = scanSelect(values, startIdx, endIdx, maxPts);
+    if (indices === null) return null;
+    return materializeSelection(timestamps, values, indices);
 }
