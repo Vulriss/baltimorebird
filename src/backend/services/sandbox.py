@@ -424,8 +424,8 @@ def _execution_worker(
             # allouer, pas la VSZ totale du processus: un worker forké hérite (copy-on-write)
             # de tout l'espace d'adressage du processus parent au moment du fork, qui ne fait
             # que croître en production (état EDA/conversions maintenu en mémoire, cf.
-            # CLAUDE.md). Une limite absolue devient alors inférieure à la VSZ déjà héritée
-            # dès que le parent grossit, ce qui fait échouer silencieusement toute nouvelle
+            # .okf/architecture/eda-sessions.md). Une limite absolue devient alors inférieure
+            # à la VSZ déjà héritée dès que le parent grossit, ce qui fait échouer silencieusement toute nouvelle
             # allocation - y compris le thread interne de la Queue utilisé par result_queue.put()
             # ci-dessous - et bloque le worker jusqu'au timeout sans jamais remonter d'erreur.
             baseline = _own_virtual_memory_bytes()
