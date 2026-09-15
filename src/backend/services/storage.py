@@ -1,12 +1,14 @@
 """Baltimore Bird - Service de stockage utilisateur avec SQLite."""
 
 import json
+import os
+import shutil
 import sqlite3
 import threading
 import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from config import (
     BASE_DIR,
@@ -370,15 +372,15 @@ class StorageManager:
 
         return file_path
 
-    def store_file(
-        self,
-        user_id: str,
-        file_data: bytes,
-        original_name: str,
-        category: str,
-        description: str = "",
-        metadata: Optional[Dict[str, Any]] = None
-    ) -> StoredFile:
+    def _prepare_slot(
+        self, user_id: str, original_name: str, category: str, file_size: int
+    ) -> Tuple[str, str, Path]:
+        """Valide une demande de stockage et réserve la place disque. Retourne (id, nom stocké, chemin).
+
+        Toutes les règles d'admission (catégorie, extension, taille, quota, plafonds de fichiers)
+        sont appliquées ici, une seule fois, quelle que soit la voie d'ingestion. Lève ValueError
+        avec un message destiné à l'utilisateur.
+        """
         if not is_valid_uuid(user_id):
             raise ValueError("User ID invalide")
 
@@ -389,7 +391,6 @@ class StorageManager:
         if not safe_name or not allowed_file(safe_name, category):
             raise ValueError("Nom ou extension de fichier invalide")
 
-        file_size = len(file_data)
         max_size = CATEGORIES[category]["max_size_mb"] * 1024 * 1024
         if file_size > max_size:
             raise ValueError(f"Fichier trop volumineux. Max: {CATEGORIES[category]['max_size_mb']} MB")
@@ -411,14 +412,19 @@ class StorageManager:
         stem = Path(safe_name).stem[:60]
         suffix = Path(safe_name).suffix.lower()
         stored_name = f"{file_id[:8]}_{stem}{suffix}"
-        now = utc_now_iso()
 
         user_cat_dir = USERS_ROOT / user_id / category
         user_cat_dir.mkdir(parents=True, exist_ok=True)
 
-        file_path = user_cat_dir / stored_name
-        with open(file_path, "wb") as f:
-            f.write(file_data)
+        return file_id, stored_name, user_cat_dir / stored_name
+
+    def _record_file(
+        self, file_id: str, user_id: str, category: str, stored_name: str, original_name: str,
+        file_size: int, description: str, metadata: Optional[Dict[str, Any]]
+    ) -> StoredFile:
+        """Inscrit au registre un fichier déjà écrit à sa place définitive."""
+        now = utc_now_iso()
+        safe_name = sanitize_filename(original_name)
 
         conn = self._get_conn()
         cursor = conn.cursor()
@@ -444,6 +450,59 @@ class StorageManager:
             description=description,
             metadata=metadata or {},
         )
+
+    def store_file(
+        self,
+        user_id: str,
+        file_data: bytes,
+        original_name: str,
+        category: str,
+        description: str = "",
+        metadata: Optional[Dict[str, Any]] = None
+    ) -> StoredFile:
+        """Stocke un fichier dont le contenu tient en mémoire (layouts, mappings, DBC)."""
+        file_id, stored_name, file_path = self._prepare_slot(user_id, original_name, category, len(file_data))
+
+        with open(file_path, "wb") as f:
+            f.write(file_data)
+
+        return self._record_file(
+            file_id, user_id, category, stored_name, original_name, len(file_data), description, metadata
+        )
+
+    def store_existing_file(
+        self,
+        user_id: str,
+        source_path: Path,
+        original_name: str,
+        category: str,
+        description: str = "",
+        metadata: Optional[Dict[str, Any]] = None
+    ) -> StoredFile:
+        """Prend en charge un fichier déjà présent sur disque, sans le charger en mémoire.
+
+        Voie d'ingestion des acquisitions volumineuses: un MF4 de plusieurs gigaoctets ne peut
+        pas transiter par ``store_file``, qui reçoit le contenu en octets. Le fichier est déplacé
+        quand la destination est sur le même système de fichiers, copié puis supprimé sinon. En
+        cas d'échec de l'inscription au registre, la place disque réservée est libérée: le
+        registre et le disque ne divergent pas.
+        """
+        file_size = source_path.stat().st_size
+        file_id, stored_name, file_path = self._prepare_slot(user_id, original_name, category, file_size)
+
+        try:
+            os.replace(source_path, file_path)
+        except OSError:
+            shutil.copy2(source_path, file_path)
+            source_path.unlink(missing_ok=True)
+
+        try:
+            return self._record_file(
+                file_id, user_id, category, stored_name, original_name, file_size, description, metadata
+            )
+        except sqlite3.Error:
+            file_path.unlink(missing_ok=True)
+            raise
 
     def delete_file(self, file_id: str, user_id: str) -> bool:
         if not is_valid_uuid(file_id) or not is_valid_uuid(user_id):

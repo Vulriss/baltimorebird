@@ -9,14 +9,21 @@ import logging
 import zlib
 import threading
 from pathlib import Path
-from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Set
+from dataclasses import dataclass, field, replace
+from typing import Any, Callable, Dict, List, Optional, Set, Tuple
 
 import numpy as np
 from numpy.typing import NDArray
 
-from config import LAZY_EDA_MAX_SESSIONS, LAZY_EDA_SESSION_TIMEOUT
+from config import LAZY_EDA_EVICTION_GRACE, LAZY_EDA_MEMORY_BUDGET_BYTES, LAZY_EDA_SESSION_TIMEOUT
 from .loaders import iter_channel_occurrences, disambiguate_name
+from .session_descriptor import (
+    ComputedSignalSpec,
+    SessionDescriptor,
+    delete_descriptor,
+    load_descriptor,
+    save_descriptor,
+)
 from .event_comments import (
     EventComment,
     build_event_signal_descriptor,
@@ -24,6 +31,10 @@ from .event_comments import (
 )
 
 logger = logging.getLogger(__name__)
+
+# Recalcule une variable calculée à partir de sa définition. Retourne (timestamps, valeurs),
+# ou None quand les signaux sources ne sont plus disponibles dans la session.
+ComputedRecomputer = Callable[[str, ComputedSignalSpec], Optional[Tuple[NDArray[np.float64], NDArray[np.float64]]]]
 
 # Parser Rust optionnel (rust_mdf_parser). Si absent -> chemin 100% asammdf.
 try:
@@ -105,6 +116,9 @@ class SignalMetadata:
     formula: str = ""
     description: str = ""
     source_signals: List[str] = field(default_factory=list)
+    # Variables calculées: lettre de formule -> nom du signal source. Conservé en plus de
+    # source_signals car c'est le mapping, et non la liste des noms, qui permet de recalculer.
+    mapping: Dict[str, str] = field(default_factory=dict)
 
 
 @dataclass
@@ -118,6 +132,16 @@ class LazySignal:
     @property
     def is_loaded(self) -> bool:
         return self.timestamps is not None and self.values is not None
+
+    @property
+    def nbytes(self) -> int:
+        """Empreinte mémoire des échantillons de ce signal."""
+        total = 0
+        if self.timestamps is not None:
+            total += self.timestamps.nbytes
+        if self.values is not None:
+            total += self.values.nbytes
+        return total
 
 
 @dataclass
@@ -150,39 +174,103 @@ class LazySession:
     ephemeral: bool = False
     created_at: float = field(default_factory=time.time)
     last_access: float = field(default_factory=time.time)
+    # Octets d'échantillons actuellement détenus par la session. Tenu à jour à chaque
+    # chargement et délestage plutôt que recalculé: un fichier porte des milliers de voies,
+    # et le contrôle de pression mémoire s'exécute sur le chemin critique du chargement.
+    loaded_bytes: int = 0
 
     def touch(self) -> None:
         """Met à jour le timestamp de dernier accès."""
         self.last_access = time.time()
 
+    def computed_specs(self) -> List["ComputedSignalSpec"]:
+        """Définitions des variables calculées de la session, par index croissant."""
+        specs = [
+            ComputedSignalSpec(
+                index=index, name=signal.metadata.name, unit=signal.metadata.unit,
+                description=signal.metadata.description, formula=signal.metadata.formula,
+                mapping=dict(signal.metadata.mapping),
+            )
+            for index, signal in self.signals.items()
+            if signal.metadata.computed
+        ]
+        specs.sort(key=lambda spec: spec.index)
+        return specs
+
+    def unload_file_signals(self) -> int:
+        """Libère les échantillons relisibles depuis le fichier. Retourne les octets libérés.
+
+        Les variables calculées sont conservées: leurs échantillons n'existent que dans cette
+        session. Le signal déchargé est remplacé par une nouvelle instance plutôt que vidé sur
+        place, afin qu'un lecteur détenant déjà la référence continue de voir des tableaux
+        cohérents jusqu'à la fin de son traitement.
+        """
+        freed = 0
+        with self.mdf_lock:
+            for index, signal in list(self.signals.items()):
+                if signal.metadata.computed or not signal.is_loaded:
+                    continue
+                freed += signal.nbytes
+                self.signals[index] = LazySignal(
+                    metadata=replace(signal.metadata, loaded=False),
+                    string_map=signal.string_map,
+                )
+            self.loaded_bytes = max(0, self.loaded_bytes - freed)
+        return freed
+
 
 class LazyEDAManager:
     """Gestionnaire de sessions EDA lazy-loading."""
 
-    def __init__(self, max_sessions: int = LAZY_EDA_MAX_SESSIONS, session_timeout: int = LAZY_EDA_SESSION_TIMEOUT):
+    def __init__(
+        self, session_timeout: int = LAZY_EDA_SESSION_TIMEOUT,
+        memory_budget_bytes: int = LAZY_EDA_MEMORY_BUDGET_BYTES,
+        eviction_grace: int = LAZY_EDA_EVICTION_GRACE
+    ):
         self.sessions: Dict[str, LazySession] = {}
-        self.max_sessions = max_sessions
         self.session_timeout = session_timeout
+        self.memory_budget_bytes = memory_budget_bytes
+        self.eviction_grace = eviction_grace
         self._lock = threading.RLock()
+        self._recomputer: Optional[ComputedRecomputer] = None
+
+    def set_computed_recomputer(self, recomputer: Optional[ComputedRecomputer]) -> None:
+        """Injecte le moteur de recalcul des variables calculées.
+
+        Le calcul d'une formule appartient à la couche API, la reconstruction d'une session à
+        la couche données: l'implémentation est donc fournie par câblage explicite au démarrage
+        plutôt qu'importée ici, ce qui interdirait la dépendance inverse.
+        """
+        self._recomputer = recomputer
 
     def create_session(
         self, session_id: str, user_id: str, mf4_path: Path,
-        dbc_path: Optional[Path] = None, ephemeral: bool = False
+        dbc_path: Optional[Path] = None, ephemeral: bool = False,
+        filename: Optional[str] = None
     ) -> LazySession:
-        """Crée une nouvelle session lazy. Les sessions éphémères suppriment leurs fichiers à la fermeture."""
+        """Crée une nouvelle session lazy. Les sessions éphémères suppriment leurs fichiers à la fermeture.
+
+        Les sessions persistantes écrivent un descripteur disque: leur éviction de la mémoire
+        (expiration, redémarrage du service) devient réparable par ``restore_session`` au lieu
+        d'être définitive. Les sessions éphémères n'en écrivent pas, leurs fichiers disparaissant
+        avec elles.
+        """
         with self._lock:
-            self._cleanup_old_sessions()
+            self._cleanup_expired_sessions()
 
             session = LazySession(
                 session_id=session_id,
                 user_id=user_id,
                 mf4_path=mf4_path,
                 dbc_path=dbc_path,
-                filename=mf4_path.name,
+                filename=filename or mf4_path.name,
                 ephemeral=ephemeral
             )
             self.sessions[session_id] = session
-            return session
+
+        self._persist(session)
+        self.relieve_memory_pressure(protected_id=session_id)
+        return session
 
     def get_session(self, session_id: str) -> Optional[LazySession]:
         """Récupère une session par ID."""
@@ -191,6 +279,150 @@ class LazyEDAManager:
             if session:
                 session.touch()
             return session
+
+    def persisted_owner(self, session_id: str) -> Optional[str]:
+        """Propriétaire déclaré par le descripteur d'une session absente de la mémoire.
+
+        Permet à l'appelant d'appliquer son contrôle d'accès AVANT de déclencher une
+        reconstruction: un identifiant de session qui aurait fuité ne provoque donc ni ouverture
+        de fichier, ni parsing, ni occupation mémoire au profit d'un tiers.
+        """
+        descriptor = load_descriptor(session_id)
+        return descriptor.user_id if descriptor else None
+
+    def restore_session(self, session_id: str, owner_id: str) -> Optional[LazySession]:
+        """Reconstruit une session persistante évincée, pour son propriétaire.
+
+        L'éviction ne détruit que l'état mémoire: le fichier analysé et le descripteur survivent,
+        la session est donc reconstructible au prix d'un relisting du MF4 et d'un recalcul des
+        variables calculées. ``owner_id`` est l'identité vérifiée de l'appelant et doit
+        correspondre au propriétaire inscrit dans le descripteur: la reconstruction n'est jamais
+        un moyen d'accéder au fichier d'un tiers. Retourne None si le descripteur, le fichier ou
+        la correspondance de propriétaire fait défaut.
+        """
+        descriptor = load_descriptor(session_id)
+        if descriptor is None:
+            return None
+
+        if descriptor.user_id != owner_id:
+            logger.error(
+                "[LazyEDA] Reconstruction refusée pour %s: propriétaire déclaré différent de l'appelant",
+                session_id[:8],
+            )
+            return None
+
+        if not descriptor.mf4_path.exists():
+            logger.info("[LazyEDA] Descripteur obsolète pour %s: fichier absent", session_id[:8])
+            delete_descriptor(session_id)
+            return None
+
+        dbc_path = descriptor.dbc_path if descriptor.dbc_path and descriptor.dbc_path.exists() else None
+
+        # Verrou réentrant tenu sur la vérification et la création: deux requêtes concurrentes
+        # sur une même session évincée ne doivent pas en reconstruire deux exemplaires.
+        with self._lock:
+            existing = self.sessions.get(session_id)
+            if existing is not None:
+                existing.touch()
+                return existing
+            session = self.create_session(
+                session_id=session_id, user_id=descriptor.user_id, mf4_path=descriptor.mf4_path,
+                dbc_path=dbc_path, ephemeral=False, filename=descriptor.filename,
+            )
+
+        # Hors verrou: le parsing MF4 est long et list_signals est idempotent sous verrou de session.
+        self.list_signals(session_id)
+        restored = self._restore_computed_signals(session, descriptor.computed_signals)
+        logger.info(
+            "[LazyEDA] Session %s reconstruite (%d/%d variable(s) calculée(s))",
+            session_id[:8], restored, len(descriptor.computed_signals),
+        )
+        return session
+
+    def _restore_computed_signals(self, session: LazySession, specs: List[ComputedSignalSpec]) -> int:
+        """Recalcule les variables calculées d'une session reconstruite. Retourne le nombre rétabli.
+
+        Une variable dont les sources ont disparu du fichier, ou dont la formule n'évalue plus,
+        est abandonnée sans faire échouer la reconstruction: le reste de la session reste
+        exploitable, et l'utilisateur peut recréer la variable manquante.
+        """
+        if not specs:
+            return 0
+        if self._recomputer is None:
+            logger.warning("[LazyEDA] Aucun moteur de recalcul câblé: variables calculées non rétablies")
+            return 0
+
+        restored = 0
+        for spec in specs:
+            try:
+                computed = self._recomputer(session.session_id, spec)
+            except Exception:
+                logger.warning("[LazyEDA] Recalcul impossible pour la variable %s", spec.name, exc_info=True)
+                continue
+            if computed is None:
+                logger.info("[LazyEDA] Variable calculée %s abandonnée: sources indisponibles", spec.name)
+                continue
+            timestamps, values = computed
+            self._insert_computed_signal(
+                session, spec.index, spec.name, spec.unit, spec.description,
+                spec.formula, spec.mapping, timestamps, values,
+            )
+            restored += 1
+
+        self._persist(session)
+        return restored
+
+    def _descriptor_for(self, session: LazySession) -> SessionDescriptor:
+        """Construit le descripteur d'une session à partir de son état courant."""
+        return SessionDescriptor(
+            session_id=session.session_id, user_id=session.user_id, mf4_path=session.mf4_path,
+            dbc_path=session.dbc_path, filename=session.filename,
+            computed_signals=session.computed_specs(),
+        )
+
+    def _persist(self, session: LazySession) -> None:
+        """Réécrit le descripteur d'une session persistante. Sans effet sur les sessions éphémères."""
+        if session.ephemeral:
+            return
+        save_descriptor(self._descriptor_for(session))
+
+    def relieve_memory_pressure(self, protected_id: Optional[str] = None) -> int:
+        """Ramène l'empreinte des échantillons sous le budget. Retourne les octets libérés.
+
+        Le délestage porte sur les tableaux, pas sur les sessions: les signaux d'une session
+        inactive sont libérés et se rechargent à la demande, alors que fermer la session
+        détruirait le contexte de travail de son utilisateur. Les sessions touchées depuis moins
+        de ``eviction_grace`` sont épargnées, ainsi que ``protected_id`` (la session en cours de
+        traitement), pour ne pas déloger le travail actif au profit de celui qui vient d'arriver.
+        """
+        with self._lock:
+            total = sum(session.loaded_bytes for session in self.sessions.values())
+            if total <= self.memory_budget_bytes:
+                return 0
+            now = time.time()
+            candidates = [
+                session for session in self.sessions.values()
+                if session.session_id != protected_id and now - session.last_access > self.eviction_grace
+            ]
+            candidates.sort(key=lambda session: session.last_access)
+
+        freed = 0
+        for session in candidates:
+            freed += session.unload_file_signals()
+            if total - freed <= self.memory_budget_bytes:
+                break
+
+        if freed:
+            logger.info(
+                "[LazyEDA] Pression mémoire: %.1f Mio libérés sur %d session(s) inactive(s)",
+                freed / (1024 ** 2), sum(1 for _ in candidates),
+            )
+        elif total > self.memory_budget_bytes:
+            logger.warning(
+                "[LazyEDA] Budget mémoire dépassé (%.1f Mio) sans session délestable",
+                total / (1024 ** 2),
+            )
+        return freed
 
     def list_signals(self, session_id: str) -> Optional[Dict]:
         """Liste les signaux d'un fichier MF4 sans charger les données.
@@ -561,6 +793,7 @@ class LazyEDAManager:
                     if error:
                         responses[idx] = {"index": idx, "status": "error", "error": error}
                     else:
+                        session.loaded_bytes += lazy_signal.nbytes
                         elapsed_ms = (time.time() - start_time) * 1000
                         responses[idx] = self._signal_ready_response(idx, lazy_signal, elapsed_ms)
 
@@ -580,6 +813,9 @@ class LazyEDAManager:
                 "[LazyEDA] Preloaded %d signal(s) (%s pts) in %.1fms",
                 len(loaded), f"{total:,}", (time.time() - start_time) * 1000,
             )
+            # Un lot par contrôle, et non un contrôle par signal: le chargement est le seul
+            # moment où l'empreinte croît, la fin du lot en est le point de mesure naturel.
+            self.relieve_memory_pressure(protected_id=session_id)
         return responses
 
     def _select_signals(self, mdf: Any, session: LazySession, indices: List[int]) -> List[Any]:
@@ -688,9 +924,39 @@ class LazyEDAManager:
                 return idx
         return None
 
+    def _insert_computed_signal(
+        self, session: LazySession, index: int, name: str, unit: str, description: str,
+        formula: str, mapping: Dict[str, str],
+        timestamps: NDArray[np.float64], values: NDArray[np.float64]
+    ) -> SignalMetadata:
+        """Range une variable calculée à un index imposé. Ne persiste pas le descripteur.
+
+        Un index explicite est indispensable à la reconstruction: les graphes et les layouts
+        référencent les signaux par position, et une variable dont le recalcul échoue ne doit
+        pas décaler celles qui suivent.
+        """
+        meta = SignalMetadata(
+            index=index, name=name, unit=unit, color=signal_color(name),
+            loaded=True, computed=True, formula=formula,
+            description=description, source_signals=list(mapping.values()), mapping=dict(mapping)
+        )
+        signal = LazySignal(
+            metadata=meta,
+            timestamps=np.asarray(timestamps, dtype=np.float64),
+            values=np.asarray(values, dtype=np.float64)
+        )
+        with self._lock:
+            previous = session.signals.get(index)
+            session.signals[index] = signal
+            if name not in session.signal_names:
+                session.signal_names.append(name)
+            session.n_signals = len(session.signals)
+            session.loaded_bytes += signal.nbytes - (previous.nbytes if previous else 0)
+        return meta
+
     def add_computed_signal(
         self, session_id: str, name: str, unit: str, description: str,
-        formula: str, source_signals: List[str],
+        formula: str, mapping: Dict[str, str],
         timestamps: NDArray[np.float64], values: NDArray[np.float64]
     ) -> Optional[Dict]:
         """Ajoute une variable calculée (données déjà calculées) à la session."""
@@ -699,23 +965,15 @@ class LazyEDAManager:
             return None
         with self._lock:
             index = max(session.signals.keys(), default=-1) + 1
-            meta = SignalMetadata(
-                index=index, name=name, unit=unit, color=signal_color(name),
-                loaded=True, computed=True, formula=formula,
-                description=description, source_signals=list(source_signals)
-            )
-            session.signals[index] = LazySignal(
-                metadata=meta,
-                timestamps=np.asarray(timestamps, dtype=np.float64),
-                values=np.asarray(values, dtype=np.float64)
-            )
-            session.signal_names.append(name)
-            session.n_signals = len(session.signals)
+        meta = self._insert_computed_signal(
+            session, index, name, unit, description, formula, mapping, timestamps, values
+        )
+        self._persist(session)
         return {"name": name, "unit": unit, "index": index, "color": meta.color}
 
     def update_computed_signal(
         self, session_id: str, index: int, unit: str, description: str,
-        formula: str, source_signals: List[str],
+        formula: str, mapping: Dict[str, str],
         timestamps: NDArray[np.float64], values: NDArray[np.float64]
     ) -> Optional[Dict]:
         """Met à jour une variable calculée existante. Retourne None si absente,
@@ -726,14 +984,11 @@ class LazyEDAManager:
         sig = session.signals[index]
         if not sig.metadata.computed:
             return False
-        with self._lock:
-            sig.timestamps = np.asarray(timestamps, dtype=np.float64)
-            sig.values = np.asarray(values, dtype=np.float64)
-            sig.metadata.unit = unit
-            sig.metadata.description = description
-            sig.metadata.formula = formula
-            sig.metadata.source_signals = list(source_signals)
-        return {"name": sig.metadata.name, "unit": unit, "index": index, "color": sig.metadata.color}
+        meta = self._insert_computed_signal(
+            session, index, sig.metadata.name, unit, description, formula, mapping, timestamps, values
+        )
+        self._persist(session)
+        return {"name": meta.name, "unit": unit, "index": index, "color": meta.color}
 
     def remove_computed_signal(self, session_id: str, index: int) -> Optional[bool]:
         """Supprime une variable calculée. None si absente, False si non calculée."""
@@ -743,12 +998,21 @@ class LazyEDAManager:
         if not session.signals[index].metadata.computed:
             return False
         with self._lock:
-            del session.signals[index]
+            removed = session.signals.pop(index)
             session.n_signals = len(session.signals)
+            session.loaded_bytes = max(0, session.loaded_bytes - removed.nbytes)
+        self._persist(session)
         return True
 
-    def close_session(self, session_id: str) -> None:
-        """Ferme une session et libère les ressources."""
+    def close_session(self, session_id: str, forget: bool = False) -> None:
+        """Ferme une session et libère les ressources.
+
+        ``forget`` distingue les deux fermetures possibles: une fermeture demandée par
+        l'utilisateur supprime le descripteur (la session ne doit pas se reconstruire au
+        prochain appel), une éviction technique le conserve (la session doit pouvoir revenir).
+        """
+        if forget:
+            delete_descriptor(session_id)
         with self._lock:
             session = self.sessions.pop(session_id, None)
         if session and session.mdf_handle:
@@ -771,12 +1035,12 @@ class LazyEDAManager:
                     logger.warning(f"[LazyEDA] Could not delete temp file {path.name}", exc_info=True)
             logger.info(f"[LazyEDA] Ephemeral session {session_id[:8]} files removed")
 
-    def close_user_sessions(self, user_id: str) -> int:
+    def close_user_sessions(self, user_id: str, forget: bool = False) -> int:
         """Ferme toutes les sessions d'un utilisateur. Retourne le nombre de sessions fermées."""
         with self._lock:
             to_close = [sid for sid, session in self.sessions.items() if session.user_id == user_id]
         for sid in to_close:
-            self.close_session(sid)
+            self.close_session(sid, forget=forget)
             logger.info(f"[LazyEDA] Closed session {sid[:8]} for user {user_id}")
         return len(to_close)
 
@@ -787,17 +1051,19 @@ class LazyEDAManager:
             if now - session.last_access > self.session_timeout
         ]
 
-    def _cleanup_old_sessions(self) -> None:
-        """Supprime les sessions expirées et applique le plafond de sessions pour libérer la mémoire."""
+    def _cleanup_expired_sessions(self) -> None:
+        """Ferme les sessions expirées.
+
+        Aucun plafond de sessions n'est appliqué: fermer la session d'un utilisateur parce qu'un
+        autre vient d'ouvrir un fichier détruisait son contexte de travail, alors que la mémoire
+        réellement consommée tient aux échantillons chargés, pas au nombre de sessions. Cette
+        mémoire est traitée par ``relieve_memory_pressure``, qui délestre les tableaux sans
+        toucher aux sessions.
+        """
         with self._lock:
             for sid in self._expired_session_ids(time.time()):
                 self.close_session(sid)
                 logger.info(f"[LazyEDA] Cleaned up expired session {sid[:8]}")
-
-            if len(self.sessions) > self.max_sessions:
-                sorted_sessions = sorted(self.sessions.items(), key=lambda x: x[1].last_access)
-                for sid, _ in sorted_sessions[:len(self.sessions) - self.max_sessions]:
-                    self.close_session(sid)
 
     def cleanup_expired(self) -> int:
         """Évince les sessions expirées et libère leurs ressources (fichiers éphémères inclus).

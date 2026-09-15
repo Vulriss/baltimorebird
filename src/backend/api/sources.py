@@ -7,8 +7,7 @@ import numpy as np
 from flask import Blueprint, Response, g, jsonify, request
 
 from api.auth import optional_auth
-from config import BASE_DIR, DATA_SOURCES
-from core import is_safe_path
+from config import DATA_SOURCES
 from data_management import datastore, lazy_eda
 
 sources_bp = Blueprint("sources", __name__)
@@ -25,13 +24,15 @@ def get_sources():
     user = getattr(g, "current_user", None)
     if user:
         user_files = storage.list_files(user.id, category="mf4", include_default=False)
-        user_dbc_dir = BASE_DIR / "data" / "users" / user.id / "dbc"
-        has_dbc = user_dbc_dir.exists() and any(user_dbc_dir.glob("*.dbc"))
+        has_dbc = bool(storage.list_files(user.id, category="dbc", include_default=False))
 
         for f in user_files:
             file_path = storage.get_file_path(f.id, user.id)
             if file_path and file_path.exists():
-                source_id = f"user_mf4_{file_path.stem}"
+                # Identifiant de source dérivé de l'identifiant de registre, et non du nom de
+                # fichier: c'est la seule clé stable, et elle sert telle quelle d'identifiant de
+                # session, donc rouvrir un fichier retombe toujours sur la même session.
+                source_id = f"user_mf4_{f.id}"
                 sources.append({
                     "id": source_id,
                     "name": f.original_name,
@@ -56,34 +57,22 @@ def set_source(source_id: str):
             if not user:
                 return jsonify({"error": "Authentification requise"}), 401
 
+            from services.storage import storage
+
             user_id = user.id
-            file_stem = source_id.replace("user_mf4_", "")
+            file_id = source_id[len("user_mf4_"):]
 
-            if not all(c.isalnum() or c in "-_" for c in file_stem):
-                return jsonify({"error": "ID de fichier invalide"}), 400
-
-            user_mf4_dir = BASE_DIR / "data" / "users" / user_id / "mf4"
-
-            mf4_path = None
-            for f in user_mf4_dir.glob("*.mf4"):
-                if f.stem == file_stem:
-                    mf4_path = f
-                    break
-
-            if not mf4_path or not mf4_path.exists():
+            # Le registre porte la propriété du fichier: il ne rend un chemin que pour un
+            # fichier appartenant à cet utilisateur, ce qui rend la vérification de confinement
+            # et le balayage de répertoire inutiles.
+            mf4_path = storage.get_file_path(file_id, user_id)
+            if mf4_path is None:
                 return jsonify({"error": "Fichier introuvable"}), 404
 
-            if not is_safe_path(user_mf4_dir, mf4_path):
-                return jsonify({"error": "Accès non autorisé"}), 403
+            dbc_files = storage.list_files(user_id, category="dbc", include_default=False)
+            dbc_path = storage.get_file_path(dbc_files[0].id, user_id) if dbc_files else None
 
-            dbc_path = None
-            user_dbc_dir = BASE_DIR / "data" / "users" / user_id / "dbc"
-            if user_dbc_dir.exists():
-                dbc_files = list(user_dbc_dir.glob("*.dbc"))
-                if dbc_files:
-                    dbc_path = dbc_files[0]
-
-            session_id = file_stem
+            session_id = file_id
 
             session = lazy_eda.get_session(session_id)
             if not session:
@@ -171,9 +160,9 @@ def get_view():
     session_id = request.args.get("session_id")
 
     if session_id:
-        from api.eda import _resolve_session
+        from api.session_access import resolve_session
 
-        session, error = _resolve_session(session_id)
+        session, error = resolve_session(session_id)
         if error:
             return error
 
@@ -294,9 +283,9 @@ def get_raw():
     if not session_id:
         return jsonify({"error": "session_id requis"}), 400
 
-    from api.eda import _resolve_session
+    from api.session_access import resolve_session
 
-    session, error = _resolve_session(session_id)
+    session, error = resolve_session(session_id)
     if error:
         return error
     return _get_lazy_raw(session.session_id)

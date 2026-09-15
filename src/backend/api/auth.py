@@ -583,7 +583,8 @@ def logout():
             # Ferme les sessions lazy EDA de cet utilisateur
             try:
                 from data_management.sessions import lazy_eda
-                closed = lazy_eda.close_user_sessions(user_id)
+                # Deconnexion explicite: les descripteurs sont oublies avec les sessions.
+                closed = lazy_eda.close_user_sessions(user_id, forget=True)
                 if closed > 0:
                     print(f"[Auth] Closed {closed} lazy session(s) for user {user_id}")
             except Exception as e:

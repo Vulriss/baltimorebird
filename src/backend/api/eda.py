@@ -1,23 +1,27 @@
 """Baltimore Bird - API pour l'Exploratory Data Analysis (lazy loading)."""
 
+import shutil
 import threading
 import uuid
 from pathlib import Path
+from typing import Optional, Tuple
 
 import numpy as np
 from flask import Blueprint, g, jsonify, request
 from werkzeug.utils import secure_filename
 
 from api.auth import get_client_ip, optional_auth, rate_limiter
+# Alias historique: les routes de ce module referencent _resolve_session par ce nom.
+from api.session_access import resolve_session as _resolve_session
 from config import (
     ALLOWED_EXTENSIONS,
     ANON_EDA_DIR_NAME,
     ANON_UPLOAD_MAX_PER_WINDOW,
     ANONYMOUS_USER_ID,
-    BASE_DIR,
+    EDA_INGEST_DIR_NAME,
     TEMP_DIR,
 )
-from core import allowed_file, sanitize_session_id
+from core import allowed_file
 from core.downsampling import lttb_downsample
 from data_management import lazy_eda
 from data_management.event_comments import serialize_event_comments
@@ -27,34 +31,6 @@ import logging
 logger = logging.getLogger(__name__)
 
 eda_bp = Blueprint("eda", __name__)
-
-
-def _resolve_session(session_id: str):
-    """Résout une session et vérifie les droits d'accès.
-
-    Retourne (session, None) si l'accès est autorisé, (None, réponse_erreur) sinon.
-    Les sessions anonymes sont éphémères et identifiées par un UUID non devinable :
-    la connaissance de cet UUID vaut autorisation (modèle capability).
-    Les sessions d'utilisateurs authentifiés exigent le token du propriétaire.
-    """
-    safe_id = sanitize_session_id(session_id)
-    if not safe_id:
-        return None, (jsonify({"error": "ID invalide"}), 400)
-
-    session = lazy_eda.get_session(safe_id)
-    if not session:
-        return None, (jsonify({"error": "Session introuvable"}), 404)
-
-    if session.user_id == ANONYMOUS_USER_ID:
-        return session, None
-
-    user = getattr(g, "current_user", None)
-    if not user:
-        return None, (jsonify({"error": "Authentification requise"}), 401)
-    if session.user_id != user.id:
-        return None, (jsonify({"error": "Accès non autorisé"}), 403)
-
-    return session, None
 
 
 def _decode_blf_to_mf4(blf_path: Path, database_upload, dest_dir: Path, session_id: str):
@@ -107,14 +83,86 @@ def _background_list_signals(session_id: str) -> None:
         logger.warning("[EDA] Listing en arrière-plan échoué pour %s", session_id[:8], exc_info=True)
 
 
+def _reject_if_over_quota(user_id: str, announced_size: Optional[int]):
+    """Refuse un upload dont la taille annoncée dépasse déjà l'espace restant.
+
+    Contrôle indicatif, fondé sur ``Content-Length``: il évite d'écrire plusieurs gigaoctets
+    sur disque pour les rejeter ensuite. Le contrôle qui fait autorité reste celui du service
+    de stockage, appliqué sur la taille réelle. Retourne une réponse d'erreur ou None.
+    """
+    if not announced_size:
+        return None
+
+    from services.storage import storage
+
+    available = storage.get_quota(user_id) - storage.get_used_space(user_id)
+    if announced_size > available:
+        return jsonify({
+            "error": "Quota de stockage dépassé : libérez de l'espace dans vos fichiers.",
+            "code": "quota_exceeded",
+        }), 413
+    return None
+
+
+def _default_user_dbc(user_id: str) -> Optional[Path]:
+    """Base CAN à appliquer par défaut aux acquisitions d'un utilisateur.
+
+    Reprise depuis le registre et non par balayage de répertoire: seuls les fichiers réellement
+    inscrits à la bibliothèque sont éligibles, et un fichier supprimé cesse aussitôt de l'être.
+    """
+    from services.storage import storage
+
+    dbc_files = storage.list_files(user_id, category="dbc", include_default=False)
+    if not dbc_files:
+        return None
+    return storage.get_file_path(dbc_files[0].id, user_id)
+
+
+def _handover_to_storage(
+    user_id: str, session_id: str, mf4_path: Path, dbc_path: Optional[Path],
+    original_filename: str, suffix: str
+) -> Tuple[str, Path, Optional[Path]]:
+    """Remet au stockage utilisateur les artefacts produits par un upload authentifié.
+
+    L'artefact conservé est toujours le MF4: un BLF ou un .mat décodé n'a plus d'intérêt sous sa
+    forme d'origine, et la catégorie de stockage n'accepte que les formats MDF. Le nom d'origine
+    est reporté en description pour garder la traçabilité de la conversion.
+
+    L'identifiant de fichier du registre devient l'identifiant de session: rouvrir le fichier
+    depuis la bibliothèque retombe ainsi sur la même session plutôt que d'en créer une seconde
+    sur le même contenu. Lève ValueError quand le stockage refuse (quota, plafonds, extension).
+    """
+    from services.storage import storage
+
+    display_name = Path(original_filename).with_suffix(".mf4").name
+    description = f"Décodé depuis {original_filename}" if suffix in (".blf", ".mat") else ""
+    stored = storage.store_existing_file(
+        user_id, mf4_path, display_name, "mf4", description=description,
+    )
+    stored_path = storage.get_file_path(stored.id, user_id)
+    if stored_path is None:
+        raise ValueError("Le fichier n'a pas pu être enregistré dans votre espace de stockage")
+
+    stored_dbc = dbc_path
+    if dbc_path is not None:
+        dbc_record = storage.store_existing_file(
+            user_id, dbc_path, Path(original_filename).with_suffix(".dbc").name, "dbc",
+        )
+        stored_dbc = storage.get_file_path(dbc_record.id, user_id)
+
+    logger.info("[EDA] Upload %s remis au stockage sous %s", session_id[:8], stored.id[:8])
+    return stored.id, stored_path, stored_dbc
+
+
 @eda_bp.route("/api/eda/upload", methods=["POST"])
 @optional_auth
 def upload_eda_file():
     """Upload un fichier MF4 pour l'EDA interactif.
 
-    Utilisateur authentifié : le fichier est conservé dans son espace personnel.
-    Utilisateur anonyme : le fichier est temporaire (session éphémère, supprimé
-    à l'expiration de la session), avec rate limiting par IP.
+    Utilisateur authentifié : le fichier rejoint sa bibliothèque via le service de stockage,
+    donc soumis au quota, visible et supprimable par lui, et conservé à la fermeture de session.
+    Utilisateur anonyme : le fichier est temporaire (session éphémère, supprimé à la fermeture
+    ou à l'expiration de la session), avec rate limiting par IP.
     """
     user = getattr(g, "current_user", None)
 
@@ -145,14 +193,19 @@ def upload_eda_file():
     ephemeral = user is None
 
     if ephemeral:
+        # Session anonyme: le fichier vit et meurt avec la session, dans le scratch commun.
         dest_dir = TEMP_DIR / ANON_EDA_DIR_NAME
         dbc_dir = dest_dir
         owner_id = ANONYMOUS_USER_ID
     else:
-        file_ext = Path(filename).suffix.lower()
-        subdir = "mf4" if file_ext in (".mf4", ".blf", ".mat") else "dbc" if file_ext == ".dbc" else "other"
-        dest_dir = BASE_DIR / "data" / "users" / user.id / subdir
-        dbc_dir = BASE_DIR / "data" / "users" / user.id / "dbc"
+        # Session authentifiée: réception et décodage dans un scratch propre à cet upload, puis
+        # remise au stockage utilisateur. Écrire directement dans l'espace de l'utilisateur
+        # produirait un fichier hors registre, donc hors quota et non supprimable par lui.
+        quota_error = _reject_if_over_quota(user.id, request.content_length)
+        if quota_error:
+            return quota_error
+        dest_dir = TEMP_DIR / EDA_INGEST_DIR_NAME / session_id
+        dbc_dir = dest_dir
         owner_id = user.id
 
     dest_dir.mkdir(parents=True, exist_ok=True)
@@ -207,12 +260,19 @@ def upload_eda_file():
                 dbc_path = dbc_dir / f"{uuid.uuid4()}.dbc"
                 dbc_file.save(dbc_path)
 
+    if not ephemeral:
+        try:
+            session_id, session_mf4_path, dbc_path = _handover_to_storage(
+                user.id, session_id, session_mf4_path, dbc_path, filename, suffix,
+            )
+        except ValueError as exc:
+            return jsonify({"error": str(exc)}), 400
+        finally:
+            # Le scratch ne survit à aucune issue: succès, refus du stockage ou erreur.
+            shutil.rmtree(dest_dir, ignore_errors=True)
+
     if suffix not in (".blf", ".mat") and not dbc_path and not ephemeral:
-        user_dbc_dir = BASE_DIR / "data" / "users" / user.id / "dbc"
-        if user_dbc_dir.exists():
-            dbc_files = list(user_dbc_dir.glob("*.dbc"))
-            if dbc_files:
-                dbc_path = dbc_files[0]
+        dbc_path = _default_user_dbc(user.id)
 
     lazy_eda.create_session(
         session_id=session_id, user_id=owner_id,
@@ -381,7 +441,7 @@ def close_eda_session(session_id: str):
         return error
     safe_id = session.session_id
 
-    lazy_eda.close_session(safe_id)
+    lazy_eda.close_session(safe_id, forget=True)
     return jsonify({"success": True})
 
 

@@ -15,13 +15,15 @@ from flask_cors import CORS
 from config import (
     ALLOWED_ORIGINS,
     ANON_EDA_DIR_NAME,
+    EDA_INGEST_DIR_NAME,
+    EDA_INGEST_MAX_AGE,
     LAZY_EDA_SESSION_TIMEOUT,
     MAX_CONTENT_LENGTH,
     TEMP_DIR,
 )
 from middleware import register_metrics_middleware, register_security_middleware
 from api import register_blueprints
-from data_management import datastore, lazy_eda, purge_orphan_files
+from data_management import datastore, lazy_eda, purge_ingest_scratch, purge_orphan_files
 from services import conversion_manager, concatenation_manager, get_supported_conversions
 
 
@@ -49,10 +51,23 @@ def create_app() -> Flask:
     register_metrics_middleware(app)
     register_blueprints(app)
     register_error_handlers(app)
+    wire_computed_recomputer()
 
     start_maintenance()
 
     return app
+
+
+def wire_computed_recomputer() -> None:
+    """Câble le moteur de recalcul des variables calculées dans le gestionnaire de sessions.
+
+    L'évaluation d'une formule appartient à la couche API, la reconstruction d'une session à la
+    couche données: le lien est établi ici, explicitement, plutôt que par un import croisé qui
+    inverserait la dépendance.
+    """
+    from api.computed import recompute_computed_signal
+
+    lazy_eda.set_computed_recomputer(recompute_computed_signal)
 
 
 def register_error_handlers(app: Flask) -> None:
@@ -100,12 +115,14 @@ def run_maintenance_cycle() -> None:
         deleted_conv = conversion_manager.cleanup_old_tasks(max_age_hours=1)
         deleted_concat = concatenation_manager.cleanup_old_tasks(max_age_hours=1)
         evicted_sessions = lazy_eda.cleanup_expired()
+        lazy_eda.relieve_memory_pressure()
         lazy_eda.refresh_ephemeral_file_mtimes()
         orphan_files = purge_orphan_files(
             _anon_eda_dir(),
             max_age_seconds=LAZY_EDA_SESSION_TIMEOUT,
             protected=lazy_eda.active_file_paths(),
         )
+        orphan_files += purge_ingest_scratch(TEMP_DIR / EDA_INGEST_DIR_NAME, EDA_INGEST_MAX_AGE)
         if any((deleted_conv, deleted_concat, evicted_sessions, orphan_files)):
             logger.info(
                 "Maintenance: %d conversion(s), %d concaténation(s), %d session(s) EDA, %d orphelin(s)",

@@ -1,17 +1,21 @@
 """Baltimore Bird - API des variables calculées."""
 
 import ast
+import logging
 import operator
 import re
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import numpy as np
-from flask import Blueprint, g, jsonify, request
+from flask import Blueprint, jsonify, request
 
 from api.auth import optional_auth
-from config import ANONYMOUS_USER_ID
-from core import sanitize_session_id
+# Alias historique: les routes de ce module referencent _resolve_session par ce nom.
+from api.session_access import resolve_session as _resolve_session
 from data_management import datastore, lazy_eda
+from data_management.session_descriptor import ComputedSignalSpec
+
+logger = logging.getLogger(__name__)
 
 computed_vars_bp = Blueprint("computed_vars", __name__)
 
@@ -308,29 +312,6 @@ def coerce_boolean_result(values: np.ndarray, unit: str) -> np.ndarray:
     return values
 
 
-def _resolve_session(session_id: str):
-    """Résout une session lazy et vérifie les droits d'accès.
-    Retourne (session, None) si autorisé, (None, réponse_erreur) sinon."""
-    safe_id = sanitize_session_id(session_id)
-    if not safe_id:
-        return None, (jsonify({"error": "ID de session invalide"}), 400)
-
-    session = lazy_eda.get_session(safe_id)
-    if not session:
-        return None, (jsonify({"error": "Session introuvable"}), 404)
-
-    if session.user_id == ANONYMOUS_USER_ID:
-        return session, None
-
-    user = getattr(g, "current_user", None)
-    if not user:
-        return None, (jsonify({"error": "Authentification requise"}), 401)
-    if session.user_id != user.id:
-        return None, (jsonify({"error": "Accès non autorisé"}), 403)
-
-    return session, None
-
-
 def _is_step_signal(unit: Optional[str], has_string_map: bool, is_state: bool = False) -> bool:
     """Signaux en escalier (bool / états): interpolation par maintien de valeur.
 
@@ -454,6 +435,28 @@ def _resolve_mapped_eager_signals(mapping: Dict[str, str]):
     return (signal_data, reference_timestamps, resample_info), None
 
 
+def recompute_computed_signal(
+    session_id: str, spec: ComputedSignalSpec
+) -> Optional[Tuple[np.ndarray, np.ndarray]]:
+    """Recalcule une variable calculée à partir de sa définition persistée.
+
+    Utilisé à la reconstruction d'une session évincée: seule la définition est conservée sur
+    disque, les échantillons sont refaits depuis le fichier source. Retourne None dès qu'un
+    signal source manque ou que la formule n'évalue plus, la variable étant alors abandonnée
+    sans compromettre le reste de la session.
+    """
+    try:
+        resolved, err = _resolve_mapped_lazy_signals(session_id, spec.mapping)
+        if err is not None:
+            return None
+        signal_data, reference_timestamps, _ = resolved
+        timestamps, values = compute_formula(spec.formula, signal_data, reference_timestamps)
+        return timestamps, coerce_boolean_result(values, spec.unit)
+    except (ValueError, KeyError, TypeError):
+        logger.warning("Recalcul impossible pour la variable calculée %s", spec.name, exc_info=True)
+        return None
+
+
 @computed_vars_bp.route("/api/create-variable", methods=["POST"])
 @optional_auth
 def create_variable():
@@ -501,7 +504,7 @@ def create_variable():
             new_vals = coerce_boolean_result(new_vals, unit)
 
             result = lazy_eda.add_computed_signal(
-                safe_id, name, unit, description, formula, list(mapping.values()), new_ts, new_vals
+                safe_id, name, unit, description, formula, mapping, new_ts, new_vals
             )
             if result is None:
                 return jsonify({"error": "Session introuvable"}), 404
@@ -657,7 +660,7 @@ def update_computed_variable(index: int):
             new_vals = coerce_boolean_result(new_vals, unit)
 
             result = lazy_eda.update_computed_signal(
-                safe_id, index, unit, description, formula, list(mapping.values()), new_ts, new_vals
+                safe_id, index, unit, description, formula, mapping, new_ts, new_vals
             )
             if result is None:
                 return jsonify({"error": "Index invalide"}), 404
