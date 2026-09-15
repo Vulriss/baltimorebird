@@ -43,11 +43,14 @@ TEMP_DIR = BASE_DIR / "TEMP"
 REPORTS_DIR = BASE_DIR / "reports"
 METRICS_DATA_DIR = BASE_DIR / "metrics_data"
 AUTH_DATA_DIR = DATA_DIR / "auth"
+# Descripteurs de sessions EDA persistants (reconstruction apres eviction ou redemarrage).
+SESSION_DESCRIPTOR_DIR = DATA_DIR / "sessions"
 
 TEMP_DIR.mkdir(exist_ok=True)
 REPORTS_DIR.mkdir(exist_ok=True)
 METRICS_DATA_DIR.mkdir(parents=True, exist_ok=True)
 AUTH_DATA_DIR.mkdir(parents=True, exist_ok=True)
+SESSION_DESCRIPTOR_DIR.mkdir(parents=True, exist_ok=True)
 
 MAX_CONTENT_LENGTH = 1500 * 1024 * 1024  # 1.5GB
 ALLOWED_ORIGINS = _parse_cors_origins()
@@ -91,8 +94,14 @@ SANDBOX_MAX_AST_NODES = 10000
 SANDBOX_MAX_STRING_LENGTH = 100000
 SANDBOX_MAX_CODE_LENGTH = 500000
 
-LAZY_EDA_MAX_SESSIONS = 50
 LAZY_EDA_SESSION_TIMEOUT = 28800  # Expiration apres 8h
+# Budget memoire des echantillons charges, toutes sessions confondues. Depasse, les signaux
+# relisibles depuis le fichier sont liberes sur les sessions les plus anciennement touchees:
+# la session survit, seuls ses tableaux partent, et ils se rechargent a la demande.
+LAZY_EDA_MEMORY_BUDGET_BYTES = int(os.environ.get("BB_LAZY_EDA_MEMORY_BUDGET_BYTES", 3 * 1024 ** 3))
+# Aucune session touchee depuis moins de ce delai n'est deleste: un utilisateur actif ne paie
+# jamais la pression memoire provoquee par les autres.
+LAZY_EDA_EVICTION_GRACE = 300
 
 METRICS_IP_SALT = os.environ.get("METRICS_IP_SALT", "baltimore_bird_2025")  # Different en prod
 
@@ -116,4 +125,8 @@ FEEDBACK_DATA_DIR.mkdir(parents=True, exist_ok=True)
 # --- Sessions EDA anonymes (fichiers temporaires, non persistants) ---
 ANONYMOUS_USER_ID = "anonymous"
 ANON_EDA_DIR_NAME = "anon_eda"
+# Scratch d'ingestion des uploads EDA authentifies: reception, decodage BLF/MAT, puis remise
+# au stockage utilisateur. Rien n'y survit a la fin d'un upload reussi.
+EDA_INGEST_DIR_NAME = "eda_ingest"
+EDA_INGEST_MAX_AGE = 3600  # Balayage des scratchs laisses par un upload interrompu
 ANON_UPLOAD_MAX_PER_WINDOW = 20  # Uploads anonymes par IP et par fenetre de 15 min
