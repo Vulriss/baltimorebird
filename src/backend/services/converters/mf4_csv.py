@@ -73,6 +73,12 @@ CHUNK_ROWS = 20_000
 
 _NUMERIC_KINDS = frozenset("fiub")
 
+# Une cellule commencant par l'un de ces caracteres est evaluee comme une formule par Excel et
+# LibreOffice; "|" et "%" ouvrent en plus la voie aux charges DDE. Seul le texte est concerne:
+# les valeurs numeriques sont formatees par nos soins et ne passent pas par la neutralisation,
+# ce qui preserve le signe moins et la notation scientifique d'une mesure negative.
+FORMULA_PREFIXES = ("=", "+", "-", "@", "|", "%", "\t", "\r")
+
 
 @dataclass(slots=True)
 class _Series:
@@ -408,13 +414,29 @@ def _project(item: _Series, grid: NDArray[np.float64], hold: str) -> tuple[NDArr
     return item.samples[positions], covered
 
 
+def neutralize_formula(text: str) -> str:
+    """Prefix a text cell a spreadsheet would otherwise evaluate as a formula.
+
+    Channel names and text samples come from the source file, which the application does not
+    author. A value such as ``=cmd()`` is executed on opening by Excel and LibreOffice, so it
+    is quoted with a leading apostrophe.
+
+    Args:
+        text: Cell content.
+
+    Returns:
+        The content, prefixed when it starts with a formula character.
+    """
+    return f"'{text}" if text.startswith(FORMULA_PREFIXES) else text
+
+
 def _cell_formatter(precision: int, decimal: str) -> Callable[[Any], str]:
     """Build the value formatter for a CSV cell."""
     numeric_format = f"{{:.{precision}g}}"
 
     def format_cell(value: Any) -> str:
         if isinstance(value, (bytes, np.bytes_)):
-            return value.decode("utf-8", errors="replace")
+            return neutralize_formula(value.decode("utf-8", errors="replace"))
         if isinstance(value, (float, np.floating)):
             if not np.isfinite(value):
                 return ""
@@ -422,7 +444,7 @@ def _cell_formatter(precision: int, decimal: str) -> Callable[[Any], str]:
             return text.replace(".", decimal) if decimal != "." else text
         if isinstance(value, (int, np.integer, np.bool_, bool)):
             return str(value)
-        return str(value)
+        return neutralize_formula(str(value))
 
     return format_cell
 
@@ -467,9 +489,9 @@ def _write_table(
 
     with path.open("w", newline="", encoding="utf-8") as handle:
         writer = csv.writer(handle, delimiter=options["delimiter"], lineterminator="\n")
-        writer.writerow([TIMESTAMP_COLUMN, *(item.name for item in table.series)])
+        writer.writerow([TIMESTAMP_COLUMN, *(neutralize_formula(item.name) for item in table.series)])
         if options["add_units"]:
-            writer.writerow([TIMESTAMP_UNIT, *(item.unit for item in table.series)])
+            writer.writerow([TIMESTAMP_UNIT, *(neutralize_formula(item.unit) for item in table.series)])
 
         for offset in range(0, grid.size, CHUNK_ROWS):
             request.raise_if_cancelled()

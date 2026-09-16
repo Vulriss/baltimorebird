@@ -18,7 +18,7 @@ from asammdf import MDF, Signal
 
 from core.exceptions import ConversionError
 from services.converters.base import ConversionCancelledError, ConversionRequest
-from services.converters.mf4_csv import Mf4ToCsvConverter
+from services.converters.mf4_csv import Mf4ToCsvConverter, neutralize_formula
 
 _FAST_RASTER = 0.1
 _SLOW_RASTER = 0.25
@@ -203,6 +203,52 @@ def test_linear_mode_matches_the_native_asammdf_export(converter: Mf4ToCsvConver
     assert ours[0][:3] == reference[0][:3]
     for row, expected in zip(ours[1:], reference[1:], strict=True):
         assert float(row[1]) == pytest.approx(float(expected[1]), abs=1e-9)
+
+
+def test_formula_like_text_is_neutralized(converter: Mf4ToCsvConverter, tmp_path: Path) -> None:
+    """A text channel starting with an Excel formula character must not stay executable."""
+    time = np.arange(0.0, 0.4, 0.1)
+    samples = np.array([b"=cmd()", b"OK", b"@SUM(A1)", b"+1"], dtype="S10")
+    path = tmp_path / "formula.mf4"
+    with MDF() as mdf:
+        mdf.append([Signal(samples=samples, timestamps=time, name="=Cmd", unit="", encoding="utf-8")])
+        mdf.save(path, overwrite=True)
+
+    result = converter.convert(_request(path, converter, tmp_path))
+    rows = _read(result.primary)
+
+    assert rows[0][1] == "'=Cmd"
+    assert [row[1] for row in rows[1:]] == ["'=cmd()", "OK", "'@SUM(A1)", "'+1"]
+
+
+def test_negative_numbers_are_left_alone(converter: Mf4ToCsvConverter, source: Path,
+                                         tmp_path: Path) -> None:
+    """The formula guard must not quote the minus sign of a negative measurement."""
+    assert neutralize_formula("-12.5") == "'-12.5"
+    result = converter.convert(_request(source, converter, tmp_path, channels=["Speed"]))
+    rows = _read(result.primary)
+
+    assert all(not row[1].startswith("'") for row in rows[1:])
+
+
+def test_small_negative_values_keep_scientific_notation(converter: Mf4ToCsvConverter,
+                                                        tmp_path: Path) -> None:
+    """Generic CSV-injection wrappers quote "-1.2e-05" as text; measurements must survive.
+
+    Any negative value below 1e-4 is formatted in scientific notation by the %g conversion,
+    and a guard keyed on the leading minus sign would silently turn it into a text cell.
+    """
+    time = np.arange(0.0, 0.3, 0.1)
+    samples = np.array([-1.234e-7, -12.5, 0.5], dtype=np.float64)
+    path = tmp_path / "small.mf4"
+    with MDF() as mdf:
+        mdf.append([Signal(samples=samples, timestamps=time, name="Current", unit="A")])
+        mdf.save(path, overwrite=True)
+
+    result = converter.convert(_request(path, converter, tmp_path))
+    values = [row[1] for row in _read(result.primary)[1:]]
+
+    assert values == ["-1.234e-07", "-12.5", "0.5"]
 
 
 def test_progress_reaches_completion(converter: Mf4ToCsvConverter, source: Path, tmp_path: Path) -> None:
