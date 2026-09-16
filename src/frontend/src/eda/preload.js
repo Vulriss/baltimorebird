@@ -13,13 +13,22 @@ import { prefetchSignalView } from './data-views.js';
 // demande prioritaire (mousedown) peut passer en tete de file et ne patienter
 // que derriere les requetes deja parties.
 // =========================================================================
-const preloadInFlight = new Set();
+const preloadInFlight = new Map();
 
-// indices dont la requete HTTP est partie
+// indice -> session dont la requete HTTP est partie
 const preloadQueue = [];
 
 // { idx, sess } en attente, tete = prochain envoi
 const PRELOAD_CONCURRENCY = 2;
+
+// Etat "prechargement en cours" d'un signal: en vol ou en attente dans la file. La liste
+// virtuelle recree ses items de zero a chaque redessin, elle a donc besoin de relire cet
+// etat pour reconstruire le spinner au lieu de l'effacer.
+export function isSignalPreloading(signalIndex) {
+    const sess = ectx.currentLazySessionId;
+    return preloadInFlight.get(signalIndex) === sess
+        || preloadQueue.some(q => q.idx === signalIndex && q.sess === sess);
+}
 
 // Point d'entree unique (survol, mousedown, depot de groupe). priority=true met
 // la demande en tete de file - ou l'y remonte si elle attendait deja.
@@ -69,7 +78,7 @@ function pumpPreloadQueue() {
             }
             continue;
         }
-        preloadInFlight.add(idx);
+        preloadInFlight.set(idx, sess);
         fetchSignalPreload(idx).finally(() => {
             preloadInFlight.delete(idx);
             pumpPreloadQueue();

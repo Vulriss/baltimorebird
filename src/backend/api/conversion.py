@@ -6,7 +6,7 @@ from flask import Blueprint, g, jsonify, request, send_file
 from werkzeug.utils import secure_filename
 
 from api.auth import admin_required, optional_auth
-from config import ALLOWED_EXTENSIONS, TEMP_DIR
+from config import ALLOWED_EXTENSIONS, CONVERSION_DISABLED_MESSAGE, CONVERSION_ENABLED, TEMP_DIR
 from core import allowed_file, is_safe_path, sanitize_task_id
 from services import (
     ConversionStatus,
@@ -18,6 +18,11 @@ from services import (
 from services.metrics import metrics
 
 conversion_bp = Blueprint("conversion", __name__)
+
+
+def conversion_unavailable():
+    """Réponse servie quand la conversion est coupée par configuration."""
+    return jsonify({"error": CONVERSION_DISABLED_MESSAGE, "enabled": False}), 503
 
 
 def validate_temp_file_path(file_path: str):
@@ -35,8 +40,22 @@ def validate_temp_file_path(file_path: str):
 
 @conversion_bp.route("/api/convert/formats")
 def get_conversion_formats():
-    """Retourne les formats de conversion supportés."""
+    """Retourne les formats de conversion supportés.
+
+    Une matrice vide et ``enabled`` à faux suffisent au frontend: le sélecteur de format
+    reste vide et le bouton de lancement ne s'active jamais.
+    """
+    if not CONVERSION_ENABLED:
+        return jsonify({
+            "enabled": False,
+            "message": CONVERSION_DISABLED_MESSAGE,
+            "supported": {},
+            "input_extensions": [],
+            "dbc_supported": False,
+        })
+
     return jsonify({
+        "enabled": True,
         "supported": get_supported_conversions(),
         "input_extensions": list(ALLOWED_EXTENSIONS - {".dbc"}),
         "dbc_supported": True,
@@ -47,6 +66,9 @@ def get_conversion_formats():
 @optional_auth
 def upload_for_conversion():
     """Upload un fichier pour conversion."""
+    if not CONVERSION_ENABLED:
+        return conversion_unavailable()
+
     if "file" not in request.files:
         return jsonify({"error": "Aucun fichier fourni"}), 400
 
@@ -91,6 +113,9 @@ def upload_for_conversion():
 @optional_auth
 def start_conversion():
     """Démarre une tâche de conversion."""
+    if not CONVERSION_ENABLED:
+        return conversion_unavailable()
+
     data = request.get_json()
 
     if not data:

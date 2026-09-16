@@ -8,7 +8,7 @@ import { prefetchSignalView } from './data-views.js';
 import { isSeriesSynth, seriesDescriptor } from './overlay.js';
 import { themedSignalColor } from './plot-ui.js';
 import { isBoolSignalIndex } from './plots.js';
-import { ensureSignalPreloaded } from './preload.js';
+import { ensureSignalPreloaded, isSignalPreloading } from './preload.js';
 import { signalRunCoverage } from './runs.js';
 
 // =========================================================================
@@ -130,7 +130,12 @@ function createSignalItemEl(sig, colorMap) {
 
     const loader = document.createElement('div');
     loader.className = 'signal-loader';
-    loader.style.display = 'none';
+    // Le spinner est reconstruit depuis l'etat de la file de prechargement, pas conserve
+    // sur le noeud: un redessin (selection, recherche, scroll, depot) recree l'item et
+    // effacerait sinon un chargement encore en vol.
+    const preloading = isSignalPreloading(sig.index);
+    loader.style.display = preloading ? 'block' : 'none';
+    if (preloading) item.classList.add('loading');
 
     item.appendChild(dot);
     item.appendChild(nameSpan);
@@ -278,7 +283,10 @@ function setupSignalListEvents(container) {
             if (S.signalsInfo[i]?.loaded === false) ensureSignalPreloaded(i, true);
         });
 
-        item.classList.add('dragging');
+        // updateSignalSelection a redessine la liste: `item` designe un noeud detache
+        // depuis, la classe doit aller sur l'item courant, relu par son id.
+        const draggedEl = document.getElementById(`signal-item-${idx}`);
+        if (draggedEl) draggedEl.classList.add('dragging');
         const dropZone = document.getElementById(`dropZone-${S.activeTabId}`);
         if (dropZone) dropZone.classList.add('active');
     });
@@ -310,9 +318,10 @@ function setupSignalListEvents(container) {
         if (e.key === 'Escape') clearSignalSelection();
     });
 
-    container.addEventListener('dragend', e => {
-        const item = e.target.closest('.signal-item');
-        if (item) item.classList.remove('dragging');
+    container.addEventListener('dragend', () => {
+        // Balayage plutot que e.target: un redessin pendant le drag remplace l'item source,
+        // et la classe resterait posee sur un noeud detache ou sur un item recycle.
+        document.querySelectorAll('.signal-item.dragging').forEach(el => el.classList.remove('dragging'));
         S.draggedSignal = null;
         S.draggedSignalGroup = [];
         const dropZone = document.getElementById(`dropZone-${S.activeTabId}`);

@@ -31,7 +31,8 @@ const ViewLoader = (() => {
         eda: () => typeof initEDA === 'function' && initEDA(),
         dashboard: () => typeof initDashboard === 'function' && initDashboard(),
         reports: () => typeof initReportsView === 'function' && initReportsView(),
-        settings: () => typeof initSettings === 'function' && initSettings()
+        settings: () => typeof initSettings === 'function' && initSettings(),
+        'data-conversion': () => typeof initDataConversion === 'function' && initDataConversion()
     });
 
     async function fetchHTML(path) {

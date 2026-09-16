@@ -943,8 +943,6 @@ function updateSignalStyle(plotId, sigIdx, property, value) {
 }
 
 export function toggleExtendedZones(plotId, sigIdx, enabled) {
-    console.log(`[BoolZones] Toggle called: plotId=${plotId}, sigIdx=${sigIdx}, enabled=${enabled}`);
-    
     const plot = S.plots.find(p => p.id === plotId);
     if (!plot) return;
     
@@ -957,11 +955,9 @@ export function toggleExtendedZones(plotId, sigIdx, enabled) {
         
         ectx.extendedBoolZones.set(sigIdx, { color, ranges, plotId });
         ectx.disabledBoolZones.delete(sigIdx);
-        console.log(`[BoolZones] Enabled for "${cached.name}": ${ranges.length} zones`);
     } else {
         ectx.extendedBoolZones.delete(sigIdx);
         ectx.disabledBoolZones.add(sigIdx);
-        console.log(`[BoolZones] Disabled for "${cached.name}"`);
     }
     
     refreshAllPlots();

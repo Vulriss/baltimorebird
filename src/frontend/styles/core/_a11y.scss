@@ -17,6 +17,14 @@
     }
 }
 
+@media (prefers-reduced-motion: reduce) {
+    .signal-loader,
+    .creating-indicator .spinner {
+        animation-duration: 1.6s !important;
+        animation-iteration-count: infinite !important;
+    }
+}
+
 .upload-guest-note {
     margin: 0 0 $spacing-5;
     padding: $spacing-2-5 $spacing-3;

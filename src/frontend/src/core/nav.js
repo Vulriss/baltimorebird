@@ -160,10 +160,48 @@ function onOutputFormatChange() {
     updateConvertButton();
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+async function initDataConversion() {
     const formatSelect = document.getElementById('outputFormat');
-    if (formatSelect) formatSelect.addEventListener('change', updateConvertButton);
-});
+    if (!formatSelect) return;
+
+    formatSelect.addEventListener('change', onOutputFormatChange);
+    updateConvertButton();
+
+    try {
+        const res = await fetch(`${CONVERT_API}/formats`);
+        const data = await res.json();
+        if (data.enabled === false) applyConversionDisabled(data.message);
+    } catch (e) {
+        console.error('Failed to fetch conversion formats:', e);
+    }
+}
+
+// Conversion coupee cote serveur: on le dit dans la vue plutot que de laisser l'utilisateur
+// buter sur un bouton gris. Le backend refuse de toute facon upload et start.
+function applyConversionDisabled(message) {
+    const input = document.getElementById('inputFile');
+    if (input) input.disabled = true;
+
+    const display = document.getElementById('fileInputDisplay');
+    if (display) {
+        display.style.pointerEvents = 'none';
+        display.style.opacity = '0.5';
+    }
+
+    const btn = document.getElementById('convertBtn');
+    if (btn) btn.disabled = true;
+
+    const notice = document.querySelector('.converter-notice');
+    if (notice && !document.getElementById('conversionDisabledNotice')) {
+        const item = document.createElement('div');
+        item.className = 'notice-item';
+        item.id = 'conversionDisabledNotice';
+        const text = document.createElement('span');
+        text.textContent = message || 'Conversion temporairement indisponible';
+        item.appendChild(text);
+        notice.prepend(item);
+    }
+}
 
 async function startConversion() {
     if (!selectedFile) return;
@@ -173,9 +211,10 @@ async function startConversion() {
 
     const formatSelect = document.getElementById('outputFormat');
     const inputExt = formatSelect.dataset.inputExt;
-    const resampleRaster = (inputExt === 'mf4' && outputFormat === 'csv')
+    const rasterChoice = (inputExt === 'mf4' && outputFormat === 'csv')
         ? document.getElementById('resampleRaster').value
-        : null;
+        : '';
+    const resampleRaster = (!rasterChoice || rasterChoice === 'original') ? null : parseFloat(rasterChoice);
 
     document.getElementById('convertState').style.display = 'none';
     document.getElementById('progressState').style.display = 'block';
@@ -564,6 +603,7 @@ function resetConcatenation() {
 // =========================================================================
 window.toggleNav = toggleNav;
 // Conversion functions
+window.initDataConversion = initDataConversion;
 window.startConversion = startConversion;
 window.downloadFile = downloadFile;
 window.resetConverter = resetConverter;

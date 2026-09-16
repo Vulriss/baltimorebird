@@ -2,6 +2,7 @@
 // Module extrait de app.js (refactoring): voir src/eda/ARCHITECTURE.md
 
 import { S } from '../core/state.js';
+import { purgeExtendedZonesForPlots } from './bool-zones.js';
 import { API, ectx } from './context.js';
 import { canRenderFromCache } from './data-views.js';
 import { renderCommentPlot, setCommentPlotSignal } from './events-strip.js';
@@ -309,6 +310,7 @@ export async function applyLayout(layout) {
     tabIds.forEach(id => {
         const tab = S.tabs.find(t => t.id === id);
         if (tab && tab.plots) {
+            purgeExtendedZonesForPlots(tab.plots);
             tab.plots.forEach(p => {
                 if (p.chart) p.chart.destroy();
             });
