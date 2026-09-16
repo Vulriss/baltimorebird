@@ -9,7 +9,7 @@ const SPIKE = 231457;
 function buildSignal() {
     const values = new Float32Array(N);
     for (let i = 0; i < N; i++) values[i] = Math.sin(i / 5000) * 100 + Math.sin(i / 7) * 2;
-    values[SPIKE] = 1e4;
+    values[SPIKE] = 10000;
     return values;
 }
 
