@@ -174,3 +174,4 @@ $RECYCLE.BIN/
 # -----------------------------------------------------------------------------
 # Ignore vscode AI rules
 .github/instructions/codacy.instructions.md
+src/backend/metrics_data/daily_stats.json
