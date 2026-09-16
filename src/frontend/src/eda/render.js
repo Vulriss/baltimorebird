@@ -2,7 +2,7 @@
 // Module extrait de app.js (refactoring): voir src/eda/ARCHITECTURE.md
 
 import { S } from '../core/state.js';
-import { boolZonesPlugin } from './bool-zones.js';
+import { boolZonesPlugin, refreshBoolZoneRanges } from './bool-zones.js';
 import { API, ectx } from './context.js';
 import { cursorPlugin, isLegendSignalSelected } from './cursors.js';
 import { PX_BUCKET, cacheCoversView, canRenderFromCache, getPersistentView, prefetchCache, replayServerData, schedulePyramidBuild, storeViewCache, targetPointsForPlot, viewCacheKey } from './data-views.js';
@@ -279,6 +279,7 @@ export function cacheServerSignals(plot, data) {
         entry.fullTimeRange = entry.isComplete ? newTimeRange : null;
 
         applyUnitConversion(plot, sig.index);
+        refreshBoolZoneRanges(sig.index, plot.cachedData[sig.index]);
         schedulePyramidBuild(plot.cachedData[sig.index]);
     });
 }

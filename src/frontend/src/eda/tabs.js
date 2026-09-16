@@ -1,4 +1,5 @@
 import { S } from '../core/state.js';
+import { purgeExtendedZonesForPlots } from './bool-zones.js';
 import { ectx } from './context.js';
 import { updateCursors } from './cursors.js';
 
@@ -244,17 +245,6 @@ function switchTab(tabId) {
     setTimeout(window.resizePlotCharts, 50);
 }
 
-// Purge les zones etendues des signaux d'un tab entier: sinon elles restent dessinees dans les autres onglets apres fermeture 
-function purgeExtendedZonesForTab(tab) {
-    if (!tab || !tab.plots) return;
-    tab.plots.forEach(p => {
-        (p.signals || []).forEach(sigIdx => {
-            ectx.extendedBoolZones.delete(sigIdx);
-            ectx.disabledBoolZones.delete(sigIdx);
-        });
-    });
-}
-
 function closeTab(tabId) {
     const tabIndex = S.tabs.findIndex(t => t.id === tabId);
     if (tabIndex === -1) return;
@@ -263,6 +253,7 @@ function closeTab(tabId) {
     if (S.tabs.length === 1) {
         // Instead, clear the tab
         const tab = S.tabs[0];
+        purgeExtendedZonesForPlots(tab.plots);
         tab.plots.forEach(p => {
             if (p.chart) p.chart.destroy();
         });
@@ -279,7 +270,7 @@ function closeTab(tabId) {
     
     // Destroy charts in this tab
     const tab = S.tabs[tabIndex];
-    purgeExtendedZonesForTab(tab);
+    purgeExtendedZonesForPlots(tab.plots);
     if (tab.plots) {
         tab.plots.forEach(p => {
             if (p.chart) p.chart.destroy();

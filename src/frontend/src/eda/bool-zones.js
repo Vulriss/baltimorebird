@@ -1,6 +1,7 @@
 // Baltimore Bird - Zones booleennes etendues (fond colore derriere les analogiques)
 // Module extrait de app.js (refactoring): voir src/eda/ARCHITECTURE.md
 
+import { S } from '../core/state.js';
 import { ectx } from './context.js';
 import { colorWithOpacity } from './plots.js';
 
@@ -31,6 +32,43 @@ export function extractBoolHighRanges(timestamps, values, threshold = 0.5) {
     return ranges;
 }
 
+// Un signal peut avoir quitte tous les panneaux sans que la carte ait ete purgee: quatre
+// chemins de destruction y menent et chacun doit y penser. Le filtre de vivacite rend une
+// entree oubliee inoffensive au dessin, la purge ci-dessous evite qu'elle ressuscite avec
+// des plages perimees quand le meme signal est reajoute.
+// La vivacite se mesure sur tous les onglets, pas sur le seul onglet actif: les zones
+// debordent volontairement sur les autres vues, c'est ce qui permet de basculer d'un onglet
+// a l'autre en gardant le highlight.
+function collectLiveSignals() {
+    const live = new Set();
+    const addFrom = plots => (plots || []).forEach(plot => {
+        (plot?.signals || []).forEach(sigIdx => live.add(sigIdx));
+    });
+    addFrom(S.plots);
+    (S.tabs || []).forEach(tab => addFrom(tab?.plots));
+    return live;
+}
+
+export function purgeExtendedZonesForPlots(plots) {
+    (plots || []).forEach(plot => {
+        (plot?.signals || []).forEach(sigIdx => {
+            ectx.extendedBoolZones.delete(sigIdx);
+            ectx.disabledBoolZones.delete(sigIdx);
+        });
+    });
+}
+
+// Les plages sont derivees du cache du panneau, qui est remplace a chaque vue tant qu'il
+// n'est pas complet. Sans ce recalcul, des bandes calculees en zoom serre, sur une fenetre
+// partielle et a la resolution decimee de cette fenetre, restent dessinees telles quelles
+// apres un dezoom. Le cache ne regresse jamais (une entree complete n'est pas remplacee par
+// une plus etroite), donc les plages convergent vers la pleine resolution.
+export function refreshBoolZoneRanges(sigIdx, cached) {
+    const zone = ectx.extendedBoolZones.get(sigIdx);
+    if (!zone || !cached || !cached.timestamps) return;
+    zone.ranges = extractBoolHighRanges(cached.timestamps, cached.values);
+}
+
 export function boolZonesPlugin() {
     return {
         hooks: {
@@ -43,8 +81,10 @@ export function boolZonesPlugin() {
                 
                 // Facteur de scale pour device pixel ratio
                 const pxRatio = devicePixelRatio || 1;
+                const live = collectLiveSignals();
                 
                 ectx.extendedBoolZones.forEach((zoneData, sigIdx) => {
+                    if (!live.has(sigIdx)) return;
                     const { color, ranges } = zoneData;
                     
                     // Couleur avec opacité réduite (20%)
