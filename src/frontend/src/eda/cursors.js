@@ -32,6 +32,8 @@ export function cursorPlugin() {
     // de temps/delta empiles, recalcule a chaque rendu par updateTimeLabels.
     const LABEL_ROW_H = 18;
     const VALUE_LABEL_H = 18;
+    // Demi-largeur de la zone de saisie d'une ligne de curseur (.cursor-line: 6px, margin -3px).
+    const CURSOR_HIT_HALF_WIDTH = 3;
     let topReserved = 2 + LABEL_ROW_H;
 
     // Place un label en haut (temps/delta) sur la premiere ligne libre evitant le
@@ -215,6 +217,22 @@ export function cursorPlugin() {
         topReserved = 2 + (maxRow + 1) * LABEL_ROW_H;
     }
 
+    // Curseur (1 ou 2) dont la zone de saisie contient l'abscisse x (px dans .u-over),
+    // le plus proche si les deux se recouvrent. null si aucun.
+    function cursorAtPos(u, x) {
+        let best = null;
+        let bestDist = CURSOR_HIT_HALF_WIDTH;
+        [[1, S.cursor1], [2, S.cursor2]].forEach(([which, val]) => {
+            if (val === null) return;
+            const dist = Math.abs(u.valToPos(val, 'x') - x);
+            if (dist <= bestDist) {
+                best = which;
+                bestDist = dist;
+            }
+        });
+        return best;
+    }
+
     // Positionne lignes, labels et delta des curseurs sans redessiner le canvas.
     // Appelee par le hook draw (zoom, nouvelles donnees) et directement pendant
     // le drag (les echelles ne changent pas: un redraw complet serait du gaspillage).
@@ -308,6 +326,8 @@ export function cursorPlugin() {
                 line1.addEventListener('mousedown', e => {
                     e.stopPropagation();
                     e.preventDefault();
+                    // Ctrl+clic: suppression geree par le handler click, pas de drag.
+                    if (e.ctrlKey || e.metaKey) return;
                     draggingCursor = 1;
                     lastTouchedCursor = 1;
                     interactionFocus = 'cursor';
@@ -320,6 +340,8 @@ export function cursorPlugin() {
                 line2.addEventListener('mousedown', e => {
                     e.stopPropagation();
                     e.preventDefault();
+                    // Ctrl+clic: suppression geree par le handler click, pas de drag.
+                    if (e.ctrlKey || e.metaKey) return;
                     draggingCursor = 2;
                     lastTouchedCursor = 2;
                     interactionFocus = 'cursor';
@@ -359,10 +381,11 @@ export function cursorPlugin() {
                 document.addEventListener('mouseup', onDocMouseUp);
 
                 over.addEventListener('click', e => {
-                    if (e.ctrlKey || e.metaKey) {
-                        const x = e.clientX - over.getBoundingClientRect().left;
-                        placeCursorAt(u.posToVal(x, 'x'));
-                    }
+                    if (!(e.ctrlKey || e.metaKey)) return;
+                    const x = e.clientX - over.getBoundingClientRect().left;
+                    const hit = cursorAtPos(u, x);
+                    if (hit !== null) removeCursor(hit);
+                    else placeCursorAt(u.posToVal(x, 'x'));
                 });
             },
             destroy: u => {
@@ -729,12 +752,18 @@ function nudgeCursor(direction, coarse) {
 function removeLastTouchedCursor() {
     const which = resolveTouchedCursor();
     if (which === null) return false;
+    removeCursor(which);
+    return true;
+}
 
+// Supprime le curseur 1 ou 2; l'autre devient la cible du clavier (Suppr, fleches).
+// Partage par Suppr et par le Ctrl+clic sur une ligne de curseur.
+function removeCursor(which) {
     if (which === 1) S.cursor1 = null;
     else S.cursor2 = null;
     lastTouchedCursor = which === 1 ? 2 : 1;
+    interactionFocus = 'cursor';
     updateCursors();
-    return true;
 }
 
 document.addEventListener('keydown', e => {
