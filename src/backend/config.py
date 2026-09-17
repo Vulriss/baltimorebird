@@ -104,6 +104,9 @@ MAX_STRING_LENGTH = 10000
 SANDBOX_MAX_AST_NODES = 10000
 SANDBOX_MAX_STRING_LENGTH = 100000
 SANDBOX_MAX_CODE_LENGTH = 500000
+# Un exposant litteral demesure (9**9**9) reste borne par le timeout du process forke,
+# mais gaspille tout ce budget d'un coup : rejete des la validation statique.
+SANDBOX_MAX_EXPONENT = 1000
 
 LAZY_EDA_SESSION_TIMEOUT = 28800  # Expiration apres 8h
 # Budget memoire des echantillons charges, toutes sessions confondues. Depasse, les signaux

@@ -27,7 +27,12 @@ try:
 except ImportError:
     HAS_RESOURCE = False
 
-from config import SANDBOX_MAX_AST_NODES, SANDBOX_MAX_CODE_LENGTH, SANDBOX_MAX_STRING_LENGTH
+from config import (
+    SANDBOX_MAX_AST_NODES,
+    SANDBOX_MAX_CODE_LENGTH,
+    SANDBOX_MAX_EXPONENT,
+    SANDBOX_MAX_STRING_LENGTH,
+)
 
 
 ALLOWED_MODULES: Set[str] = {
@@ -248,6 +253,29 @@ class CodeValidator(ast.NodeVisitor):
     def visit_Constant(self, node: ast.Constant) -> None:
         if isinstance(node.value, str) and len(node.value) > SANDBOX_MAX_STRING_LENGTH:
             self.errors.append(f"Chaîne trop longue (>{SANDBOX_MAX_STRING_LENGTH} chars)")
+        self.generic_visit(node)
+
+    @staticmethod
+    def _constant_exponent(node: ast.expr) -> Optional[Any]:
+        """Extrait la valeur d'un exposant litteral, y compris signe unaire (-5000)."""
+        if isinstance(node, ast.Constant) and isinstance(node.value, (int, float)):
+            return node.value
+        if isinstance(node, ast.UnaryOp) and isinstance(node.op, (ast.UAdd, ast.USub)):
+            inner = CodeValidator._constant_exponent(node.operand)
+            if inner is not None:
+                return -inner if isinstance(node.op, ast.USub) else inner
+        return None
+
+    def visit_BinOp(self, node: ast.BinOp) -> None:
+        if isinstance(node.op, ast.Pow):
+            # ** est associatif a droite : 9**9**9 = 9**(9**9), donc l'exposant litteral
+            # de l'operande droit ne suffit pas a detecter une tour d'exponentiation.
+            if isinstance(node.right, ast.BinOp) and isinstance(node.right.op, ast.Pow):
+                self.errors.append("Puissance imbriquée interdite")
+            else:
+                exponent = self._constant_exponent(node.right)
+                if exponent is not None and abs(exponent) > SANDBOX_MAX_EXPONENT:
+                    self.errors.append(f"Exposant trop grand (>{SANDBOX_MAX_EXPONENT})")
         self.generic_visit(node)
 
     def visit_With(self, node: ast.With) -> None:
