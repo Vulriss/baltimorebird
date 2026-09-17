@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  backend-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - run: pip install -r src/backend/requirements.txt
+
+      # Pas de pytest.ini a la racine : les tests se lancent fichier par fichier,
+      # voir .okf/workflows/testing.md. rust_mdf_parser n'est volontairement pas
+      # installe ici (dependance optionnelle absente de requirements.txt) : ces
+      # tests doivent rester verts sur le fallback asammdf, comme en production.
+      - name: Tests backend
+        working-directory: src/backend
+        run: |
+          python -m pytest api/test_computed_formula.py
+          python -m pytest api/test_zone_stats.py
+          python -m pytest data_management/test_session_restore.py
+          python -m pytest services/test_storage_ingest.py
+          python -m pytest services/test_sandbox.py
+          python -m pytest services/dashboard/test_dashboard.py
+          python -m pytest services/dashboard/test_formatting.py
+
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+
+      - name: Tests frontend
+        working-directory: src/frontend
+        run: |
+          bun install
+          bun run test
