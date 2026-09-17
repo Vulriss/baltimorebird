@@ -3,6 +3,8 @@
 
 import { S } from '../core/state.js';
 import { API, ectx } from './context.js';
+import { invalidateSignalCaches } from './data-views.js';
+import { fetchAndRenderPlot } from './render.js';
 import { escapeHtml } from './shared-dom.js';
 import { renderSignalList } from './signal-list.js';
 
@@ -380,6 +382,8 @@ export async function submitCreateVariable() {
     const formulaInput = document.getElementById('newVarFormula');
     
     const isUpdateMode = editingVariableIndex !== null;
+    // Capture: la fermeture du drawer pendant les requetes remet editingVariableIndex a null.
+    const editedIndex = editingVariableIndex;
     
     // Clear previous errors
     document.querySelectorAll('.drawer-field.error').forEach(f => f.classList.remove('error'));
@@ -511,6 +515,12 @@ export async function submitCreateVariable() {
         }
 
         renderSignalList();
+        // Edition: le serveur a remplace les donnees sous le meme index. On oublie l'ancien
+        // calcul dans tous les caches client et on redessine les plots qui l'affichent (ceux
+        // des onglets masques sont rejoues au retour, via plotIsVisible).
+        if (isUpdateMode) {
+            invalidateSignalCaches(editedIndex).forEach(plot => fetchAndRenderPlot(plot));
+        }
         // En comparaison, creer aussi la variable sur les autres runs compares qui disposent
         // des signaux sources, pour qu'elle soit presente partout (couverture N/N, overlay).
         if (S.comparing && !isUpdateMode) {

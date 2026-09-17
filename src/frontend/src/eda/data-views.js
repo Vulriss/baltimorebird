@@ -4,7 +4,7 @@
 import { S } from '../core/state.js';
 import { API, ectx } from './context.js';
 import { buildMinMaxPyramid } from './minmax-pyramid.js';
-import { plotHasSynth } from './overlay.js';
+import { isSeriesSynth, plotHasSynth, seriesDescriptor } from './overlay.js';
 import { updateSignalsLoadedStatus } from './plots.js';
 import { cacheServerSignals, fetchViewData, renderBoolPlot, renderPlotChart } from './render.js';
 import { plotIsVisible } from './view-nav.js';
@@ -145,6 +145,50 @@ function storePersistentView(sessionId, vKey, data, maxPts) {
     while (persistentViewCache.size > MAX_PERSISTENT_VIEW_CACHE) {
         persistentViewCache.delete(persistentViewCache.keys().next().value);
     }
+}
+
+// Vrai si la cle de vue (viewKey, prefixee ou non par la session) porte ce signal. Le
+// segment des signaux suit le dernier ':' et ne contient jamais ce caractere.
+export function viewKeyHasSignal(key, sigKey) {
+    return key.slice(key.lastIndexOf(':') + 1).split(',').includes(String(sigKey));
+}
+
+function deleteMatchingKeys(map, predicate) {
+    for (const key of [...map.keys()]) {
+        if (predicate(key)) map.delete(key);
+    }
+}
+
+// Cles de series du plot designant le signal sigIdx de la session active: index reel, ou
+// cle synthetique d'overlay resolue vers cette session et cet index.
+function plotKeysForSignal(plot, sigIdx) {
+    return plot.signals.filter(key => {
+        if (!isSeriesSynth(key)) return Number(key) === sigIdx;
+        const desc = seriesDescriptor(key);
+        return desc.sessionId === ectx.currentLazySessionId && desc.realIndex === sigIdx;
+    });
+}
+
+// Oublie les donnees client d'un signal dont le contenu a change cote serveur (variable
+// calculee modifiee): cache et derives par plot, vues par plot, vues persistantes de la
+// session et prefetch. Sans cela cacheServerSignals conserve le cache complet et chaque
+// rendu rejoue l'ancien calcul. Renvoie les plots concernes, a re-rendre par l'appelant.
+export function invalidateSignalCaches(sigIdx) {
+    const affected = [];
+    for (const plot of S.plots) {
+        const keys = plotKeysForSignal(plot, sigIdx);
+        if (keys.length === 0) continue;
+        for (const key of keys) {
+            delete plot.cachedData[key];
+            if (plot._derivedCache) delete plot._derivedCache[key];
+            if (plot.viewCache) deleteMatchingKeys(plot.viewCache, vKey => viewKeyHasSignal(vKey, key));
+        }
+        affected.push(plot);
+    }
+    const sessionPrefix = `${ectx.currentLazySessionId}::`;
+    deleteMatchingKeys(persistentViewCache, key => key.startsWith(sessionPrefix) && viewKeyHasSignal(key, sigIdx));
+    deleteMatchingKeys(prefetchCache, key => viewKeyHasSignal(key, sigIdx));
+    return affected;
 }
 
 // Rejoue une reponse serveur (en cache) via le chemin de rendu normal, sans reseau.

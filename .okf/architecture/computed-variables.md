@@ -21,5 +21,14 @@ expression, y compris une suggestion générée par un modèle, doit la faire pa
 par cet évaluateur et l'afficher à l'utilisateur avant application. Le générateur
 propose du texte ; il n'est jamais un chemin d'exécution.
 
+## Modification d'une variable déjà tracée
+
+Le serveur remplace les données sous le même index. Côté client,
+`submitCreateVariable` appelle `invalidateSignalCaches` (`eda/data-views.js`), qui
+oublie le signal dans `cachedData`, les dérivés, les vues par plot, les vues
+persistantes de la session et le prefetch, puis redessine les plots concernés. Sans
+cette purge, `cacheServerSignals` conserve le cache complet et l'ancien calcul reste
+affiché.
+
 Voir [AST sur liste blanche plutôt qu'eval](/decisions/0001-ast-allowlist-over-eval.md)
 et [Invariants de sécurité](/policies/security-invariants.md).
