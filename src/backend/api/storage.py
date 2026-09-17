@@ -8,7 +8,7 @@ from flask import Blueprint, g, jsonify, request, send_file
 from werkzeug.utils import secure_filename
 
 from api.auth import admin_required, login_required
-from config import BASE_DIR
+from config import BASE_DIR, DEFAULT_QUOTA_BYTES
 from core import is_safe_path
 from services.storage import CATEGORIES, allowed_file, storage
 
@@ -360,4 +360,22 @@ def update_user_quota(user_id: str):
     except ValueError:
         return jsonify({"error": "ID utilisateur invalide"}), 400
 
-    return jsonify({"success": True, "message": "Quota update non implémenté pour le moment"})
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "Données JSON requises"}), 400
+
+    quota_bytes = data.get("quota_bytes")
+    if not isinstance(quota_bytes, int) or isinstance(quota_bytes, bool) or quota_bytes <= 0:
+        return jsonify({"error": "quota_bytes doit être un entier positif"}), 400
+    # 5 Go est la limite du serveur de production (voir DEFAULT_QUOTA_BYTES) : un admin ne
+    # peut pas accorder plus que ce que le serveur peut effectivement fournir.
+    if quota_bytes > DEFAULT_QUOTA_BYTES:
+        return jsonify({"error": f"quota_bytes dépasse le maximum autorisé ({DEFAULT_QUOTA_BYTES})"}), 400
+
+    storage.set_quota(user_id, quota_bytes)
+
+    return jsonify({
+        "success": True,
+        "quota_bytes": quota_bytes,
+        "quota_human": format_size(quota_bytes),
+    })

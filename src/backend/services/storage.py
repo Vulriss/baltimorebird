@@ -230,6 +230,18 @@ class StorageManager:
         row = cursor.fetchone()
         return row["quota_bytes"] if row else DEFAULT_QUOTA_BYTES
 
+    def set_quota(self, user_id: str, quota_bytes: int) -> None:
+        conn = self._get_conn()
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            INSERT INTO user_quotas (user_id, quota_bytes) VALUES (?, ?)
+            ON CONFLICT(user_id) DO UPDATE SET quota_bytes = excluded.quota_bytes
+            """,
+            (user_id, quota_bytes),
+        )
+        conn.commit()
+
     def get_used_space(self, user_id: str, category: Optional[str] = None) -> int:
         if not is_valid_uuid(user_id):
             return 0
