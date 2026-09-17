@@ -42,6 +42,13 @@ FORBIDDEN_PATTERNS: List[str] = [
     r"\bos\b", r"\bsys\b", r"\bsubprocess\b", r"\blambda\b", r"\bclass\b", r"\bdef\b",
 ]
 
+# Une formule constante comme 9**9**9 ne touche jamais numpy: ast.Constant renvoie un
+# int Python natif, et operator.pow calcule alors une puissance a precision arbitraire
+# (9 ** 387420489) qui bloque le worker gunicorn unique pendant des minutes. Borner
+# l'exposant ferme la faille sans genner les formules reelles (les flottants saturent
+# a inf bien avant cette valeur, deja absorbe par le clamp isposinf/isneginf plus bas).
+FORMULA_MAX_EXPONENT = 1000
+
 
 def validate_formula(formula: str) -> Tuple[bool, Optional[str]]:
     if not formula or not formula.strip():
@@ -205,7 +212,11 @@ class SafeExpressionEvaluator:
             handler = self._BINARY_OPS.get(type(node.op))
             if handler is None:
                 raise UnsafeExpressionError("Operateur binaire interdit")
-            return handler(self._eval(node.left, namespace), self._eval(node.right, namespace))
+            left = self._eval(node.left, namespace)
+            right = self._eval(node.right, namespace)
+            if isinstance(node.op, ast.Pow) and np.any(np.abs(right) > FORMULA_MAX_EXPONENT):
+                raise UnsafeExpressionError("Exposant trop grand")
+            return handler(left, right)
         if isinstance(node, ast.UnaryOp):
             unary = self._UNARY_OPS.get(type(node.op))
             if unary is None:

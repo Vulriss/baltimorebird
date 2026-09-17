@@ -150,6 +150,22 @@ def test_runtime_errors():
     print("test_runtime_errors OK")
 
 
+def test_rejects_huge_exponent():
+    # 9**9**9 reste un int Python natif (aucun signal impliqué) : sans garde, operator.pow
+    # calcule une puissance a precision arbitraire qui bloque le worker pendant des minutes.
+    t, data = _base_signals()
+    raised = ""
+    try:
+        compute_formula("9**9**9", {k: v.copy() for k, v in data.items()}, t)
+    except ValueError as e:
+        raised = str(e)
+    assert "Exposant trop grand" in raised, f"9**9**9 -> {raised!r}"
+
+    # Un exposant raisonnable, y compris sur un signal, doit toujours fonctionner.
+    assert np.allclose(_run("A**2"), [1.0, 25.0, 0.0, 100.0])
+    print("test_rejects_huge_exponent OK")
+
+
 def test_length_mismatch_is_aligned_not_rejected():
     # Les longueurs différentes ne lèvent plus d'erreur : compute_formula reçoit
     # des données déjà alignées en amont (voir _align_on_common_raster).
