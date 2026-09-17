@@ -15,7 +15,7 @@ jobs:
         with:
           python-version: '3.11'
 
-      - run: pip install -r src/backend/requirements.txt
+      - run: pip install -r src/backend/requirements.txt pytest
 
       # Pas de pytest.ini a la racine : les tests se lancent fichier par fichier,
       # voir .okf/workflows/testing.md. rust_mdf_parser n'est volontairement pas
