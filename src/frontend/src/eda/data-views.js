@@ -47,7 +47,7 @@ export function targetPointsForPlot(plot) {
 // qui fragmentait le cache et provoquait des re-fetch au zoom arriere. On la sort donc
 // de la cle et on la memorise a cote (voir storeViewCache / rejeu conditionnel).
 function viewKey(signalsStr) {
-    const r = v => Math.round(v * 1000) / 1000;
+    const r = v => Math.round(v * 1e9) / 1e9;
     return `${r(ectx.globalView.min)}:${r(ectx.globalView.max)}:${signalsStr}`;
 }
 

@@ -32,4 +32,16 @@ Les axes sont dessinés sur le canvas : il n'existe aucun élément DOM pour les
 gouttières. Toute fonctionnalité qui voudrait les désigner ou les instrumenter
 doit passer par des coordonnées, pas par un sélecteur.
 
-Les curseurs vivent dans `src/frontend/src/eda/cursors.js`.
+Les curseurs vivent dans `src/frontend/src/eda/cursors.js`. Leurs temps et le delta
+prennent juste assez de décimales pour distinguer deux pixels voisins (3 au minimum, 9 au plus).
+Le delta s'affiche avec un préfixe SI (`34 ms`, `18 µs`) via `formatDuration` de `time-axis.js`,
+sur le plot comme dans la table de mesure ; les temps A et B restent en secondes.
+
+## Libellés de l'axe temporel
+
+`src/frontend/src/eda/time-axis.js` fournit `space` et `values` à `xAxisConfig`.
+En mode absolu, les graduations portent exactement les décimales du pas. Au-delà de
+7 chiffres significatifs, si le décalage en économise au moins 4, elles passent en
+écarts relatifs à préfixe SI commun (`+500 µs`) et l'ancre absolue s'affiche une fois,
+dans l'élément `.x-axis-offset` au coin bas-gauche de la zone de tracé. `space` est
+partagé avec les axes masqués pour garder les grilles alignées entre panneaux.

@@ -8,6 +8,7 @@ import { isSeriesSynth, seriesDescriptor } from './overlay.js';
 import { autoScaleY, isFirstPlot, renderPlotFromCache, resolveSignalStyle } from './plot-ui.js';
 import { removeSignalFromPlot } from './plots.js';
 import { effectiveRunOffset } from './runs.js';
+import { formatDuration } from './time-axis.js';
 import { effectiveCache } from './transforms.js';
 import { redoView, undoView } from './view-nav.js';
 
@@ -158,6 +159,7 @@ export function cursorPlugin() {
 
         const has1 = S.cursor1 !== null;
         const has2 = S.cursor2 !== null;
+        const decimals = cursorTimeDecimals(u);
         const x1 = has1 ? u.valToPos(S.cursor1, 'x') : 0;
         const x2 = has2 ? u.valToPos(S.cursor2, 'x') : 0;
         const placed = [];
@@ -166,7 +168,7 @@ export function cursorPlugin() {
         // Labels de temps: centres sur leur curseur, empiles en lignes s'ils se
         // chevauchent horizontalement.
         if (has1 && timeLabel1) {
-            const text = S.cursor1.toFixed(3) + 's';
+            const text = S.cursor1.toFixed(decimals) + 's';
             if (timeLabel1.textContent !== text) timeLabel1.textContent = text;
             const row = placeTopLabel(placed, x1, estLabelWidth(text));
             maxRow = Math.max(maxRow, row);
@@ -178,7 +180,7 @@ export function cursorPlugin() {
         }
 
         if (has2 && timeLabel2) {
-            const text = S.cursor2.toFixed(3) + 's';
+            const text = S.cursor2.toFixed(decimals) + 's';
             if (timeLabel2.textContent !== text) timeLabel2.textContent = text;
             const row = placeTopLabel(placed, x2, estLabelWidth(text));
             maxRow = Math.max(maxRow, row);
@@ -199,7 +201,7 @@ export function cursorPlugin() {
             deltaLine.style.transform = `translate3d(${left}px, 0, 0)`;
             deltaLine.style.width = width + 'px';
 
-            const deltaText = 'Δ ' + Math.abs(S.cursor2 - S.cursor1).toFixed(3) + 's';
+            const deltaText = 'Δ ' + formatDuration(Math.abs(S.cursor2 - S.cursor1), decimals);
             if (deltaLabel.textContent !== deltaText) deltaLabel.textContent = deltaText;
             const center = left + width / 2;
             const row = placeTopLabel(placed, center, estLabelWidth(deltaText));
@@ -600,6 +602,22 @@ document.addEventListener('keydown', (e) => {
     if (autoScaleY(plot)) e.preventDefault();
 });
 
+// Bornes des decimales des temps curseurs: 3 au zoom usuel (affichage historique),
+// 9 au plus (nanoseconde, resolution de viewKey).
+const MIN_CURSOR_TIME_DECIMALS = 3;
+const MAX_CURSOR_TIME_DECIMALS = 9;
+
+// Decimales des temps curseurs et du delta: juste assez pour distinguer deux pixels
+// voisins a l'echelle X courante. Sans chart, repli sur la vue globale (comme nudgeCursor).
+function cursorTimeDecimals(chart) {
+    const perPixel = chart
+        ? Math.abs(chart.posToVal(1, 'x') - chart.posToVal(0, 'x'))
+        : (ectx.globalView.max - ectx.globalView.min) / 1000;
+    if (!(perPixel > 0) || !Number.isFinite(perPixel)) return MIN_CURSOR_TIME_DECIMALS;
+    const needed = Math.ceil(-Math.log10(perPixel));
+    return Math.min(MAX_CURSOR_TIME_DECIMALS, Math.max(MIN_CURSOR_TIME_DECIMALS, needed));
+}
+
 function formatCursorNumber(v) {
     if (!Number.isFinite(v)) return '-';
     const abs = Math.abs(v);
@@ -635,12 +653,13 @@ export function updateCursorReadout(plot) {
 
     if (!active) return;
 
+    const decimals = cursorTimeDecimals(plot.chart);
     setTextIfChanged(table.querySelector('[data-time="a"]'),
-        S.cursor1 !== null ? S.cursor1.toFixed(3) : '-');
+        S.cursor1 !== null ? S.cursor1.toFixed(decimals) : '-');
     setTextIfChanged(table.querySelector('[data-time="b"]'),
-        S.cursor2 !== null ? S.cursor2.toFixed(3) : '-');
+        S.cursor2 !== null ? S.cursor2.toFixed(decimals) : '-');
     setTextIfChanged(table.querySelector('[data-time="d"]'),
-        both ? (S.cursor2 - S.cursor1).toFixed(3) : '-');
+        both ? formatDuration(S.cursor2 - S.cursor1, decimals) : '-');
 
     plot.signals.forEach(sigIdx => {
         const cached = effectiveCache(plot, sigIdx);

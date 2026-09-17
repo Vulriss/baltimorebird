@@ -12,6 +12,7 @@ import { plotHasSynth, renderOverlayFromCache } from './overlay.js';
 import { autoEnableExtendedZones, updatePlotHeader } from './plot-legend.js';
 import { colorWithOpacity } from './plots.js';
 import { assembleAlignedData, renderBoolPlot } from './render.js';
+import { timeAxisSpace, timeAxisValues } from './time-axis.js';
 import { effectiveCache, groupedWindowedViews, renderPlotFromCacheFiltered } from './transforms.js';
 import { applyGlobalViewLocal, panPlotsScaleOnly, recordViewChange, refreshAllPlots } from './view-nav.js';
 
@@ -27,6 +28,9 @@ import { applyGlobalViewLocal, panPlotsScaleOnly, recordViewChange, refreshAllPl
 // de curseur du zoom. setScale: false delegue entierement le zoom au hook
 // setSelect (pas de double application par uPlot).
 const PLOT_CURSOR_DRAG = { x: true, y: true, uni: 50, dist: 8, setScale: false };
+
+// Etendue X minimale d'un zoom par selection (s)
+const MIN_X_SPAN = 1e-6;
 
 // Adapte une couleur par defaut au theme courant. La teinte attribuee par le serveur
 // (hsl(H, 70%, 55%)) reste l'identite du signal; saturation et luminosite sont une
@@ -137,7 +141,7 @@ export function zoomToSelection(u) {
         const xB = u.posToVal(sel.left + sel.width, 'x');
         const min = Math.min(xA, xB);
         const max = Math.max(xA, xB);
-        if (max - min <= 0.01) {
+        if (max - min <= MIN_X_SPAN) {
             clearSelect();
             return;
         }
@@ -286,11 +290,20 @@ export function themeChartColors() {
 // Configuration de l'axe X. L'axe temporel n'est affiche que sur le panneau du
 // bas: les autres ne gardent que la grille verticale (sans graduations ni
 // gouttiere) pour ne pas dupliquer les etiquettes et gagner de la hauteur.
+// Libelles et espacement adaptatifs: voir time-axis.js. space est commun aux deux
+// variantes pour que les grilles restent alignees entre panneaux.
 export function xAxisConfig(showTimeAxis) {
     if (showTimeAxis) {
-        return { stroke: () => themeChartColors().axis, grid: { stroke: () => themeChartColors().grid, width: 1 }, size: 40 };
+        return {
+            stroke: () => themeChartColors().axis,
+            grid: { stroke: () => themeChartColors().grid, width: 1 },
+            size: 40,
+            space: timeAxisSpace,
+            values: timeAxisValues,
+        };
     }
     return {
+        space: timeAxisSpace,
         grid: { stroke: () => themeChartColors().grid, width: 1 },
         ticks: { show: false },
         gap: 0,

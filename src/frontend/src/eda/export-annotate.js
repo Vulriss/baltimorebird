@@ -288,7 +288,7 @@ import { resizeAllChartsNow } from './plots.js';
         const canvasRect = cnv.getBoundingClientRect();
         container.querySelectorAll('.cursor-line').forEach(el => drawVCursor(ctx, el, canvasRect, originX, originY));
         container.querySelectorAll('.cursor-delta-line').forEach(el => drawDeltaLine(ctx, el, canvasRect, originX, originY));
-        const labels = '.cursor-time-label, .cursor-delta-label, .cursor-label';
+        const labels = '.cursor-time-label, .cursor-delta-label, .cursor-label, .x-axis-offset';
         container.querySelectorAll(labels).forEach(el => {
             rasterizeOverlayEl(ctx, el, canvasRect, originX, originY);
         });

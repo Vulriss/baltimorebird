@@ -365,3 +365,21 @@
     border: 1px solid $border-color;
     border-radius: 6px;
 }
+
+/* Ancre absolue de l'axe X en mode relatif (graduations "+500 µs"): coin bas-gauche
+   de la zone de trace du panneau qui porte l'axe temporel. Voir eda/time-axis.js. */
+.x-axis-offset {
+    position: absolute;
+    left: 2px;
+    bottom: 2px;
+    font-size: 10px;
+    font-family: $font-mono;
+    padding: 1px 5px;
+    border-radius: $radius-sm;
+    pointer-events: none;
+    z-index: 45;
+    white-space: nowrap;
+    background: var(--cursor-label-bg);
+    border: 1px solid $border-color;
+    color: $text-muted;
+}
