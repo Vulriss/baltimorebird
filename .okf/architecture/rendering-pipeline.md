@@ -37,6 +37,15 @@ prennent juste assez de décimales pour distinguer deux pixels voisins (3 au min
 Le delta s'affiche avec un préfixe SI (`34 ms`, `18 µs`) via `formatDuration` de `time-axis.js`,
 sur le plot comme dans la table de mesure ; les temps A et B restent en secondes.
 
+## Bords de la fenêtre
+
+Toute vue inclut l'échantillon qui précède la fenêtre et celui qui la suit : `windowBounds`
+côté client, `LazyEDAManager.get_view` et `MultiSourceDataStore.get_view` côté serveur.
+Le cadrage Y automatique porte sur l'enveloppe de la trace effectivement dessinée, bords
+compris (`src/frontend/src/eda/trace-envelope.js`), et non sur les seuls échantillons
+visibles : en escalier la valeur tenue au bord gauche, en linéaire les valeurs interpolées
+aux deux bords.
+
 ## Libellés de l'axe temporel
 
 `src/frontend/src/eda/time-axis.js` fournit `space` et `values` à `xAxisConfig`.

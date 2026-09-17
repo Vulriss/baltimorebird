@@ -1224,8 +1224,13 @@ class LazyEDAManager:
                 n_original = i1 - i0
                 is_complete = i0 == 0 and i1 == len(values)
             else:
-                t_slice = timestamps[i0:i1]
-                v_slice = values[i0:i1]
+                # Un echantillon de part et d'autre de la fenetre, comme la branche escalier et
+                # windowBounds cote client: le trace atteint les bords de la vue, et une fenetre
+                # tombant entre deux echantillons renvoie ces deux voisins au lieu de rien.
+                # Le slicing numpy borne i1 + 1 a la longueur du signal.
+                a0 = max(0, i0 - 1)
+                t_slice = timestamps[a0 : i1 + 1]
+                v_slice = values[a0 : i1 + 1]
                 if len(t_slice) == 0:
                     continue
                 n_original = i1 - i0
@@ -1233,8 +1238,8 @@ class LazyEDAManager:
                     t_down, v_down = lttb_downsample(t_slice, v_slice, max_points)
                 else:
                     t_down, v_down = t_slice, v_slice
-                stat_values = v_slice
-                is_complete = n_original <= max_points
+                stat_values = v_slice[i0 - a0 : i1 - a0]
+                is_complete = len(t_slice) <= max_points
 
             signal_data = {
                 "index": idx,

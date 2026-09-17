@@ -13,6 +13,7 @@ import { autoEnableExtendedZones, updatePlotHeader } from './plot-legend.js';
 import { colorWithOpacity } from './plots.js';
 import { assembleAlignedData, renderBoolPlot } from './render.js';
 import { timeAxisSpace, timeAxisValues } from './time-axis.js';
+import { traceEnvelope } from './trace-envelope.js';
 import { effectiveCache, groupedWindowedViews, renderPlotFromCacheFiltered } from './transforms.js';
 import { applyGlobalViewLocal, panPlotsScaleOnly, recordViewChange, refreshAllPlots } from './view-nav.js';
 
@@ -508,6 +509,15 @@ function autoYRange(dataMin, dataMax) {
     return [dataMin - pad, dataMax + pad];
 }
 
+// Cadrage Y automatique sur l'enveloppe de la trace dessinee dans la fenetre X, bords
+// compris (voir trace-envelope.js), et non sur les seuls echantillons visibles fournis par
+// uPlot. Repli sur dataMin/dataMax quand rien n'est trace dans la fenetre.
+function autoYRangeForTrace(u, dataMin, dataMax) {
+    const traces = u.series.slice(1).map((s, k) => ({ ys: u.data[k + 1], mode: s._mode, show: s.show }));
+    const envelope = traceEnvelope(u.data[0], traces, ectx.globalView.min, ectx.globalView.max);
+    return envelope ? autoYRange(envelope.min, envelope.max) : autoYRange(dataMin, dataMax);
+}
+
 // Pan des axes facon demo uPlot "Draggable y scales": glisser sur la gouttiere de
 // l'axe X (sous la zone de trace) translate la fenetre temporelle globale (partagee
 // par tous les panneaux); glisser sur la gouttiere de l'axe Y (a gauche) translate
@@ -624,9 +634,9 @@ function buildPlotOptions(series, width, height, plot, bands = null, showTimeAxi
         scales: {
             x: { time: false, range: () => [ectx.globalView.min, ectx.globalView.max] },
             // Borne Y lue en direct sur plot.yRange: bornee si zoom Y, auto sinon.
-            y: { range: (u, dataMin, dataMax) => plot.yRange
+            y: { range: (u, dataMin, dataMax) => (plot.yRange
                 ? [plot.yRange.min, plot.yRange.max]
-                : autoYRange(dataMin, dataMax) },
+                : autoYRangeForTrace(u, dataMin, dataMax)) },
         },
         axes: [
             xAxisConfig(showTimeAxis),

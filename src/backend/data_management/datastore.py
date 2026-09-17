@@ -152,18 +152,24 @@ class MultiSourceDataStore:
             # Timestamps monotones: bornage O(log n) au lieu d'un masque O(n).
             i0 = int(np.searchsorted(timestamps, start_time, side="left"))
             i1 = int(np.searchsorted(timestamps, end_time, side="right"))
-            view_ts, view_vals = timestamps[i0:i1], values[i0:i1]
+            view_vals = values[i0:i1]
+            # Un echantillon de part et d'autre de la fenetre pour que le trace atteigne les
+            # bords de la vue (meme contrat que windowBounds cote client). LTTB conserve le
+            # premier et le dernier point; les statistiques restent sur la fenetre stricte.
+            a0, a1 = max(0, i0 - 1), min(len(timestamps), i1 + 1)
+            trace_ts, trace_vals = timestamps[a0:a1], values[a0:a1]
 
-            if len(view_ts) == 0:
+            if len(trace_ts) == 0:
                 continue
 
-            result["view"]["original_points"] += len(view_ts)
+            result["view"]["original_points"] += i1 - i0
+            stat_vals = view_vals if len(view_vals) > 0 else trace_vals
 
             t_start = time.time()
-            if len(view_ts) > max_points:
-                ds_ts, ds_vals = lttb_downsample(view_ts, view_vals, max_points)
+            if len(trace_ts) > max_points:
+                ds_ts, ds_vals = lttb_downsample(trace_ts, trace_vals, max_points)
             else:
-                ds_ts, ds_vals = view_ts, view_vals
+                ds_ts, ds_vals = trace_ts, trace_vals
             lttb_time = (time.time() - t_start) * 1000
 
             result["view"]["returned_points"] += len(ds_ts)
@@ -174,10 +180,10 @@ class MultiSourceDataStore:
                 "color": meta["color"],
                 "timestamps": ds_ts.tolist(),
                 "values": ds_vals.tolist(),
-                "is_complete": len(view_ts) <= max_points,
+                "is_complete": len(trace_ts) <= max_points,
                 "stats": {
-                    "min": float(np.min(view_vals)),
-                    "max": float(np.max(view_vals)),
+                    "min": float(np.min(stat_vals)),
+                    "max": float(np.max(stat_vals)),
                     "lttb_ms": round(lttb_time, 2)
                 },
             })
