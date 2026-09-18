@@ -3,13 +3,19 @@
 @use '../abstracts/variables' as *;
 
 /* === TABS SYSTEM === */
+/* $bg-toolbar (pas transparent): meme ton "chrome" que .toolbar au-dessus
+   (les deux paliers de controle partagent le meme fond), pendant que l'onglet
+   actif reste sur $bg-card - le meme ton que les cartes de plot en dessous.
+   L'onglet actif "appartient" ainsi visuellement au contenu qu'il affiche,
+   pas a la rangee de navigation qui le contient. */
 .tabs-container {
     display: flex;
     align-items: center;
     padding: 0 12px;
-    background: transparent; /* Même couleur que le fond */
+    background: $bg-toolbar;
+    border-bottom: 1px solid $border-color;
     gap: 4px;
-    min-height: 36px;
+    min-height: $tabs-height;
     flex-shrink: 0;
 }
 
@@ -39,13 +45,16 @@
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 6px 12px;
+    padding: 7px 12px;
     background: transparent;
     border: 1px solid transparent;
     border-bottom: none;
     border-radius: 6px 6px 0 0;
     color: $text-muted;
-    font-size: 12px;
+    /* Un cran au-dessus de 12px: les tabs sont la navigation la plus utilisee
+       de la page (changer de layout de plots), elles ne doivent pas rester
+       le plus petit texte de toute la rangee de controles. */
+    font-size: $font-size-md;
     cursor: pointer;
     transition: all 0.15s;
     white-space: nowrap;
@@ -62,6 +71,10 @@
     background: $bg-card;
     border-color: $border-color;
     color: $text-white;
+    /* Repere "vous etes ici" en accent electrique - meme role de detail que
+       l'indicateur nav actif, pour que l'onglet actif reste net a reperer
+       meme a cote des controles plus lourds (32px) de la rangee du dessus. */
+    box-shadow: inset 0 2px 0 $color-accent;
 }
 
 .tab-name {
@@ -147,42 +160,6 @@
     border-color: $color-primary;
     color: $color-primary;
     background: rgba(var(--ctp-teal-rgb), 0.1);
-}
-
-.tabs-actions {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    margin-left: auto;
-    padding-left: 12px;
-    border-left: 1px solid $border-color;
-    position: relative;
-    top: 1px; /* Même décalage que les tabs */
-}
-
-.tab-action-btn {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    padding: 5px 10px;
-    background: transparent;
-    border: 1px solid $border-light;
-    border-radius: 4px;
-    color: $text-muted;
-    font-size: 11px;
-    cursor: pointer;
-    transition: all 0.15s;
-}
-
-.tab-action-btn:hover {
-    border-color: $color-primary;
-    color: $text-white;
-    background: rgba(var(--ctp-teal-rgb), 0.1);
-}
-
-.tab-action-btn svg {
-    width: 14px;
-    height: 14px;
 }
 
 /* Tab content areas */

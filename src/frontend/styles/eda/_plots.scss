@@ -8,7 +8,7 @@
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    padding: 0 8px 8px 0;
+    padding: 8px;
 }
 
 .plots-wrapper {
@@ -216,7 +216,7 @@
 
 .legend-control-row label {
     color: $text-muted;
-    font-size: 9px;
+    font-size: $font-size-2xs; // 10px, etait 9px (hors echelle)
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -260,7 +260,7 @@
     background: $bg-card;
     border: 1px solid $border-color;
     color: $text-light;
-    font-size: 9px;
+    font-size: $font-size-2xs; // 10px, etait 9px (hors echelle)
     padding: 2px 4px;
     border-radius: 3px;
     cursor: pointer;
@@ -273,7 +273,7 @@
 
 .legend-width-value {
     color: $text-lighter;
-    font-size: 9px;
+    font-size: $font-size-2xs; // 10px, etait 9px (hors echelle) - c'est la valeur lue, pas juste un ornement
     min-width: 20px;
     text-align: right;
 }
@@ -346,14 +346,25 @@
     border-radius: 6px;
     padding: 8px;
     text-align: center;
-    color: $ctp-overlay2;
+    /* $text-secondary (subtext), pas $ctp-overlay2: c'est une instruction
+       fonctionnelle ("deposez un signal ici"), pas un detail discret - ~3.8:1
+       en theme clair avec overlay2 est sous le seuil texte (4.5:1). */
+    color: $text-secondary;
     font-size: 12px;
     flex-shrink: 0;
     margin-top: 4px;
     background: $ctp-base;
 }
 
-.drop-zone.active { border-color: rgba(var(--ctp-overlay0-rgb), 0.5); color: rgba(var(--ctp-overlay1-rgb), 0.8); }
+/* Cible de depot valide pendant un drag: accent plein plutot que des gris
+   attenues en opacite (qui reduisaient encore le contraste au lieu de
+   signaler l'action) - meme convention que .upload-btn/.create-variable-btn
+   pour un moment "vous pouvez agir ici". */
+.drop-zone.active {
+    border-color: $color-accent;
+    color: $color-accent;
+    background: $color-accent-subtle;
+}
 
 .empty-plot {
     flex: 1;

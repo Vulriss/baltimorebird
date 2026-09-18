@@ -76,10 +76,10 @@
 
 .exp-close {
     position: absolute;
-    top: -38px;
-    right: -38px;
-    width: 30px;
-    height: 30px;
+    top: -40px;
+    right: -40px;
+    width: 32px;
+    height: 32px;
     padding: 0;
     background: $bg-card-elevated;
     border: 1px solid $border-color;
@@ -256,7 +256,9 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    height: 30px;
+    /* 32px: aligne sur .toolbar-btn, la meme famille de bouton icone que dans
+       la toolbar principale (au lieu d'une echelle a 30px propre a cette vue). */
+    height: 32px;
     padding: 0 12px;
     background: transparent;
     border: 1px solid $border-color;
@@ -293,6 +295,7 @@
     display: block;
     stroke: currentColor;
     fill: none;
+    pointer-events: none;
 }
 
 .exp-tool:not(.keep-color) svg {
@@ -303,13 +306,13 @@
 
 .exp-tool:has(svg) {
     padding: 0;
-    width: 30px;
+    width: 32px;
 }
 
 .exp-color {
     margin-left: 12px;
-    width: 30px;
-    height: 30px;
+    width: 32px;
+    height: 32px;
     padding: 0;
     background: transparent;
     border: 1px solid $border-color;

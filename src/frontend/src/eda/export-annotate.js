@@ -58,6 +58,23 @@ import { resizeAllChartsNow } from './plots.js';
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M12 20h9"/>
                 <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/>
+            </svg>`,
+        undo: `
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="1 4 1 10 7 10"/>
+                <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
+            </svg>`,
+        redo: `
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="23 4 23 10 17 10"/>
+                <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+            </svg>`,
+        clear: `
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="3 6 5 6 21 6"/>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                <line x1="10" y1="11" x2="10" y2="17"/>
+                <line x1="14" y1="11" x2="14" y2="17"/>
             </svg>`
     };
 
@@ -1380,22 +1397,23 @@ ${body}
             toolbar.appendChild(divider);
 
             const undoBtn = document.createElement('button');
-            undoBtn.className = 'exp-tool';
-            undoBtn.textContent = 'Annuler';
+            undoBtn.className = 'exp-tool keep-color';
+            undoBtn.innerHTML = TOOL_ICONS.undo;
             undoBtn.title = 'Annuler (Ctrl+Z)';
             undoBtn.addEventListener('click', undo);
             toolbar.appendChild(undoBtn);
 
             const redoBtn = document.createElement('button');
-            redoBtn.className = 'exp-tool';
-            redoBtn.textContent = 'Refaire';
+            redoBtn.className = 'exp-tool keep-color';
+            redoBtn.innerHTML = TOOL_ICONS.redo;
             redoBtn.title = 'Refaire (Ctrl+Y)';
             redoBtn.addEventListener('click', redo);
             toolbar.appendChild(redoBtn);
 
             const clearBtn = document.createElement('button');
-            clearBtn.className = 'exp-tool';
-            clearBtn.textContent = 'Effacer';
+            clearBtn.className = 'exp-tool keep-color';
+            clearBtn.innerHTML = TOOL_ICONS.clear;
+            clearBtn.title = 'Effacer toutes les annotations';
             clearBtn.addEventListener('click', () => {
                 annotations = [];
                 floatingTexts.forEach(ft => { if (ft._el && ft._el.remove) ft._el.remove(); });

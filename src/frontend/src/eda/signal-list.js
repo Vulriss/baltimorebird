@@ -18,13 +18,17 @@ import { signalRunCoverage } from './runs.js';
 // (~30k+ noeuds) rend le rendu initial lent et chaque reflow (resize, etc.)
 // tres couteux. On ne monte donc que la fenetre visible (+ marge): un conteneur
 // "sizer" porte la hauteur totale et positionne en absolu les items visibles.
-const SIGNAL_LIST_PAD = 10;
+// Inset horizontal/vertical de la liste: .sidebar-signals fournit deja 14px
+// de padding a la section, 6px suffit ici pour l'aeration propre a la liste
+// (et le degagement de la scrollbar).
+const SIGNAL_LIST_PAD = 6;
 
-// marge interne (px), reprise du SCSS .signal-list
-const SIGNAL_ITEM_SLOT = 31;
+// pas vertical par item (hauteur + espacement). Rangee plate (cf. _signal-list.scss):
+// pas d'espacement entre lignes, le pas egale la hauteur d'un item.
+const SIGNAL_ITEM_SLOT = 22;
 
-// pas vertical par item (hauteur + espacement)
-const SIGNAL_ITEM_HEIGHT = 28;
+// hauteur d'un item
+const SIGNAL_ITEM_HEIGHT = 22;
 
 // hauteur d'un item
 const SIGNAL_LIST_BUFFER = 6;
@@ -113,7 +117,11 @@ function createSignalItemEl(sig, colorMap) {
         item.dataset.formula = sig.formula || '';
         item.dataset.description = sig.description || '';
         item.dataset.sourceSignals = JSON.stringify(sig.source_signals || []);
-        item.title = `Variable calculée: ${sig.formula}\nDouble-clic pour éditer`;
+        item.title = `${sig.name}\nVariable calculée: ${sig.formula}\nDouble-clic pour éditer`;
+    } else {
+        // Filet pour le nom tronque (cf. .signal-name en CSS): le nom complet
+        // reste accessible au survol meme quand la troncature le coupe.
+        item.title = sig.name;
     }
 
     const dot = document.createElement('div');
@@ -140,6 +148,16 @@ function createSignalItemEl(sig, colorMap) {
     item.appendChild(dot);
     item.appendChild(nameSpan);
     item.appendChild(unitSpan);
+    if (sig.computed === true) {
+        // Enfant flex reel (reserve sa propre place) plutot qu'un ::before en
+        // position absolue qui obligeait unite/badge de couverture a se decaler
+        // manuellement pour ne pas le chevaucher.
+        const fxBadge = document.createElement('span');
+        fxBadge.className = 'signal-fx-badge';
+        fxBadge.textContent = 'fx';
+        fxBadge.setAttribute('aria-hidden', 'true');
+        item.appendChild(fxBadge);
+    }
     if (S.comparing) {
         const cov = signalRunCoverage(sig.name);
         const covSpan = document.createElement('span');

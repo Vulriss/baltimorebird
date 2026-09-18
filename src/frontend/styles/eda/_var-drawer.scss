@@ -3,33 +3,44 @@
 @use '../abstracts/variables' as *;
 
 /* === CREATE VARIABLE BUTTON === */
+/* Plus d'inset ni de marge propres: .sidebar-signals fournit desormais le
+   meme padding/gap que .sidebar-files (cf. _sidebar.scss), ce bouton s'y
+   insere comme n'importe quel autre enfant de la section.
+   Meme traitement accent que .upload-btn (zone fichiers, _run-list.scss):
+   les deux sont le meme type d'action ("ajouter/creer" en tete de liste) et
+   doivent porter le meme signal visuel. Auparavant transparent/gris au repos,
+   il ne se coloriait qu'au survol - invisible tant qu'on ne l'avait pas
+   trouve par hasard, alors que creer une variable est une action importante
+   de cette liste, pas une option secondaire. */
 .create-variable-btn {
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 8px;
-    width: calc(100% - 20px);
-    margin: 0 10px 10px 10px;
-    padding: 10px 12px;
-    background: transparent;
-    border: 1px dashed $border-light;
+    width: 100%;
+    height: $button-height-sm; /* Meme hauteur que .search-box et #sourceSelector */
+    padding: 0 12px;
+    background: $color-accent-subtle;
+    border: 1px dashed color-mix(in srgb, var(--ctp-color-accent) 40%, transparent);
     border-radius: 8px;
-    color: $text-muted;
+    color: $color-primary;
     font-size: 12px;
+    font-weight: 500;
     cursor: pointer;
     transition: all 0.2s ease;
 }
 
 .create-variable-btn:hover {
-    background: rgba(var(--ctp-teal-rgb), 0.08);
+    background: $color-accent-muted;
     border-color: $color-primary;
-    color: $color-primary;
+    border-style: solid;
 }
 
 .create-variable-btn svg {
     width: 16px;
     height: 16px;
     flex-shrink: 0;
+    pointer-events: none;
 }
 
 /* === CREATE VARIABLE DRAWER === */

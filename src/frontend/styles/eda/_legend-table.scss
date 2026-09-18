@@ -15,7 +15,10 @@
     row-gap: 2px;
     align-items: stretch;
     font-family: $font-mono;
-    font-size: 10px;
+    /* $font-size-sm (12px), etait 10px: valeurs de curseur, delta et noms de
+       signaux sont lus pour analyser des donnees - une mauvaise lecture fausse
+       l'interpretation, meme traitement que .signal-name/.signal-unit. */
+    font-size: $font-size-sm;
 }
 
 .legend-table.cursors-active {
@@ -34,7 +37,7 @@
 }
 
 .legend-table .ct-h {
-    font-size: 9px;
+    font-size: $font-size-2xs; // 10px, etait 9px (hors echelle)
     font-weight: $font-weight-semibold;
     letter-spacing: 0.06em;
     text-align: right;
@@ -86,7 +89,10 @@
 .legend-table .ct-unit {
     text-align: left;
     color: $text-muted;
-    font-size: 9px;
+    // $font-size-sm (12px), etait 9px (hors echelle): l'unite qualifie la
+    // valeur (V vs mV change son sens de x1000) - meme taille que .ct-val,
+    // meme traitement que .signal-unit dans la sidebar.
+    font-size: $font-size-sm;
     padding-left: $spacing-2;
     display: flex;
     align-items: center;
@@ -345,7 +351,10 @@
 
 // Les SVG sont en display inline par defaut: le baseline text decalerait le
 // trace de quelques pixels par rapport aux glyphes voisins.
-.plot-stats svg { display: block; }
+// pointer-events: none - sans ca, le tooltip (title) du bouton ne s'affichait
+// pas de facon fiable en survolant precisement le trait de l'icone (plot-lock,
+// plot-solo-btn), le remplissage transparent du SVG ne captant pas le survol.
+.plot-stats svg { display: block; pointer-events: none; }
 
 .plot-stats .plot-grip { cursor: grab; }
 

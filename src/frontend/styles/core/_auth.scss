@@ -57,7 +57,7 @@
 }
 
 .nav-login .nav-icon {
-    color: $color-primary;
+    color: $color-accent-on-dark; // cf. .nav-item.active (_nav.scss): surface toujours sombre
 }
 
 /* Nav User (connecté) */

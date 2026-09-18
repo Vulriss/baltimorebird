@@ -1559,7 +1559,7 @@
 
 .mapping-btn.primary:hover {
     transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(var(--ctp-teal-rgb), 0.4);
+    box-shadow: 0 4px 12px rgba(var(--ctp-color-accent-rgb), 0.4);
     filter: brightness(1.05);
 }
 
@@ -1603,6 +1603,7 @@
 
 .mapping-search input:focus {
     outline: none;
+    border-color: $color-primary;
 }
 
 .mapping-stats {

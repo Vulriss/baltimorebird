@@ -2,24 +2,66 @@
 // Partial extrait de _styles.scss (refactoring)
 @use '../abstracts/variables' as *;
 
-/* Selection multiple (clic, Ctrl, Shift) */
-.signal-item.selected {
-    background: $bg-hover;
-
-    border-left-color: $color-accent;
+/* Base de la ligne de signal (liste virtualisee de la sidebar). Rangee plate,
+   pleine largeur: a l'echelle de cette liste (potentiellement des milliers de
+   signaux), un fond/rayon/marge par ligne coute du scan sans rien apporter -
+   seul le rail de gauche porte l'etat. Hauteur fixee par SIGNAL_ITEM_HEIGHT
+   dans signal-list.js (position absolue, liste virtualisee); content-visibility
+   evite le cout de style/layout hors-ecran cote navigateur. */
+.signal-item {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 10px;
+    background: transparent;
+    border-left: 3px solid transparent;
+    cursor: grab;
+    transition: background 0.15s, border-color 0.15s;
+    font-size: 12px;
+    min-width: 0;
+    content-visibility: auto;
+    contain-intrinsic-size: auto 22px;
 }
 
-.signal-item.active { 
-    border-left-color: var(--signal-color, $signal-active-color); 
+.signal-item:hover {
+    background: $bg-hover;
+}
+
+.signal-item.dragging { opacity: 0.4; }
+
+/* Selection multiple (clic, Ctrl, Shift): sapphire, le meme role "etat actif/
+   selectionne qui persiste" que .toolbar-btn.active et .run-chip.active -
+   jamais le fond generique du survol, jamais la teinte teal du calcule ou la
+   couleur (arbitraire) d'une trace active, pour rester lisible quel que soit
+   l'etat combine sur la ligne. */
+.signal-item.selected {
+    background: rgba(var(--ctp-sapphire-rgb), 0.16);
+    border-left-color: $color-toggle-on;
+}
+
+.signal-item.selected:hover {
+    background: rgba(var(--ctp-sapphire-rgb), 0.22);
+}
+
+.signal-item.active {
+    border-left-color: var(--signal-color, $signal-active-color);
+}
+
+/* La selection reste prioritaire sur le rail: elle ne doit jamais se fondre
+   avec la couleur de trace (arbitraire) d'un signal actif, sinon "quel signal
+   est selectionne" redevient ambigu au milieu d'un groupe multi-select. */
+.signal-item.active.selected {
+    border-left-color: $color-toggle-on;
 }
 
 .signal-item.active .signal-dot {
     background: var(--signal-color, $signal-active-color);
-    box-shadow: 0 0 6px var(--signal-color, $signal-active-color);
+    border: none;
 }
 
 .signal-dot {
-    width: 8px; 
+    width: 8px;
     height: 8px;
     min-width: 8px; /* Empêche le rétrécissement */
     border-radius: 50%;
@@ -77,29 +119,50 @@
     border-color: var(--red, #f38ba8) !important;
 }
 
-/* Signal chargé et actif dans un plot */
-.signal-item.active .signal-dot {
-    background: var(--signal-color) !important;
-    border: none;
-}
-
-.signal-name { 
+/* Nom tronque en tete plutot qu'en queue: les identifiants CAN/MF4 partagent
+   souvent un long prefixe commun et ne se distinguent que par leur segment
+   final - une troncature classique en fin de chaine masquerait exactement la
+   partie qui les differencie. unicode-bidi: plaintext isole le texte (latin/
+   technique) pour qu'il ne soit pas lui-meme reordonne par le direction: rtl,
+   qui ne sert ici qu'a deplacer l'ellipse au debut de la chaine. */
+.signal-name {
     flex: 1;
     min-width: 0; /* Permet le truncate */
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    direction: rtl;
+    text-align: left;
+    unicode-bidi: plaintext;
 }
 
-.signal-unit { 
-    color: $text-dark; 
-    font-size: 10px;
+.signal-unit {
+    color: $text-dark;
+    /* $font-size-2xs (10px) etait le plancher de l'echelle: l'unite est une
+       donnee fonctionnelle (mauvaise lecture = mauvaise interpretation de la
+       valeur), pas un detail decoratif - elle merite la meme taille lisible
+       que le nom du signal a cote. */
+    font-size: $font-size-sm;
     flex-shrink: 0; /* Ne jamais rétrécir */
     min-width: 30px;
     text-align: right;
 }
 
-/* Badge de couverture multi-fichiers (present dans N runs sur le total) */
+/* Badge "fx" des variables calculees: vrai enfant flex (pas un ::before en
+   position absolue) pour reserver sa propre place dans la ligne plutot que
+   d'imposer des margin-right ad hoc a ses voisins (unite, badge de couverture). */
+.signal-fx-badge {
+    flex-shrink: 0;
+    font-size: 9px;
+    font-weight: 600;
+    font-family: $font-mono;
+    color: $ctp-teal;
+    opacity: 0.6;
+    transition: opacity 0.15s;
+}
+
+.signal-item.computed:hover .signal-fx-badge { opacity: 1; }
+
 /* Cible de reorganisation intra-legende (drag d'une ligne sur une autre du meme panneau). */
 .legend-row .lt-name.reorder-target-before {
     box-shadow: inset 0 3px 0 0 $color-accent;
@@ -130,64 +193,46 @@
     background: rgba(var(--ctp-peach-rgb), 0.16);
 }
 
-/* Sur une variable calculee, le "fx" est absolu a droite: on decale le badge de couverture
-   pour qu'ils ne se superposent pas. */
-.signal-item.computed .signal-coverage {
-    margin-right: 20px;
-}
-
 /* Variables calculées - style distinct avec Teal */
 .signal-item.computed {
     background: rgba(var(--ctp-teal-rgb), 0.08);
     border-left: 3px solid $ctp-teal;
-    position: relative;
-    
-    // Petit indicateur "fx" discret
-    &::before {
-        content: 'fx';
-        position: absolute;
-        top: 50%;
-        right: 8px;
-        transform: translateY(-50%);
-        font-size: 9px;
-        font-weight: 600;
-        font-family: $font-mono;
-        color: $ctp-teal;
-        opacity: 0.6;
-        pointer-events: none;
-    }
-    
+
     &:hover {
         background: rgba(var(--ctp-teal-rgb), 0.15);
-        border-color: $ctp-teal;
+        border-left-color: $ctp-teal;
         cursor: pointer;
-        
-        &::before {
-            opacity: 1;
-        }
     }
-    
+
     .signal-dot {
         background: $ctp-teal;
     }
-    
+
     .signal-name {
         color: $ctp-text;
-    }
-    
-    .signal-unit {
-        margin-right: 20px; // Espace pour le "fx"
     }
 }
 
 .signal-item.computed.active {
     border-left-color: var(--signal-color, $ctp-teal);
     background: rgba(var(--ctp-teal-rgb), 0.12);
-    
+
     .signal-dot {
         background: var(--signal-color, $ctp-teal);
-        box-shadow: 0 0 6px var(--signal-color, $ctp-teal);
     }
+}
+
+/* La selection reste visible meme sur une variable calculee (active ou non):
+   le sapphire l'emporte sur le fond teal, sinon "selectionne" disparait. */
+.signal-item.computed.selected,
+.signal-item.computed.active.selected {
+    background: rgba(var(--ctp-sapphire-rgb), 0.2);
+    border-left-color: $color-toggle-on;
+}
+
+.signal-item.computed.selected:hover,
+.signal-item.computed.active.selected:hover {
+    background: rgba(var(--ctp-sapphire-rgb), 0.26);
 }
 
 .legend-extend-row {

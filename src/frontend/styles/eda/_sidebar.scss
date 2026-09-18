@@ -28,24 +28,37 @@
     display: flex;
     flex-direction: column;
     gap: 10px;
-    /* Padding haut aligne sur celui de .toolbar (10px): les boutons 32px de l'en-tete
-       (upload) et ceux de la toolbar principale partagent la meme ligne de base. */
-    padding: 10px 14px 14px;
+    /* 12px, pas 10px: .toolbar a un min-height ($toolbar-height) qui centre ses
+       boutons 32px verticalement, avec 2px de mou au-dessus du padding-top de
+       10px (56 - 2*10 - 32 = 4px repartis pour le centrage). upload-btn n'a pas
+       ce centrage (premier enfant d'une colonne), donc son padding-top doit
+       inclure ces 2px pour que les deux bords hauts tombent a la meme ligne. */
+    padding: 12px 14px 14px;
     overflow-y: auto;
 }
 
-/* Zone signaux (bas, prend la hauteur restante) */
+/* Zone signaux (bas, prend la hauteur restante). Meme rythme que .sidebar-files
+   (gap + padding identiques): les deux zones du panneau doivent se lire comme
+   une seule section a deux volets, pas comme deux composants distincts. */
 .sidebar-signals {
     flex: 1 1 auto;
     min-height: 0;
     display: flex;
     flex-direction: column;
+    gap: 10px;
+    padding: 10px 14px 14px;
 }
 
-/* Splitter horizontal entre les deux zones */
+/* Splitter horizontal entre les deux zones. Deborde dans la gouttiere de gauche
+   (meme technique que .sidebar-footer ci-dessous): sans ca, son ::before
+   (le filet horizontal) s'arrete a l'inset de contenu de la sidebar au lieu
+   d'aller jusqu'au bord gauche, ou la vague de la nav est censee le trancher -
+   d'ou le trait qui semblait s'interrompre sans raison au milieu de la sidebar. */
 .sidebar-vsplitter {
     position: relative;
     flex: 0 0 9px;
+    margin-left: -(1.5 * $nav-wave-width);
+    width: calc(100% + #{1.5 * $nav-wave-width});
     cursor: row-resize;
     background: transparent;
 }
@@ -85,26 +98,12 @@
 }
 
 .sidebar-section-title {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    font-family: $font-sans;
     font-size: 11px;
     font-weight: 700;
     color: $ctp-overlay2;
     text-transform: uppercase;
-    letter-spacing: 1px;
-}
-
-.sidebar-header {
-    padding: 14px;
-}
-
-.sidebar-title {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
-    font-size: 11px;
-    font-weight: 700;
-    color: $ctp-overlay2;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    margin-bottom: 10px;
+    letter-spacing: 0.5px;
 }
 
 .sidebar-splitter:hover {
@@ -113,7 +112,9 @@
 
 .search-box {
     width: 100%;
-    padding: 8px 10px;
+    height: $button-height-sm; /* Meme hauteur que #sourceSelector (zone fichiers)
+       et .create-variable-btn: un seul rythme de controle pour toute la sidebar. */
+    padding: 6px 10px;
     background: $bg-card;
     border: 1px solid $border-color;
     border-radius: 4px;
@@ -126,22 +127,33 @@
 /* type=search (anti-autofill): masquer le bouton d'effacement natif WebKit, non stylable */
 .search-box::-webkit-search-cancel-button { -webkit-appearance: none; appearance: none; }
 
+/* Pas de padding ici: signal-list.js l'ecrase a 0 et reimplemente le meme
+   inset via SIGNAL_LIST_PAD sur chaque item (necessaire pour la liste
+   virtualisee, positionnee en absolu) - le declarer ici serait mort au
+   premier rendu et pourrait induire en erreur un futur reglage d'espacement. */
 .signal-list {
     flex: 1;
     overflow-y: auto;
-    padding: 10px;
 }
 
 .signal-list::-webkit-scrollbar { width: 5px; }
 
 .signal-list::-webkit-scrollbar-thumb { background: $border-light; border-radius: 3px; }
 
+/* Deborde dans la gouttiere de gauche (cf. .sidebar): $bg-sidebar s'arretait
+   avant la vague de la nav, sans que le fond mantle du footer prenne le relais
+   sur cette largeur - la vague n'avait donc rien a trancher a cet endroit et
+   retombait sur un bord droit, d'ou la marche visible au lieu d'une continuite
+   ondulee. Le padding-left compense le margin-left negatif pour que le texte
+   des stats garde sa position d'origine, alignee sur le reste de la sidebar. */
 .sidebar-footer {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     gap: 6px 12px;
-    padding: 10px 14px;
+    margin-left: -(1.5 * $nav-wave-width);
+    width: calc(100% + #{1.5 * $nav-wave-width});
+    padding: 10px 14px 10px calc(14px + #{1.5 * $nav-wave-width});
     border-top: 1px solid $border-color;
     font-size: 10px;
     color: $text-tertiary;

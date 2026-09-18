@@ -31,16 +31,18 @@ export async function loadSources() {
 
         // Liste a plat (sans groupes): la categorisation demo / utilisateur n'a pas
         // de sens pour une comparaison, personne ne compare un fichier de demo a un upload.
+        // Les demos restent cependant etiquetees "(exemple)" pour qu'on les distingue
+        // d'un vrai fichier au premier coup d'oeil dans le selecteur.
         selector.innerHTML = '';
-        const appendOption = (src) => {
+        const appendOption = (src, suffix) => {
             const option = document.createElement('option');
             option.value = src.id;
-            option.textContent = src.name + (src.available === false ? ' (non disponible)' : '');
+            option.textContent = src.name + (suffix || '') + (src.available === false ? ' (non disponible)' : '');
             option.disabled = src.available === false;
             selector.appendChild(option);
         };
-        data.sources.filter(s => s.category === 'demo' || !s.category).forEach(appendOption);
-        data.sources.filter(s => s.category === 'user').forEach(appendOption);
+        data.sources.filter(s => s.category === 'demo' || !s.category).forEach(s => appendOption(s, ' (exemple)'));
+        data.sources.filter(s => s.category === 'user').forEach(s => appendOption(s));
 
         // Reinjecte les fichiers uploades (sessions ephemeres): ils ne figurent pas dans
         // /sources mais doivent rester choisissables. Sans cela, reconstruire le selecteur

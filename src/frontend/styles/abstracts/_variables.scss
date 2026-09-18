@@ -1,9 +1,23 @@
 // ============================================================================
 // BALTIMORE BIRD - Design Tokens
 // ============================================================================
-// Thème: Catppuccin Mocha (variante sombre)
-// Accent: Peach (chaleureux, unique, non-generic)
-// 
+// Thème: Catppuccin Mocha (variante sombre) pour les surfaces, texte et
+// couleurs sémantiques (succès/erreur/warning).
+// Accent: Bleu électrique (--ctp-color-accent), plus le sapphire comme
+// second rôle "état actif/sélectionné" — identité propre à l'app, distincte
+// de la palette pastel Catppuccin. Peach a été l'accent d'origine, abandonné
+// au profit de ce couple de bleus; ne plus le référencer comme accent.
+//
+// Rôles de l'accent (pour éviter qu'une seule teinte porte plusieurs sens):
+//   - $color-accent (électrique)  : CTA primaires, détails ponctuels
+//     (indicateur nav actif, focus, petits highlights).
+//   - $color-toggle-on (sapphire) : état "actuellement actif/sélectionné"
+//     qui persiste dans le temps (toggle de toolbar, item sélectionné) —
+//     volontairement plus sourd que le CTA pour ne pas lui faire concurrence.
+//   - Survol générique des boutons non-CTA : neutre (surface plus claire),
+//     jamais la couleur d'accent — le survol ne doit pas se confondre avec
+//     un état "actif".
+//
 // Catppuccin est une palette pastel communautaire qui vise l'équilibre
 // entre thèmes à faible et fort contraste. Mocha est la variante la plus
 // sombre, offrant une atmosphère cozy avec des accents riches en couleurs.
@@ -84,6 +98,14 @@
     --ctp-nav-rgb: 17, 17, 27;
     --nav-text-hover: #FFFFFF;
     --ctp-color-accent: #29ceeb;
+    --ctp-color-accent-rgb: 41, 206, 235;
+    /* Invariant de theme (jamais redefini dans [data-theme="light"]): pour le
+       texte/icones sur .nav-menu, qui reste une surface sombre (navy) meme en
+       theme clair - contrairement a --ctp-color-accent, qui doit au contraire
+       s'assombrir en theme clair pour rester lisible sur les surfaces claires
+       du reste de l'appli. Un seul accent theme-adaptatif ne peut pas servir
+       les deux surfaces a la fois. */
+    --ctp-color-accent-on-dark: #29ceeb;
     --ctp-sidebar: #1e1e2e;
     --ctp-item-list: #005B60;
 }
@@ -148,7 +170,12 @@
     --ctp-nav: #435465;
     --ctp-nav-rgb: 6, 34, 59;
     --nav-text-hover: #FFFFFF;
-    --ctp-color-accent: #29ceeb;
+    /* #29ceeb (valeur sombre) tient ~1.9:1 sur fond clair - tres en dessous du
+       minimum WCAG (4.5:1 texte, 3:1 controles/icones). Meme teinte (~191°),
+       assombrie pour rester lisible, sur le meme principe que
+       --stat-highlight-text ci-dessus pour le teal Latte. */
+    --ctp-color-accent: #087891;
+    --ctp-color-accent-rgb: 8, 120, 145;
     --ctp-plot-legend: #f3f5f7;
     --ctp-sidebar: #F0FFFF;
     --ctp-item-list: #e0dede;
@@ -161,7 +188,7 @@ $ctp-pink: var(--ctp-pink);  // HSL: 316°, 72%, 86% - Rose vif
 $ctp-mauve: var(--ctp-mauve);  // HSL: 267°, 84%, 81% - Violet pastel, keywords
 $ctp-red: var(--ctp-red);  // HSL: 343°, 81%, 75% - Rouge doux, erreurs
 $ctp-maroon: var(--ctp-maroon);  // HSL: 350°, 65%, 77% - Rouge-brun
-$ctp-peach: var(--ctp-peach);  // HSL: 23°, 92%, 75%  - Orange chaud, ACCENT PRINCIPAL
+$ctp-peach: var(--ctp-peach);  // HSL: 23°, 92%, 75%  - Orange chaud (legacy, plus l'accent principal)
 $ctp-yellow: var(--ctp-yellow);  // HSL: 41°, 86%, 83%  - Jaune doux, warnings
 $ctp-green: var(--ctp-green);  // HSL: 115°, 54%, 76% - Vert pastel, succès
 $ctp-teal: var(--ctp-teal);  // HSL: 170°, 57%, 73% - Turquoise
@@ -197,11 +224,29 @@ $ctp-crust: var(--ctp-crust);  // HSL: 240°, 23%, 9%  - Fond le plus sombre
 // SECTION 2: COULEUR D'ACCENT PRINCIPALE
 // ============================================================================
 
+// Accent principal: bleu électrique, dérivé via color-mix() plutôt que
+// redéfini en dur — un survol/clic reste toujours une teinte du même accent,
+// même si --ctp-color-accent change un jour.
 $color-accent: var(--ctp-color-accent);
-$color-accent-hover: $ctp-teal;      // Peach plus clair au hover
-$color-accent-active: $ctp-teal;     // Peach plus saturé au clic
-$color-accent-muted: rgba(var(--ctp-teal-rgb), 0.15);
-$color-accent-subtle: rgba(var(--ctp-teal-rgb), 0.08);
+$color-accent-hover: color-mix(in srgb, var(--ctp-color-accent) 78%, white);   // plus clair au survol
+$color-accent-active: color-mix(in srgb, var(--ctp-color-accent) 85%, black); // plus soutenu au clic
+$color-accent-muted: color-mix(in srgb, var(--ctp-color-accent) 15%, transparent);
+$color-accent-subtle: color-mix(in srgb, var(--ctp-color-accent) 8%, transparent);
+
+// Variante theme-invariante, reservee aux surfaces qui restent sombres dans
+// les deux themes (le fond de .nav-menu, cf. --ctp-nav). $color-accent lui-meme
+// s'assombrit en theme clair pour rester lisible sur fond clair - l'utiliser
+// ici casserait le contraste sur le fond navy de la nav en theme clair.
+$color-accent-on-dark: var(--ctp-color-accent-on-dark);
+
+// Second rôle d'accent: sapphire, réservé à l'état "actuellement actif/
+// sélectionné" qui persiste dans le temps (toggle allumé, item sélectionné
+// dans une liste). Délibérément plus sourd que $color-accent pour ne jamais
+// concurrencer un CTA — un survol générique de bouton ne doit jamais
+// prendre cette teinte, seule la persistance d'un état le justifie.
+$color-toggle-on: $ctp-sapphire;
+$color-toggle-on-muted: rgba(var(--ctp-sapphire-rgb), 0.16);
+$color-toggle-on-border: rgba(var(--ctp-sapphire-rgb), 0.5);
 
 // Alias pour compatibilité
 $color-primary: $color-accent;
@@ -285,8 +330,7 @@ $bg-dropdown: $ctp-surface0;
 $bg-tooltip: $ctp-surface1;
 
 // --- Selection (selon style guide: overlay2 à 20-30%) ---
-// $bg-selection: rgba(var(--ctp-overlay2-rgb), 0.25);
-$bg-selection: rgba(240, 11, 11, 0.25);
+$bg-selection: rgba(var(--ctp-overlay2-rgb), 0.25);
 
 // --- Legacy aliases (compatibilité) ---
 $bg-nav: $ctp-nav;
@@ -550,6 +594,7 @@ $settings-sidebar-width: 260px;
 // --- Toolbar ---
 $toolbar-height: 56px;
 $toolbar-height-sm: 48px;
+$tabs-height: 36px;
 
 // --- Breakpoints responsive ---
 $breakpoint-xs:  480px;
@@ -942,8 +987,8 @@ $gradient-accent-warm: $gradient-accent;
 // Dark: couleurs vives d'origine. Light: versions foncees lisibles sur fond clair.
 // ============================================================================
 :root {
-    --cursor-a: rgba(0, 255, 100, 0.9);
-    --cursor-b: rgba(255, 100, 150, 0.9);
+    --cursor-a: #3ddc84;
+    --cursor-b: #ff6b9d;
 }
 :root[data-theme="light"] {
     --cursor-a: #2f9e44;

@@ -173,15 +173,19 @@ $nav-wave-stroke: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/s
     color: $nav-text-hover;
 }
 
+/* $color-accent-on-dark, pas $color-accent: .nav-menu reste une surface sombre
+   (navy) meme en theme clair (cf. --ctp-nav), alors que $color-accent s'assombrit
+   justement pour rester lisible sur les surfaces claires du reste de l'appli -
+   l'utiliser ici rendrait le texte quasi illisible sur le fond navy. */
 .nav-item.active {
     background: $bg-selected;
-    color: $color-accent;
+    color: $color-accent-on-dark;
     font-weight: $font-weight-semibold;
-    box-shadow: inset 2px 0 0 $color-accent;
+    box-shadow: inset 2px 0 0 $color-accent-on-dark;
 }
 
 .nav-item.active .nav-icon {
-    color: $color-accent;
+    color: $color-accent-on-dark;
 }
 
 .nav-item.locked {
@@ -246,7 +250,7 @@ $nav-wave-stroke: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/s
     background: rgba(var(--ctp-teal-rgb), 0.1);
     border: 1px solid rgba(var(--ctp-teal-rgb), 0.2);
     border-radius: 8px;
-    color: $color-primary;
+    color: $color-accent-on-dark; // cf. .nav-item.active: surface toujours sombre
     font-size: 14px;
     font-weight: 500;
     text-decoration: none;
@@ -298,7 +302,7 @@ $nav-wave-stroke: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/s
 
 .nav-theme-toggle:hover { color: $text-primary; }
 
-.nav-theme-toggle.active { color: $color-accent; }
+.nav-theme-toggle.active { color: $color-accent-on-dark; } // cf. .nav-item.active: surface toujours sombre
 
 .nav-theme-toggle .theme-icon {
     grid-area: 1 / 1;

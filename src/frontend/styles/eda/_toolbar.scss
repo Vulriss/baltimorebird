@@ -11,8 +11,15 @@
 }
 
 .toolbar {
+    min-height: $toolbar-height;
     padding: 10px 16px;
-    background: $bg-darkest;
+    box-sizing: border-box;
+    /* $bg-toolbar (mantle) plutot que $bg-darkest (crust): le crust est le
+       fond le plus sombre du systeme et faisait de la toolbar la zone la
+       plus enfoncee de la page, sous la sidebar et les cartes de plot -
+       l'inverse de la regle d'elevation documentee (plus c'est eleve, plus
+       c'est clair). */
+    background: $bg-toolbar;
     border-bottom: 1px solid $border-color;
     display: flex;
     align-items: center;
@@ -32,6 +39,8 @@
 
 /* Source selector */
 #sourceSelector {
+    height: $button-height-sm; /* Meme hauteur que les autres controles principaux
+       (.toolbar-btn, search-box et create-variable-btn de la sidebar signaux) */
     padding: 6px 10px;
     background: $bg-card;
     border: 1px solid $border-color;
@@ -98,23 +107,55 @@ button {
     margin: 0 -4px;
 }
 
-.toolbar-btn.active {
-    background: $color-accent !important;
-    border-color: $color-accent !important;
-    color: $ctp-crust !important;
+/* Actions de layout (save/load/share/export): meme niveau de controle que le
+   reste de la toolbar (workspace, pas par-onglet), donc regroupees ici plutot
+   que sur la rangee des tabs. Le divider qui les precede pousse tout le
+   groupe a droite, sans avoir besoin d'une classe dediee sur ce divider. */
+.toolbar-divider:has(+ .toolbar-actions) {
+    margin-left: auto;
 }
 
+.toolbar-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* Etat "actuellement actif" (persiste dans le temps): teinte sapphire sourde,
+   volontairement distincte du CTA plein ($color-accent) pour qu'un toggle
+   allume ne rivalise pas visuellement avec un vrai bouton d'action. */
+.toolbar-btn.active {
+    background: $color-toggle-on-muted !important;
+    border-color: $color-toggle-on-border !important;
+    color: $color-toggle-on !important;
+}
+
+/* color doit etre !important comme sur la regle de base ci-dessus, sinon une
+   declaration non-!important ne peut jamais la battre: le texte retombait
+   silencieusement sur $color-toggle-on (sapphire), illisible sur ce fond navy
+   (~2.5:1) au lieu du $ctp-crust clair prevu (~5.9:1). Meme bug que celui deja
+   corrige plus haut sur le survol - meme fichier, instance manquee. */
 [data-theme="light"] .toolbar-btn.active {
     background: $bg-nav !important;
     border-color: $bg-nav !important;
-    color: $ctp-crust;
+    color: $ctp-crust !important;
 }
 
-.toolbar-btn:hover:not(.just-deactivated),
+/* Survol générique: neutre, jamais la couleur d'accent — le survol ne doit
+   pas se confondre avec l'état "actif" ci-dessus. */
+.toolbar-btn:hover:not(.just-deactivated):not(.active) {
+    background: $ctp-surface2;
+    border-color: $ctp-overlay0;
+    color: $ctp-text;
+}
+
+/* filter plutot que re-poser background/border/color: .toolbar-btn.active
+   les fixe en !important (regle au-dessus), donc toute valeur non-!important
+   sur ces proprietes serait ignoree au survol, actif ou non. brightness()
+   n'est pas concerne par ce conflit et fonctionne identiquement sur les
+   deux variantes de theme (sapphire en sombre, bg-nav en clair). */
 .toolbar-btn.active:hover {
-    background: $color-accent;
-    border-color: $color-accent;
-    color: $ctp-crust;
+    filter: brightness(1.15);
 }
 
 // Masquage des infos de curseur quand le bouton est inactif: temps en haut, ligne et
@@ -129,6 +170,12 @@ body.hide-cursor-labels .cursor-label {
 .toolbar-btn svg {
     width: 16px;
     height: 16px;
+    /* fill:none + stroke seul: le remplissage transparent de l'icone ne
+       capte pas le survol (pointer-events: visiblePainted par defaut sur
+       SVG), donc le tooltip du bouton clignotait selon qu'on survolait un
+       trait ou l'interieur de l'icone. pointer-events: none force tout
+       survol du bouton a etre traite de facon uniforme par le bouton lui-meme. */
+    pointer-events: none;
 }
 
 /* === CLEAR & RESET BUTTONS (EDA toolbar) === */
@@ -138,7 +185,8 @@ body.hide-cursor-labels .cursor-label {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    padding: 6px 14px;
+    height: 32px; /* Aligne sur le carre 32x32 des toggles icone de la meme rangee */
+    padding: 0 14px;
     background: $ctp-surface1;
     border: 1px solid $ctp-surface2;
     border-radius: 4px;

@@ -284,34 +284,3 @@
     color: $text-light;
 }
 
-.signal-item {
-    position: relative;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 4px 10px;
-    margin-bottom: 3px;
-    background: $ctp-mantle;
-    border: 1px solid transparent;
-    border-left: 3px solid $text-darker;
-    cursor: grab;
-    transition: all 0.15s;
-    font-size: 12px;
-    min-width: 0;
-    
-    // Squircle-like effect using continuous curvature
-    // Plus proche d'un vrai squircle que border-radius standard
-    border-radius: 8px;
-    // Smooth corners - supporté dans Safari/Chrome récents
-    -webkit-mask-image: -webkit-radial-gradient(white, black);
-
-    content-visibility: auto;
-    contain-intrinsic-size: auto 28px;
-}
-
-.signal-item:hover { 
-    background: $bg-hover;
-    border-color: $border-light;
-}
-
-.signal-item.dragging { opacity: 0.4; }
