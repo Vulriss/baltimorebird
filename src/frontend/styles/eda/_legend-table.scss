@@ -37,7 +37,11 @@
 }
 
 .legend-table .ct-h {
-    font-size: $font-size-2xs; // 10px, etait 9px (hors echelle)
+    // $font-size-sm (12px), etait 10px puis 9px: les en-tetes "Name"/"unit"
+    // restent sous le seuil de texte fonctionnel meme au premier cran de
+    // l'echelle - alignes sur .ct-val/.ct-unit, la hierarchie header/donnee se
+    // fait par poids (semibold) et couleur (muted), pas par une taille reduite.
+    font-size: $font-size-sm;
     font-weight: $font-weight-semibold;
     letter-spacing: 0.06em;
     text-align: right;

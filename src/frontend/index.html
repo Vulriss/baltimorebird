@@ -89,19 +89,23 @@
             <div class="nav-footer">
                 <!-- Bascule de theme clair / sombre (globale), swap minimaliste sun / moon -->
                 <button class="nav-theme-toggle" id="navThemeToggle" aria-pressed="false" aria-label="Basculer le theme clair / sombre" title="Basculer le theme clair / sombre">
-                    <svg class="theme-icon theme-icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                        <circle cx="12" cy="12" r="4"/>
-                        <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>
-                    </svg>
-                    <svg class="theme-icon theme-icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-                    </svg>
+                    <span class="theme-icon-stack">
+                        <svg class="theme-icon theme-icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <circle cx="12" cy="12" r="4"/>
+                            <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>
+                        </svg>
+                        <svg class="theme-icon theme-icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+                        </svg>
+                    </span>
+                    <span class="nav-label">Thème</span>
                 </button>
 
                 <div class="nav-item nav-wizard" id="navWizardBtn" role="button" tabindex="0" title="Relancer la visite guidee">
                     <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M15 4V2M15 10V8M11 6H9M21 6h-2M18.5 3.5L17 5M18.5 8.5L17 7M4 20l9-9M12.5 5.5L11 7"/>
                     </svg>
+                    <span class="nav-label">Visite guidée</span>
                 </div>
 
                 <a href="https://github.com/Vulriss/baltimorebird" target="_blank" rel="noopener noreferrer" class="nav-item nav-git" id="navGitLink" title="Code source (GitHub)">

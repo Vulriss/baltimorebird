@@ -286,23 +286,44 @@ $nav-wave-stroke: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/s
 }
 
 /* === BASCULE DE THEME (nav) - swap minimaliste sun / moon === */
+/* Meme gabarit que .nav-item (largeur pleine, padding, radius, hover): avant,
+   ce bouton etait un carre 36x36 centre isole au milieu de lignes pleine
+   largeur avec icone+libelle - la seule ligne du footer sans texte et sans la
+   meme largeur que ses voisines, visible uniquement en mode non-collapse
+   (en collapse tout redevient des carres d'icones, donc invisible). */
 .nav-theme-toggle {
-    display: grid;
-    place-items: center;
-    width: 36px;
-    height: 36px;
-    margin: 0 auto 6px;
-    padding: 0;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    padding: 10px 12px;
+    margin-bottom: 4px;
     background: transparent;
     border: none;
-    color: $text-muted;
+    border-radius: 8px;
+    color: $text-muted-variation;
+    font-size: 14px;
     cursor: pointer;
-    transition: color 0.15s;
+    transition: all 0.15s;
 }
 
-.nav-theme-toggle:hover { color: $text-primary; }
+.nav-theme-toggle:hover {
+    background: $bg-selected;
+    color: $nav-text-hover;
+}
 
 .nav-theme-toggle.active { color: $color-accent-on-dark; } // cf. .nav-item.active: surface toujours sombre
+
+/* Conteneur fixe pour l'empilement grid des deux icones (le morph sun/moon a
+   besoin de son propre contexte grid, separe du flex row du bouton). */
+.theme-icon-stack {
+    position: relative;
+    display: grid;
+    place-items: center;
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+}
 
 .nav-theme-toggle .theme-icon {
     grid-area: 1 / 1;

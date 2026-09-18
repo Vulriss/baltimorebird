@@ -7,13 +7,15 @@
    (les deux paliers de controle partagent le meme fond), pendant que l'onglet
    actif reste sur $bg-card - le meme ton que les cartes de plot en dessous.
    L'onglet actif "appartient" ainsi visuellement au contenu qu'il affiche,
-   pas a la rangee de navigation qui le contient. */
+   pas a la rangee de navigation qui le contient. Pas de border-bottom: la
+   difference de fond (chrome mantle vs contenu) suffit a separer les deux
+   paliers - un filet supplementaire ne faisait que souligner une ligne
+   disgracieuse entre onglets et plots, surtout visible en theme clair. */
 .tabs-container {
     display: flex;
     align-items: center;
     padding: 0 12px;
     background: $bg-toolbar;
-    border-bottom: 1px solid $border-color;
     gap: 4px;
     min-height: $tabs-height;
     flex-shrink: 0;
