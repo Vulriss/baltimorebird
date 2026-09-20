@@ -8,7 +8,7 @@ import { isSeriesSynth, seriesDescriptor } from './overlay.js';
 import { autoScaleY, isFirstPlot, renderPlotFromCache, resolveSignalStyle } from './plot-ui.js';
 import { removeSignalFromPlot } from './plots.js';
 import { effectiveRunOffset } from './runs.js';
-import { formatDuration } from './time-axis.js';
+import { formatDurationWithMinutes } from './time-axis.js';
 import { effectiveCache } from './transforms.js';
 import { redoView, undoView } from './view-nav.js';
 
@@ -201,7 +201,7 @@ export function cursorPlugin() {
             deltaLine.style.transform = `translate3d(${left}px, 0, 0)`;
             deltaLine.style.width = width + 'px';
 
-            const deltaText = 'Δ ' + formatDuration(Math.abs(S.cursor2 - S.cursor1), decimals);
+            const deltaText = 'Δ ' + formatDurationWithMinutes(Math.abs(S.cursor2 - S.cursor1), decimals);
             if (deltaLabel.textContent !== deltaText) deltaLabel.textContent = deltaText;
             const center = left + width / 2;
             const row = placeTopLabel(placed, center, estLabelWidth(deltaText));
@@ -658,8 +658,11 @@ export function updateCursorReadout(plot) {
         S.cursor1 !== null ? S.cursor1.toFixed(decimals) : '-');
     setTextIfChanged(table.querySelector('[data-time="b"]'),
         S.cursor2 !== null ? S.cursor2.toFixed(decimals) : '-');
+    // Pas de formatDuration ici: son prefixe SI (ms/µs) desaccorderait la valeur de
+    // la cellule .ct-unit voisine, fixee a "s" pour toute la ligne temps (a/b/d) -
+    // meme convention que S.cursor1/S.cursor2 juste au-dessus (toFixed brut).
     setTextIfChanged(table.querySelector('[data-time="d"]'),
-        both ? formatDuration(S.cursor2 - S.cursor1, decimals) : '-');
+        both ? (S.cursor2 - S.cursor1).toFixed(decimals) : '-');
 
     plot.signals.forEach(sigIdx => {
         const cached = effectiveCache(plot, sigIdx);

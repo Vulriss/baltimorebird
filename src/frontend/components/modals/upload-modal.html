@@ -1,8 +1,8 @@
 <div class="modal-overlay" id="uploadModal" onclick="closeUploadModal(event)">
-    <div class="modal-content" onclick="event.stopPropagation()">
+    <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="uploadModalTitle" onclick="event.stopPropagation()">
         <div class="modal-header">
-            <h2>Charger un fichier</h2>
-            <button class="modal-close" onclick="closeUploadModal()">&times;</button>
+            <h2 id="uploadModalTitle">Charger un fichier</h2>
+            <button class="modal-close" aria-label="Fermer" onclick="closeUploadModal()">&times;</button>
         </div>
         <div class="modal-body">
             <p class="modal-description">Chargez votre propre fichier de mesure pour l'analyser.</p>
@@ -21,7 +21,7 @@
                 <label>Fichier de données</label>
                 <div class="file-input-wrapper">
                     <input type="file" id="edaInputFile" accept=".mf4,.csv,.mat,.dat,.blf" onchange="handleEdaFileSelect(this)">
-                    <div class="file-input-display" id="edaFileInputDisplay" onclick="document.getElementById('edaInputFile').click()">
+                    <div class="file-input-display" id="edaFileInputDisplay" tabindex="0" role="button" aria-label="Sélectionner un fichier de données" onclick="document.getElementById('edaInputFile').click()">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
                             <polyline points="17 8 12 3 7 8"/>
@@ -29,6 +29,7 @@
                         </svg>
                         <span class="file-input-text">Cliquez pour sélectionner</span>
                         <span class="file-input-formats">.mf4, .csv, .mat, .dat, .blf</span>
+                        <span class="file-input-hint">ou glissez-déposez vos fichiers ici</span>
                     </div>
                     <div class="file-selected" id="edaFileSelected" style="display: none;">
                         <div class="file-info">
@@ -52,11 +53,11 @@
             </div>
 
             <!-- Fichier DBC optionnel -->
-            <div class="modal-field">
-                <label>Fichier DBC / ARXML <span class="optional">(requis pour un BLF, sinon optionnel)</span></label>
+            <div class="modal-field" id="edaDbcField">
+                <label>Fichier DBC / ARXML <span class="optional" id="edaDbcRequirement">(requis pour un BLF, sinon optionnel)</span></label>
                 <div class="file-input-wrapper">
                     <input type="file" id="edaDbcFile" accept=".dbc,.arxml" onchange="handleEdaDbcSelect(this)">
-                    <div class="file-input-display small" id="edaDbcInputDisplay" onclick="document.getElementById('edaDbcFile').click()">
+                    <div class="file-input-display small" id="edaDbcInputDisplay" tabindex="0" role="button" aria-label="Sélectionner un fichier DBC ou ARXML" onclick="document.getElementById('edaDbcFile').click()">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
                             <polyline points="14 2 14 8 20 8"/>
@@ -82,7 +83,7 @@
             </div>
 
             <!-- Progress -->
-            <div id="edaUploadProgress" class="upload-progress" style="display: none;">
+            <div id="edaUploadProgress" class="upload-progress" style="display: none;" aria-live="polite">
                 <div class="progress-info">
                     <span id="edaUploadText">Upload en cours...</span>
                     <span id="edaUploadPercent">0%</span>

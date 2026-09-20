@@ -316,17 +316,48 @@ import { resizeAllChartsNow } from './plots.js';
     function forceResizeCharts() {
         const S = window.S;
         if (!S || !S.plots) return;
-        
+
         S.plots.forEach(plot => {
             if (!plot.chart) return;
             const body = plot.element.querySelector('.plot-body');
             if (body && body.clientWidth > 0 && body.clientHeight > 0) {
-                plot.chart.setSize({ 
-                    width: body.clientWidth, 
-                    height: body.clientHeight 
+                plot.chart.setSize({
+                    width: body.clientWidth,
+                    height: body.clientHeight
                 });
             }
         });
+    }
+
+    const nextFrame = () => new Promise(resolve => requestAnimationFrame(resolve));
+
+    // uPlot.setSize() n'applique jamais rien de synchrone: elle met a jour son etat
+    // interne puis programme le vrai redraw/redimensionnement du canvas sur le PROCHAIN
+    // rAF (source uPlot: mt() -> On() -> requestAnimationFrame). Un appel de verification
+    // qui relit le canvas dans la meme tache synchrone ne peut donc jamais voir sa propre
+    // correction prendre effet. uPlot ecoute aussi en interne les changements d'effective-
+    // DPI (zoom navigateur, fenetre deplacee vers un ecran a densite differente) et
+    // redimensionne alors toutes ses instances de son propre chef, de facon asynchrone et
+    // hors de notre controle - observe en prod: le conteneur .plot-body a la bonne largeur
+    // (1102px), mais le canvas s'est resynchronise sur une largeur perimee bien plus
+    // petite. On ne peut pas deviner quand cet evenement se declenche, donc on verifie et,
+    // si besoin, on corrige puis on attend reellement un rAF avant de relire - jusqu'a
+    // quelques tentatives - au lieu d'esperer un delai fixe suffisant en amont.
+    async function ensureChartsMatchContainers(plots) {
+        for (const { plot } of plots) {
+            const cnv = plot.chart.ctx.canvas;
+            const plotBodyEl = plot.element.querySelector('.plot-body');
+            if (!plotBodyEl) continue;
+
+            for (let attempt = 0; attempt < 5; attempt++) {
+                const r = cnv.getBoundingClientRect();
+                const expectedW = plotBodyEl.clientWidth;
+                const expectedH = plotBodyEl.clientHeight;
+                if (Math.abs(r.width - expectedW) <= 1 && Math.abs(r.height - expectedH) <= 1) break;
+                plot.chart.setSize({ width: expectedW, height: expectedH });
+                await nextFrame();
+            }
+        }
     }
 
     function resizePlotsWrapperForTarget() {
@@ -554,9 +585,16 @@ import { resizeAllChartsNow } from './plots.js';
         // Calculer les dimensions de chaque graphe et de sa legende, pour determiner la hauteur totale du canvas composite
         const plotLayouts = plots.map(({ plot, container }) => {
             const cnv = plot.chart.ctx.canvas;
-            const chartW = Math.round(cnv.width / dpr);
-            const chartH = Math.round(cnv.height / dpr);
-            
+
+            // Taille CSS reelle du canvas (source de verite du layout), pas une
+            // reconstruction depuis le buffer interne / dpr: le pxRatio interne du
+            // graphe ne correspond pas toujours a window.devicePixelRatio (ecran
+            // HiDPI, zoom navigateur), ce qui faussait surtout la largeur. Meme
+            // source que drawCursors() plus bas, qui utilise deja getBoundingClientRect.
+            const cnvRect = cnv.getBoundingClientRect();
+            const chartW = Math.round(cnvRect.width);
+            const chartH = Math.round(cnvRect.height);
+
             // Mesurer la hauteur de la legende pour ce graphe
             const meas = document.createElement('canvas').getContext('2d');
             const entries = legendEntries(container);
@@ -614,9 +652,14 @@ import { resizeAllChartsNow } from './plots.js';
             }
             
             // Chart
-            const chartX = PAD; 
-            const chartWidth = contentW - PAD * 2; 
-            
+            const chartX = PAD;
+            // Dessine le canvas source a sa largeur mesuree reelle, jamais a la largeur
+            // cible forcee: si le redimensionnement du graphe (avant capture) n'a pas
+            // encore fini de se propager, cnv a encore son ancienne largeur, et l'etirer
+            // vers la largeur cible deforme axes et courbe. A largeur mesuree egale, le
+            // rendu est identique a avant (cas normal).
+            const chartWidth = layout.chartW || (contentW - PAD * 2);
+
             ctx.drawImage(
                 layout.cnv,
                 chartX, currentY,
@@ -1335,8 +1378,16 @@ ${body}
 
         const resized = resizePlotsWrapperForTarget();
 
-        setTimeout(() => {
+        // Double rAF plutot qu'un delai fixe: garantit qu'un cycle de peinture complet
+        // s'est ecoule depuis le redimensionnement force ci-dessus avant de commencer a
+        // verifier les canvases (voir ensureChartsMatchContainers pour pourquoi cette
+        // verification doit elle-meme attendre un rAF entre chaque tentative plutot que
+        // relire en boucle synchrone).
+        requestAnimationFrame(() => requestAnimationFrame(async () => {
             try {
+                forceResizeCharts();
+                const { plots } = activeTabPlots();
+                await ensureChartsMatchContainers(plots);
                 if (!buildComposite()) {
                     restoreLayout();
                     if (typeof window.showNotification === 'function') {
@@ -1464,8 +1515,10 @@ ${body}
             addToReportBtn.title = 'Ajouter la capture au rapport';
             addToReportBtn.innerHTML = `
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <line x1="5" y1="12" x2="19" y2="12"/>
-                    <polyline points="12 5 19 12 12 19"/>
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                    <polyline points="14 2 14 8 20 8"/>
+                    <line x1="12" y1="18" x2="12" y2="12"/>
+                    <line x1="9" y1="15" x2="15" y2="15"/>
                 </svg>`;
             addToReportBtn.addEventListener('click', addCaptureToReport);
             stageActions.appendChild(addToReportBtn);
@@ -1593,7 +1646,7 @@ ${body}
             console.error('Error in open function:', error);
             restoreLayout();
         }
-        }, 100);
+        }));
     }
 
     function wireButton() {

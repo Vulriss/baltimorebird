@@ -4,7 +4,8 @@
 //
 // Structure (miroir de src/):
 //   abstracts/  variables partagées (couleurs, espacements, typo)
-//   core/       base, nav, layout, scrollbars, a11y, auth, banner, feedback, prism
+//   core/       base, nav, layout, file-input, scrollbars, a11y, auth, banner,
+//               feedback, prism
 //   eda/        vue EDA: sidebar, toolbar, tabs, plots, curseurs, légende,
 //               drawers, modale d'upload, liste de signaux, run-list, export
 //   views/      autres vues: utilities, data-converter, concatenation,
@@ -20,6 +21,7 @@
 @use 'core/base';
 @use 'core/nav';
 @use 'core/layout';
+@use 'core/file-input';
 @use 'views/utilities';
 @use 'views/data-converter';
 @use 'views/concatenation';

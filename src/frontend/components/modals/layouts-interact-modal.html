@@ -1,10 +1,10 @@
-<div class="layouts-drawer" id="layoutsDrawer">
+<div class="layouts-drawer" id="layoutsDrawer" role="dialog" aria-modal="true" aria-labelledby="layoutsDrawerTitle">
     <div class="drawer-header">
-        <h2>
+        <h2 id="layoutsDrawerTitle">
             <span class="header-list">Layouts</span>
             <span class="header-save">Sauvegarder le layout</span>
         </h2>
-        <button class="drawer-close" onclick="closeLayoutsDrawer()" title="Fermer">&times;</button>
+        <button class="drawer-close" onclick="closeLayoutsDrawer()" title="Fermer" aria-label="Fermer">&times;</button>
     </div>
     
     <!-- Mode Liste -->

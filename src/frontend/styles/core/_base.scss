@@ -48,3 +48,14 @@ body {
     min-width: 0;
     overflow: hidden;
 }
+
+/* Signature de trait des icones fonctionnelles: jonctions et embouts arrondis
+   plutot que nets. Coherent avec les fleches d'annotation de l'onboarding
+   (meme reglage dans _onboarding.scss), qui n'appliquaient ce trait qu'a la
+   visite guidee. Cible uniquement les icones "line" (fill none + stroke
+   currentColor, signature commune a toutes les icones de l'app), jamais les
+   illustrations ou graphes. */
+svg[fill="none"][stroke="currentColor"] {
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}

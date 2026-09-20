@@ -23,18 +23,18 @@
 
 .modal-content {
     background: $bg-body;
-    border: 1px solid $border-color;
     border-radius: 12px;
     width: 100%;
     max-width: 500px;
     max-height: 90vh;
     overflow-y: auto;
+    // Elevation declaree une seule fois (l'ombre): un hairline border en plus,
+    // sous une ombre aussi large, ne fait que dedoubler le meme signal.
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
 }
 
 /* Survol d'un fichier en cours de glisser-deposer sur la modal d'upload */
 .modal-content.drag-over {
-    border-color: $color-accent;
     outline: 2px dashed $color-accent;
     outline-offset: -10px;
 
@@ -78,7 +78,7 @@
 
 .modal-description {
     font-size: 13px;
-    color: $text-muted;
+    color: $text-secondary;
     margin-bottom: 20px;
     line-height: 1.5;
 }
@@ -101,7 +101,7 @@
 
 .modal-field .optional {
     font-weight: 400;
-    color: $text-dark;
+    color: $text-light;
 }
 
 .modal-footer {
@@ -149,6 +149,18 @@
     filter: brightness(1.05);
 }
 
+// Theme clair: $color-primary/$color-primary-dark y sont des accents de luminosite
+// moyenne (pas de vraies teintes "sombres"), insuffisants sous un texte quasi-blanc
+// pour les deux extremites du degrade (jusqu'a ~3:1). Assombrit le degrade du bouton
+// uniquement en clair, sans toucher les tokens partages par le reste de l'app.
+:root[data-theme="light"] .btn-primary {
+    background: linear-gradient(
+        135deg,
+        color-mix(in srgb, $color-primary 75%, black),
+        color-mix(in srgb, $color-primary-dark 75%, black)
+    );
+}
+
 .btn-primary:disabled {
     opacity: 0.5;
     cursor: not-allowed;
@@ -164,6 +176,35 @@
     padding: 16px;
     background: $bg-hover;
     border-radius: 8px;
+}
+
+/* Echec d'upload: memes elements (texte de statut, barre), signal visuel distinct
+   du deroulement normal plutot qu'un simple changement de texte sur fond neutre. */
+.upload-progress.error {
+    background: rgba(var(--ctp-red-rgb), 0.08);
+    border: 1px solid rgba(var(--ctp-red-rgb), 0.35);
+
+    .progress-info span:first-child {
+        color: $ctp-red;
+        font-weight: 500;
+    }
+
+    .progress-fill {
+        background: $ctp-red;
+    }
+}
+
+/* Le DBC/ARXML n'est obligatoire que pour un BLF: accent visuel quand ce fichier
+   est selectionne sans DBC deja fourni (cf. refreshDbcRequirement dans upload.js). */
+.modal-field.dbc-required {
+    .optional {
+        color: $ctp-red;
+        font-weight: 500;
+    }
+
+    .file-input-display.small {
+        border-color: $ctp-red;
+    }
 }
 
 button:hover { background: $ctp-surface2; }

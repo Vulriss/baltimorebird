@@ -1,5 +1,6 @@
 import { layoutToLxf, lxfToLayout } from './lxf.js';
 import { S } from '../core/state.js';
+import { activateDialog, deactivateDialog } from '../core/dialog-a11y.js';
 
 /**
  * Baltimore Bird - Gestion des layouts (UI, persistance, format de fichier LXF).
@@ -43,6 +44,7 @@ function openLayoutsDrawer() {
         drawer.classList.remove('save-mode');
         loadLayoutsList();
         drawer.classList.add('active');
+        activateDialog(drawer, { onEscape: closeLayoutsDrawer });
     }
 }
 
@@ -50,6 +52,7 @@ function closeLayoutsDrawer() {
     const drawer = document.getElementById('layoutsDrawer');
     if (drawer) {
         drawer.classList.remove('active');
+        deactivateDialog(drawer);
     }
 }
 

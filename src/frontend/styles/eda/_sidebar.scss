@@ -153,9 +153,17 @@
     gap: 6px 12px;
     margin-left: -(1.5 * $nav-wave-width);
     width: calc(100% + #{1.5 * $nav-wave-width});
-    padding: 10px 14px 10px calc(14px + #{1.5 * $nav-wave-width});
+    /* 16px haut/bas, etait 10px: la colonne principale reserve 8px sous
+       .drop-zone (padding de .plots-area) plus les 4px de son margin-top
+       avant .plots-wrapper, que .sidebar-footer n'a pas - sans ces +6px de
+       chaque cote, le filet du haut du footer tombe plus bas que le bas de
+       .plots-wrapper au lieu de s'y aligner. */
+    padding: 16px 14px 16px calc(14px + #{1.5 * $nav-wave-width});
     border-top: 1px solid $border-color;
-    font-size: 10px;
+    // $font-size-xs (11px), etait 10px (hors echelle): plancher lisible pour des
+    // stats consultees en continu, sans reserver la taille de .signal-item pour
+    // du texte purement informatif (non lu valeur par valeur comme un curseur).
+    font-size: $font-size-xs;
     color: $text-tertiary;
     background: var(--ctp-mantle);
 }

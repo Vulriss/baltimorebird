@@ -3,6 +3,8 @@
  * Sécurisé: validation des données, protection XSS, gestion sécurisée du token
  */
 
+import { activateDialog, deactivateDialog } from './dialog-a11y.js';
+
 // État global
 let currentUser = null;
 let authToken = null;
@@ -515,8 +517,8 @@ function showLoginModal() {
     const header = document.createElement('div');
     header.className = 'auth-modal-header';
     header.innerHTML = `
-        <h2>Connexion</h2>
-        <button class="auth-modal-close" type="button">
+        <h2 id="authModalTitle">Connexion</h2>
+        <button class="auth-modal-close" type="button" aria-label="Fermer">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <line x1="18" y1="6" x2="6" y2="18"/>
                 <line x1="6" y1="6" x2="18" y2="18"/>
@@ -555,9 +557,9 @@ function showLoginModal() {
     modalContent.appendChild(header);
     modalContent.appendChild(form);
     modalContent.appendChild(footer);
-    
+
     modal.classList.add('active');
-    document.getElementById('loginEmail').focus();
+    activateDialog(modalContent, { initialFocus: '#loginEmail', onEscape: closeAuthModal });
 }
 
 function showRegisterModal() {
@@ -572,8 +574,8 @@ function showRegisterModal() {
     const header = document.createElement('div');
     header.className = 'auth-modal-header';
     header.innerHTML = `
-        <h2>Créer un compte</h2>
-        <button class="auth-modal-close" type="button">
+        <h2 id="authModalTitle">Créer un compte</h2>
+        <button class="auth-modal-close" type="button" aria-label="Fermer">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <line x1="18" y1="6" x2="6" y2="18"/>
                 <line x1="6" y1="6" x2="18" y2="18"/>
@@ -658,7 +660,7 @@ function showRegisterModal() {
     modalContent.appendChild(footer);
     
     modal.classList.add('active');
-    document.getElementById('registerName').focus();
+    activateDialog(modalContent, { initialFocus: '#registerName', onEscape: closeAuthModal });
 }
 
 function validatePasswordRules() {
@@ -727,6 +729,7 @@ function closeAuthModal() {
     const modal = document.getElementById('authModal');
     if (modal) {
         modal.classList.remove('active');
+        deactivateDialog(document.getElementById('authModalContent'));
     }
 }
 
@@ -845,6 +848,7 @@ function showNotification(message, type = 'info') {
     
     const closeBtn = document.createElement('button');
     closeBtn.textContent = '×';
+    closeBtn.setAttribute('aria-label', 'Fermer');
     closeBtn.addEventListener('click', () => notification.remove());
     
     notification.appendChild(span);
@@ -858,6 +862,8 @@ function createNotificationContainer() {
     const container = document.createElement('div');
     container.id = 'notificationContainer';
     container.className = 'notification-container';
+    container.setAttribute('role', 'status');
+    container.setAttribute('aria-live', 'polite');
     document.body.appendChild(container);
     return container;
 }
@@ -922,12 +928,6 @@ function initAuth() {
         });
     }
     
-    // Ferme le modal avec Escape
-    document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') {
-            closeAuthModal();
-        }
-    });
 }
 
 // Auto-init

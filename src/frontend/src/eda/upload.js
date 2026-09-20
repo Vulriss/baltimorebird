@@ -1,7 +1,7 @@
 // Baltimore Bird - Modale d'upload EDA (fichier MF4 + DBC)
 // Module extrait de app.js (refactoring): voir src/eda/ARCHITECTURE.md
 
-import { closeCreateVariableModal } from './computed-vars.js';
+import { activateDialog, deactivateDialog } from '../core/dialog-a11y.js';
 import { API } from './context.js';
 import { activateLazySession, loadSources } from './sessions.js';
 
@@ -23,19 +23,40 @@ function fileExtension(name) {
     return i === -1 ? '' : name.slice(i + 1).toLowerCase();
 }
 
+function isBlfSelected() {
+    return !!edaSelectedFile && fileExtension(edaSelectedFile.name) === 'blf';
+}
+
+// Le DBC/ARXML n'est obligatoire que pour decoder un BLF: reflete cette regle des
+// la selection du fichier principal (pas seulement a l'echec du clic sur "Charger"),
+// pour que l'utilisateur le sache avant d'avoir rempli le reste du formulaire.
+function refreshDbcRequirement() {
+    const field = document.getElementById('edaDbcField');
+    const hint = document.getElementById('edaDbcRequirement');
+    const required = isBlfSelected() && !edaSelectedDbc;
+    if (field) field.classList.toggle('dbc-required', required);
+    if (hint) hint.textContent = required ? '(requis pour ce fichier BLF)' : '(requis pour un BLF, sinon optionnel)';
+}
+
+function refreshUploadButtonState() {
+    const edaUploadBtn = document.getElementById('edaUploadBtn');
+    if (!edaUploadBtn) return;
+    edaUploadBtn.disabled = !edaSelectedFile || (isBlfSelected() && !edaSelectedDbc);
+}
+
 function setEdaFile(file) {
     edaSelectedFile = file;
     const edaFileInputDisplay = document.getElementById('edaFileInputDisplay');
     const edaFileSelected = document.getElementById('edaFileSelected');
     const edaFileName = document.getElementById('edaFileName');
     const edaFileSize = document.getElementById('edaFileSize');
-    const edaUploadBtn = document.getElementById('edaUploadBtn');
 
     if (edaFileInputDisplay) edaFileInputDisplay.style.display = 'none';
     if (edaFileSelected) edaFileSelected.style.display = 'flex';
     if (edaFileName) edaFileName.textContent = file.name;
     if (edaFileSize) edaFileSize.textContent = formatEdaFileSize(file.size);
-    if (edaUploadBtn) edaUploadBtn.disabled = false;
+    refreshDbcRequirement();
+    refreshUploadButtonState();
 }
 
 function setEdaDbcFile(file) {
@@ -47,6 +68,8 @@ function setEdaDbcFile(file) {
     if (edaDbcInputDisplay) edaDbcInputDisplay.style.display = 'none';
     if (edaDbcSelected) edaDbcSelected.style.display = 'flex';
     if (edaDbcFileName) edaDbcFileName.textContent = file.name;
+    refreshDbcRequirement();
+    refreshUploadButtonState();
 }
 
 export function handleEdaFileSelect(input) {
@@ -55,6 +78,22 @@ export function handleEdaFileSelect(input) {
 
 export function handleEdaDbcSelect(input) {
     if (input.files[0]) setEdaDbcFile(input.files[0]);
+}
+
+// Rend les zones de selection de fichier (des divs stylees, l'input reel etant
+// masque pour l'apparence) utilisables au clavier: Entree/Espace ouvrent le
+// selecteur natif, comme le ferait un clic sur un <label>.
+function wireFileInputKeyboardActivation() {
+    ['edaFileInputDisplay', 'edaDbcInputDisplay'].forEach(id => {
+        const display = document.getElementById(id);
+        if (!display || display._kbdWired) return;
+        display._kbdWired = true;
+        display.addEventListener('keydown', (e) => {
+            if (e.key !== 'Enter' && e.key !== ' ') return;
+            e.preventDefault();
+            display.click();
+        });
+    });
 }
 
 // Glisser-deposer sur la modal d'upload, cable a la premiere ouverture (la modale est
@@ -114,6 +153,7 @@ export function openUploadModal() {
     // dépendants de l'état d'authentification (notes invité/connecté)
     if (typeof updateAuthUI === 'function') updateAuthUI();
     setupUploadModalDropZones();
+    wireFileInputKeyboardActivation();
     // Entrée = raccourci du bouton "Charger" des qu'un fichier est selectionne (bouton actif).
     if (!modal._enterWired) {
         document.addEventListener('keydown', (e) => {
@@ -124,12 +164,17 @@ export function openUploadModal() {
         modal._enterWired = true;
     }
     modal.classList.add('active');
+    const content = modal.querySelector('.modal-content');
+    activateDialog(content, { initialFocus: '#edaFileInputDisplay', onEscape: closeUploadModal });
 }
 
 export function closeUploadModal(event) {
     if (event && event.target !== event.currentTarget) return;
     const modal = document.getElementById('uploadModal');
-    if (modal) modal.classList.remove('active');
+    if (modal) {
+        modal.classList.remove('active');
+        deactivateDialog(modal.querySelector('.modal-content'));
+    }
     resetUploadModal();
 }
 
@@ -152,8 +197,12 @@ function resetUploadModal() {
     if (edaFileSelected) edaFileSelected.style.display = 'none';
     if (edaDbcInputDisplay) edaDbcInputDisplay.style.display = 'block';
     if (edaDbcSelected) edaDbcSelected.style.display = 'none';
-    if (edaUploadProgress) edaUploadProgress.style.display = 'none';
-    if (edaUploadBtn) edaUploadBtn.disabled = true;
+    if (edaUploadProgress) {
+        edaUploadProgress.style.display = 'none';
+        edaUploadProgress.classList.remove('error');
+    }
+    refreshDbcRequirement();
+    refreshUploadButtonState();
 }
 
 export function removeEdaFile() {
@@ -161,12 +210,12 @@ export function removeEdaFile() {
     const edaInputFile = document.getElementById('edaInputFile');
     const edaFileInputDisplay = document.getElementById('edaFileInputDisplay');
     const edaFileSelected = document.getElementById('edaFileSelected');
-    const edaUploadBtn = document.getElementById('edaUploadBtn');
-    
+
     if (edaInputFile) edaInputFile.value = '';
     if (edaFileInputDisplay) edaFileInputDisplay.style.display = 'block';
     if (edaFileSelected) edaFileSelected.style.display = 'none';
-    if (edaUploadBtn) edaUploadBtn.disabled = true;
+    refreshDbcRequirement();
+    refreshUploadButtonState();
 }
 
 export function removeEdaDbc() {
@@ -178,6 +227,8 @@ export function removeEdaDbc() {
     if (edaDbcFile) edaDbcFile.value = '';
     if (edaDbcInputDisplay) edaDbcInputDisplay.style.display = 'block';
     if (edaDbcSelected) edaDbcSelected.style.display = 'none';
+    refreshDbcRequirement();
+    refreshUploadButtonState();
 }
 
 function formatEdaFileSize(bytes) {
@@ -205,12 +256,29 @@ export async function uploadEdaFile() {
     const edaUploadFill = document.getElementById('edaUploadFill');
     const edaUploadPercent = document.getElementById('edaUploadPercent');
     
-    if (edaUploadProgress) edaUploadProgress.style.display = 'block';
+    if (edaUploadProgress) {
+        edaUploadProgress.style.display = 'block';
+        edaUploadProgress.classList.remove('error');
+    }
     if (edaUploadBtn) edaUploadBtn.disabled = true;
     if (edaUploadText) edaUploadText.textContent = 'Upload en cours...';
     if (edaUploadFill) edaUploadFill.style.width = '0%';
     if (edaUploadPercent) edaUploadPercent.textContent = '0%';
-    
+
+    // Rapporte un echec au niveau du champ de statut (aria-live) et d'une notification,
+    // plutot que de jeter depuis un listener xhr async: un throw ici ne remonterait pas
+    // au catch englobant, qui ne couvre que la configuration synchrone de la requete.
+    const showUploadError = (message) => {
+        console.error('EDA Upload error:', message);
+        if (edaUploadProgress) edaUploadProgress.classList.add('error');
+        if (edaUploadText) edaUploadText.textContent = 'Erreur : ' + message;
+        if (edaUploadFill) edaUploadFill.style.width = '0%';
+        refreshUploadButtonState();
+        if (typeof showNotification === 'function') {
+            showNotification('Erreur : ' + message, 'error');
+        }
+    };
+
     try {
         const formData = new FormData();
         formData.append('file', edaSelectedFile);
@@ -281,12 +349,12 @@ export async function uploadEdaFile() {
                     const err = JSON.parse(xhr.responseText);
                     errMsg = err.error || errMsg;
                 } catch (e) {}
-                throw new Error(errMsg);
+                showUploadError(errMsg);
             }
         });
-        
+
         xhr.addEventListener('error', () => {
-            throw new Error('Erreur réseau');
+            showUploadError('Erreur réseau');
         });
         
         xhr.open('POST', `${API}/eda/upload`);
@@ -297,22 +365,7 @@ export async function uploadEdaFile() {
         xhr.send(formData);
         
     } catch (e) {
-        console.error('EDA Upload error:', e);
-        if (edaUploadText) edaUploadText.textContent = 'Erreur: ' + e.message;
-        if (edaUploadFill) edaUploadFill.style.width = '0%';
-        if (edaUploadBtn) edaUploadBtn.disabled = false;
-        
-        if (typeof showNotification === 'function') {
-            showNotification('Erreur: ' + e.message, 'error');
-        }
+        showUploadError(e.message);
     }
 }
-
-// Fermer la modale avec Escape
-document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') {
-        closeUploadModal();
-        closeCreateVariableModal();
-    }
-});
 

@@ -101,16 +101,32 @@ export function formatTimeOffset(layout) {
     return `${numberFormat(layout.offsetDecimals).format(layout.offset)} s +`;
 }
 
-// Duree avec prefixe SI ("34 ms", "18 µs", "1.234 s"), a la precision de decimals
+// Duree avec prefixe SI ("34ms", "18µs", "1.234s"), a la precision de decimals
 // exprimee en secondes. Arrondi en secondes avant le choix de l'unite: 999.6 µs a 3
-// decimales donne "1 ms", pas "1000 µs". Separateur '.', comme les temps curseurs
-// (toFixed), pour ne pas melanger deux conventions dans la table de mesure.
+// decimales donne "1ms", pas "1000µs". Separateur '.', comme les temps curseurs
+// (toFixed). Pas d'espace avant l'unite: coherent avec le repere minutes/secondes
+// de formatDurationWithMinutes ("2m 4s"), colle au nombre de la meme facon.
 export function formatDuration(seconds, decimals) {
     const rounded = Number(seconds.toFixed(decimals));
     const unitExp = siExponent(rounded === 0 ? 10 ** -decimals : Math.abs(rounded));
     const unitDecimals = Math.max(0, decimals + unitExp);
     const magnitude = Math.abs(rounded * 10 ** -unitExp).toFixed(unitDecimals);
-    return `${rounded < 0 ? '−' : ''}${magnitude} ${SI_UNITS.get(unitExp)}`;
+    return `${rounded < 0 ? '−' : ''}${magnitude}${SI_UNITS.get(unitExp)}`;
+}
+
+// Repere minutes/secondes en plus du delta SI au-dela de 60s ("124.000 s (2m 4s)"):
+// une duree de curseur a curseur se lit comme un intervalle de lecture (podcast,
+// trajet), pas comme une mesure scientifique - sans lui, "124.000 s" demande un
+// calcul mental que la parenthese evite, sans faire perdre la precision du nombre
+// principal (deja a la resolution du zoom courant, cf. cursorTimeDecimals).
+export function formatDurationWithMinutes(seconds, decimals) {
+    const base = formatDuration(seconds, decimals);
+    const abs = Math.abs(seconds);
+    if (abs < 60) return base;
+    const totalSeconds = Math.round(abs);
+    const minutes = Math.floor(totalSeconds / 60);
+    const secs = totalSeconds % 60;
+    return `${base} (${minutes}m ${secs}s)`;
 }
 
 // Pas "rond" (1, 2, 2.5, 5 x 10^k) immediatement superieur ou egal a raw, comme uPlot.

@@ -2,6 +2,7 @@
 // Module extrait de app.js (refactoring): voir src/eda/ARCHITECTURE.md
 
 import { S } from '../core/state.js';
+import { activateDialog, deactivateDialog } from '../core/dialog-a11y.js';
 import { API, ectx } from './context.js';
 import { invalidateSignalCaches } from './data-views.js';
 import { fetchAndRenderPlot } from './render.js';
@@ -28,6 +29,7 @@ export function openCreateVariableDrawer() {
         resetCreateVariableForm();
         updateDrawerHeader(false);
         drawer.classList.add('active');
+        activateDialog(drawer, { initialFocus: '#newVarName', onEscape: closeCreateVariableDrawer });
     }
 }
 
@@ -42,6 +44,7 @@ export function closeCreateVariableDrawer() {
         drawer.classList.remove('active');
         drawer.classList.remove('creating');
         editingVariableIndex = null;
+        deactivateDialog(drawer);
         drawer.addEventListener('transitionend', () => {
             if (typeof window.resizePlotCharts === 'function') window.resizePlotCharts();
         }, { once: true });
@@ -147,7 +150,8 @@ function updateDrawerHeader(isEditMode) {
         if (submitBtn) {
             submitBtn.innerHTML = `
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <polyline points="20 6 9 17 4 12"></polyline>
+                    <line x1="12" y1="5" x2="12" y2="19"/>
+                    <line x1="5" y1="12" x2="19" y2="12"/>
                 </svg>
                 Créer`;
         }
