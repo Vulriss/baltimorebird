@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
-    formatDuration, formatTimeOffset, formatTimeTicks, stepDecimals, timeAxisLayout, timeAxisSpace,
+    formatDuration, formatDurationWithMinutes, formatTimeOffset, formatTimeTicks, stepDecimals, timeAxisLayout,
+    timeAxisSpace,
 } from '../src/eda/time-axis.js';
 
 // jsdom expose navigator.language = 'en-US': separateur decimal '.', milliers ','.
@@ -80,20 +81,37 @@ describe('timeAxisSpace', () => {
 
 describe('formatDuration', () => {
     it('uses the SI prefix of the rounded duration', () => {
-        expect(formatDuration(0.034, 3)).toBe('34 ms');
-        expect(formatDuration(0.000018, 6)).toBe('18 µs');
-        expect(formatDuration(0.0342, 4)).toBe('34.2 ms');
-        expect(formatDuration(1.2344, 3)).toBe('1.234 s');
-        expect(formatDuration(3e-9, 9)).toBe('3 ns');
+        expect(formatDuration(0.034, 3)).toBe('34ms');
+        expect(formatDuration(0.000018, 6)).toBe('18µs');
+        expect(formatDuration(0.0342, 4)).toBe('34.2ms');
+        expect(formatDuration(1.2344, 3)).toBe('1.234s');
+        expect(formatDuration(3e-9, 9)).toBe('3ns');
     });
 
     it('rounds in seconds before choosing the unit', () => {
-        expect(formatDuration(0.0009996, 3)).toBe('1 ms');
-        expect(formatDuration(0.0000004, 3)).toBe('0 ms');
+        expect(formatDuration(0.0009996, 3)).toBe('1ms');
+        expect(formatDuration(0.0000004, 3)).toBe('0ms');
     });
 
     it('signs negative durations and never prints a negative zero', () => {
-        expect(formatDuration(-0.034, 3)).toBe('−34 ms');
-        expect(formatDuration(-1e-12, 6)).toBe('0 µs');
+        expect(formatDuration(-0.034, 3)).toBe('−34ms');
+        expect(formatDuration(-1e-12, 6)).toBe('0µs');
+    });
+});
+
+describe('formatDurationWithMinutes', () => {
+    it('leaves durations under 60s untouched', () => {
+        expect(formatDurationWithMinutes(0.034, 3)).toBe('34ms');
+        expect(formatDurationWithMinutes(59.999, 3)).toBe('59.999s');
+    });
+
+    it('appends a minutes/seconds breakdown at 60s and above', () => {
+        expect(formatDurationWithMinutes(124, 3)).toBe('124.000s (2m 4s)');
+        expect(formatDurationWithMinutes(60, 3)).toBe('60.000s (1m 0s)');
+        expect(formatDurationWithMinutes(3661, 3)).toBe('3661.000s (61m 1s)');
+    });
+
+    it('rounds the breakdown to the nearest whole second', () => {
+        expect(formatDurationWithMinutes(124.6, 1)).toBe('124.6s (2m 5s)');
     });
 });
