@@ -171,8 +171,8 @@ for bugs and feature requests.
 
 ## License
 
-GNU General Public License v3.0 - see [LICENSE](LICENSE).
+Unlicense - see [LICENSE](LICENSE).
 
 ## Author
 
-Geoffrey DOMERGUE
+Made with ❤️ by Ampere MINT Team
