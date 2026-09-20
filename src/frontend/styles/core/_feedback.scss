@@ -1,46 +1,37 @@
 @use '../abstracts/variables' as *;
 
-.fb-overlay {
-    position: fixed;
-    inset: 0;
-    z-index: 5000;
-    background: rgba(0, 0, 0, 0.55);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 16px;
-}
+// La modale reprend .modal-overlay/.modal-content/.modal-header/.modal-close/
+// .modal-body/.modal-field/.modal-footer/.btn-primary/.btn-secondary (voir
+// eda/_upload-modal.scss): seul ce qui est propre au formulaire de retour vit ici.
 
 .fb-modal {
-    width: 100%;
     max-width: 460px;
-    background: $bg-card-elevated;
-    border: 1px solid $border-color;
-    border-radius: 10px;
-    padding: 20px;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
-}
-
-.fb-title {
-    margin: 0;
-    font-size: 16px;
-    color: $text-primary;
 }
 
 .fb-message,
 .fb-email {
     width: 100%;
     box-sizing: border-box;
-    background: $bg-input;
-    color: $text-primary;
+    background: $bg-card;
+    color: $text-white;
     border: 1px solid $border-color;
-    border-radius: 6px;
-    padding: 8px 10px;
+    border-radius: 8px;
+    padding: 10px 12px;
     font-size: 13px;
     font-family: inherit;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.fb-message:focus,
+.fb-email:focus {
+    outline: none;
+    border-color: $color-primary;
+    box-shadow: 0 0 0 3px rgba(var(--ctp-teal-rgb), 0.1);
+}
+
+.fb-message::placeholder,
+.fb-email::placeholder {
+    color: $text-darker;
 }
 
 .fb-message {
@@ -54,32 +45,14 @@
     color: $text-secondary;
 }
 
-.fb-actions {
-    display: flex;
-    justify-content: flex-end;
-    gap: 8px;
+// Meme convention que .upload-progress.error (eda/_upload-modal.scss): la
+// couleur porte l'issue de l'envoi, pas seulement le texte.
+.fb-status.error {
+    color: $ctp-red;
+    font-weight: 500;
 }
 
-.fb-btn {
-    border: 1px solid $border-color;
-    border-radius: 6px;
-    padding: 7px 14px;
-    font-size: 13px;
-    cursor: pointer;
-}
-
-.fb-cancel {
-    background: transparent;
-    color: $text-secondary;
-}
-
-.fb-send {
-    background: $color-accent;
-    color: $text-on-accent;
-    border-color: $color-accent;
-}
-
-.fb-send:disabled {
-    opacity: 0.6;
-    cursor: default;
+.fb-status.success {
+    color: $ctp-green;
+    font-weight: 500;
 }
