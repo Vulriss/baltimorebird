@@ -3,7 +3,7 @@
 project = "Baltimore Bird"
 author = "Geoffrey Domergue"
 copyright = "2026, Geoffrey Domergue"
-release = "1.1.0"
+release = "1.2.0"
 
 extensions = [
     "myst_parser",
