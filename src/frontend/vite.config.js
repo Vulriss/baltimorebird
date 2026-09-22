@@ -2,6 +2,8 @@ import { defineConfig } from 'vite'
 import { resolve } from 'path'
 import { copyFileSync, mkdirSync, readdirSync, statSync } from 'fs'
 
+import pkg from './package.json' with { type: 'json' }
+
 // Plugin pour copier les dossiers views/ et components/ dans dist/
 function copyFoldersPlugin() {
   return {
@@ -47,6 +49,10 @@ export default defineConfig({
   
   plugins: [copyFoldersPlugin()],
   
+  define: {
+    __APP_VERSION__: JSON.stringify(`${pkg.name} v${pkg.version}`),
+  },
+
   server: {
     port: 5173,
     open: true,

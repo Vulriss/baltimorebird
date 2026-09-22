@@ -394,3 +394,25 @@
     border: 1px solid $border-color;
     color: $text-muted;
 }
+
+.content-footer {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 6px 12px;
+    width: 100%;
+    padding: 4px 14px 4px 14px;
+    border-top: 1px solid $border-color;
+    font-size: $font-size-xs;
+    color: $text-tertiary;
+    background: var(--ctp-mantle);
+}
+
+.content-footer .text {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.content-footer .text-label { color: $text-secondary; }

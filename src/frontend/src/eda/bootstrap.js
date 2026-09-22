@@ -55,6 +55,7 @@ export async function init() {
         
         document.getElementById('statSignals').textContent = info.n_signals;
         document.getElementById('statDuration').textContent = info.duration.toFixed(0) + 's';
+        document.getElementById('app-footer-info').textContent = __APP_VERSION__;
         
         renderSignalList();
         updateSourceSelector();

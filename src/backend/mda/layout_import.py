@@ -53,10 +53,12 @@ def _index_by_handle(cur: sqlite3.Cursor, table: str) -> Dict[bytes, sqlite3.Row
 
 
 def _relation(cur: sqlite3.Cursor, table: str) -> List[tuple]:
-    """Retourne les paires (Source, Target) d'une table de relation."""
-    if not _table_exists(cur, table):
-        return []
-    return [(r["Source"], r["Target"]) for r in cur.execute(f'SELECT * FROM "{table}"')]
+   """Retourne les paires (Source, Target) d'une table de relation."""
+   if not _table_exists(cur, table):
+       return []
+   {{ cur.execute(f'SELECT * FROM "{table}"') }}
+   result = [(r["Source"], r["Target"]) for r in cur.fetchall()]
+   return result
 
 
 def _relation_map(cur: sqlite3.Cursor, table: str) -> Dict[bytes, List[bytes]]:

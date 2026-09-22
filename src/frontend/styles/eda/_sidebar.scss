@@ -158,7 +158,7 @@
        avant .plots-wrapper, que .sidebar-footer n'a pas - sans ces +6px de
        chaque cote, le filet du haut du footer tombe plus bas que le bas de
        .plots-wrapper au lieu de s'y aligner. */
-    padding: 16px 14px 16px calc(14px + #{1.5 * $nav-wave-width});
+    padding: 4px 14px 4px calc(14px + #{1.5 * $nav-wave-width});
     border-top: 1px solid $border-color;
     // $font-size-xs (11px), etait 10px (hors echelle): plancher lisible pour des
     // stats consultees en continu, sans reserver la taille de .signal-item pour
