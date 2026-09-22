@@ -339,6 +339,19 @@ export function cursorPlugin() {
                     document.body.style.userSelect = 'none';
                 });
 
+                line1.addEventListener('mouseenter', e => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    document.body.classList.add('is-cursor-1-hovered');
+                })
+
+                line1.addEventListener('mouseleave', e => {
+                    if (draggingCursor !== null) return;
+                    e.stopPropagation();
+                    e.preventDefault();
+                    document.body.classList.remove('is-cursor-1-hovered');
+                })
+
                 line2.addEventListener('mousedown', e => {
                     e.stopPropagation();
                     e.preventDefault();
@@ -352,6 +365,19 @@ export function cursorPlugin() {
                     document.body.style.cursor = 'ew-resize';
                     document.body.style.userSelect = 'none';
                 });
+
+                line2.addEventListener('mouseenter', e => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    document.body.classList.add('is-cursor-2-hovered');
+                })
+
+                line2.addEventListener('mouseleave', e => {
+                    if (draggingCursor !== null) return;
+                    e.stopPropagation();
+                    e.preventDefault();
+                    document.body.classList.remove('is-cursor-2-hovered');
+                })
 
                 onDocMouseMove = e => {
                     if (draggingCursor === null) return;
@@ -821,3 +847,5 @@ export function syncCursorsAcrossTabs() {
         tab.cursor2 = S.cursor2;
     });
 }
+
+

@@ -28,7 +28,12 @@
     background: var(--cursor-color);
 }
 
-.cursor-line:hover::after {
+body.is-cursor-1-hovered .cursor-1::after {
+    width: 4px;
+    left: 1px;
+}
+
+body.is-cursor-2-hovered .cursor-2::after {
     width: 4px;
     left: 1px;
 }
@@ -36,11 +41,6 @@
 .cursor-1 { --cursor-color: var(--cursor-a); }
 
 .cursor-2 { --cursor-color: var(--cursor-b); }
-
-.cursor-line.dragging::after {
-    width: 4px;
-    left: 1px;
-}
 
 .cursor-label {
     position: absolute;
