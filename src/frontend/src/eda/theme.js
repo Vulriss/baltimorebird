@@ -2,6 +2,7 @@
 // Module extrait de app.js (refactoring): voir src/eda/ARCHITECTURE.md
 
 import { S } from '../core/state.js';
+import { themedPresetColor } from './color-presets.js';
 import { isSeriesSynth, seriesDescriptor } from './overlay.js';
 import { updatePlotHeader, updateSignalActiveStates } from './plot-legend.js';
 import { runColorFor } from './runs.js';
@@ -48,6 +49,15 @@ function setupNavThemeToggle() {
                 });
             }
         }
+        // Couleurs de palette d'acces rapide: meme case, version du nouveau theme. Tous les
+        // onglets (pas seulement l'actif); les couleurs hors palette ne bougent pas.
+        const allPlots = new Set([...(S.tabs || []).flatMap(t => t.plots || []), ...(S.plots || [])]);
+        allPlots.forEach(plot => {
+            Object.keys(plot.signalStyles || {}).forEach(key => {
+                const style = plot.signalStyles[key];
+                if (style && style.color) style.color = themedPresetColor(style.color, next === 'light');
+            });
+        });
         // Les couleurs par defaut dependent du theme: reconstruire charts (la signature
         // change avec les couleurs de trait), legendes et pastilles de la liste.
         if (S.plots) {

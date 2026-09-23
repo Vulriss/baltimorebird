@@ -136,6 +136,22 @@
     unicode-bidi: plaintext;
 }
 
+/* Caracteres trouves par la recherche (signal-search.js). La couleur seule ne
+   suffit pas en theme clair (accent #087891 trop proche du texte #4c4f69): un
+   fond teinte d'accent porte le contraste. Pas de padding horizontal, pour ne
+   pas decaler le texte ni la troncature. */
+.signal-name .signal-match {
+    background: rgba(var(--ctp-color-accent-rgb), 0.18);
+    border-radius: 2px;
+    color: $color-accent;
+    font-weight: $font-weight-semibold;
+}
+
+:root[data-theme="light"] .signal-name .signal-match {
+    background: rgba(var(--ctp-color-accent-rgb), 0.16);
+    font-weight: $font-weight-bold;
+}
+
 .signal-unit {
     color: $text-dark;
     /* $font-size-2xs (10px) etait le plancher de l'echelle: l'unite est une
