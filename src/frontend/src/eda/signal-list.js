@@ -10,6 +10,9 @@ import { themedSignalColor } from './plot-ui.js';
 import { isBoolSignalIndex } from './plots.js';
 import { ensureSignalPreloaded, isSignalPreloading } from './preload.js';
 import { signalRunCoverage } from './runs.js';
+import {
+    appendHighlighted, buildEntry, matchRanges, parseQuery, rankEntries, syncSearchIndex,
+} from './signal-search.js';
 
 // =========================================================================
 // Liste de signaux virtualisee
@@ -41,6 +44,17 @@ let filteredSignalIndices = [];
 const selectedSignals = new Set();
 
 let selectionAnchor = null;
+
+// Index de recherche aligne sur S.signalsInfo (cf. signal-search.js), resynchronise a
+// chaque filtrage; requete active pour le surlignage (null sans terme positif).
+let searchIndex = null;
+
+let activeSearch = null;
+
+function searchEntryFor(sig) {
+    const entry = searchIndex ? searchIndex[sig.index] : null;
+    return entry && entry.name === sig.name ? entry : buildEntry(sig.name);
+}
 
 function clearSignalSelection() {
     if (!selectedSignals.size) return;
@@ -130,7 +144,9 @@ function createSignalItemEl(sig, colorMap) {
 
     const nameSpan = document.createElement('span');
     nameSpan.className = 'signal-name';
-    nameSpan.textContent = sig.name;
+    const ranges = activeSearch ? matchRanges(searchEntryFor(sig), activeSearch) : null;
+    if (ranges && ranges.length) appendHighlighted(nameSpan, String(sig.name), ranges);
+    else nameSpan.textContent = sig.name;
 
     const unitSpan = document.createElement('span');
     unitSpan.className = 'signal-unit';
@@ -185,15 +201,16 @@ export function computeFilteredSignals() {
     const input = document.getElementById('search');
     const query = (input?.value || '').toLowerCase().trim();
     if (!query) {
+        activeSearch = null;
         filteredSignalIndices = S.signalsInfo.map(s => s.index);
         return;
     }
-    const terms = query.split(/[\*\s]+/).filter(t => t.length > 0);
-    filteredSignalIndices = S.signalsInfo
-        .filter(s => terms.every(t => (s.name || '').toLowerCase().includes(t)))
-        // Variables calculees en tete des resultats (tri stable: le reste garde son ordre).
-        .sort((a, b) => (b.computed === true) - (a.computed === true))
-        .map(s => s.index);
+    const parsed = parseQuery(query);
+    activeSearch = parsed.include.length ? parsed : null;
+    searchIndex = syncSearchIndex(searchIndex, S.signalsInfo);
+    // Variables calculees toujours en tete, puis score decroissant, puis ordre d'origine.
+    filteredSignalIndices = rankEntries(searchIndex, parsed, i => S.signalsInfo[i]?.computed === true)
+        .map(i => S.signalsInfo[i].index);
 }
 
 // Rend la fenetre d'items visibles. force=true reconstruit meme sans changement
