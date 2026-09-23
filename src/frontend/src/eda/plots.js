@@ -4,6 +4,7 @@
 import { S } from '../core/state.js';
 import { getUnitConversion } from '../core/units.js';
 import { resizePlotCharts } from './bootstrap.js';
+import { presetColorForSignal, presetColorTaken } from './color-presets.js';
 import { ectx } from './context.js';
 import { updateCursorReadout } from './cursors.js';
 import { setCommentPlotSignal } from './events-strip.js';
@@ -545,7 +546,12 @@ function setupPlotDropZone(element, plotId) {
                         if (!carried) return;
                         if (carried.style) {
                             if (!destPlot.signalStyles) destPlot.signalStyles = {};
-                            destPlot.signalStyles[idx] = carried.style;
+                            // Couleur de palette deja prise ailleurs dans l'onglet: on garde la
+                            // case libre attribuee au depot, le reste du style suit.
+                            const fresh = destPlot.signalStyles[idx]?.color;
+                            destPlot.signalStyles[idx] = fresh && presetColorTaken(S.plots, idx, carried.style.color)
+                                ? { ...carried.style, color: fresh }
+                                : carried.style;
                             changed = true;
                         }
                         if (carried.transform) {
@@ -608,6 +614,15 @@ function adaptSignalUnit(plot, signalIndex) {
     }
 }
 
+// Couleur par defaut d'un signal depose: case de palette libre sur tout l'onglet (cf.
+// color-presets.js). Les series overlay gardent la couleur de leur run, et un style deja
+// pose (restauration de layout) est conserve tel quel.
+function assignPresetColor(plot, idx) {
+    if (isSeriesSynth(idx) || plot.signalStyles?.[idx]) return;
+    if (!plot.signalStyles) plot.signalStyles = {};
+    plot.signalStyles[idx] = { color: presetColorForSignal(S.plots, plot, idx), width: 1.5, dash: '' };
+}
+
 export function addSignalToPlot(plotId, signalIndex) {
     addSignalsToPlot(plotId, [signalIndex]);
 }
@@ -639,6 +654,7 @@ function addSignalsToPlot(plotId, signalIndices) {
     for (const idx of toAdd) {
         if (plot.signals.includes(idx)) continue;
         adaptSignalUnit(plot, idx);
+        assignPresetColor(plot, idx);
         plot.signals.push(idx);
         added = true;
     }
@@ -687,6 +703,8 @@ export function removeSignalFromPlot(plotId, signalIndex) {
 
     plot.signals = plot.signals.filter(s => s !== key);
     delete plot.cachedData[key];
+    // Le style part avec le signal: un nouveau depot recoit une case de palette libre.
+    if (plot.signalStyles) delete plot.signalStyles[key];
     if (plot._derivedCache) delete plot._derivedCache[key];
     if (plot.signalTransforms) delete plot.signalTransforms[key];
     if (plot.unitConversions) delete plot.unitConversions[key];

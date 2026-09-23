@@ -4,6 +4,7 @@
 import { S } from '../core/state.js';
 import { openAnalysisPopover } from './analysis.js';
 import { extractBoolHighRanges } from './bool-zones.js';
+import { presetColors } from './color-presets.js';
 import { ectx } from './context.js';
 import { isLegendSignalSelected, toggleLegendSignalSelection, updateCursorReadout } from './cursors.js';
 import { isSeriesSynth, seriesDescriptor } from './overlay.js';
@@ -126,28 +127,7 @@ function reorderSignalInPlot(plotId, draggedIdx, targetIdx, position = 'before')
 // =========================================================================
 // Palette de couleurs rapide + nuancier inline
 // =========================================================================
-// Accents Catppuccin adaptes au theme courant: Mocha (vifs, concus pour fond
-// sombre) en theme sombre, Latte (plus satures/fonces, lisibles sur clair) en
-// theme clair. Valeurs concretes (pas des var(--ctp-*)): la couleur d'un signal
-// est stockee et persistee telle quelle dans le layout, elle ne doit pas
-// changer avec le theme apres coup.
-const PRESET_COLORS_DARK = [
-    '#f38ba8', '#eba0ac', '#fab387', '#f9e2af',
-    '#a6e3a1', '#94e2d5', '#89dceb', '#74c7ec',
-    '#89b4fa', '#b4befe', '#cba6f7', '#f5c2e7',
-    '#f2cdcd', '#f5e0dc', '#cdd6f4', '#9399b2',
-];
-const PRESET_COLORS_LIGHT = [
-    '#d20f39', '#e64553', '#fe640b', '#df8e1d',
-    '#40a02b', '#179299', '#04a5e5', '#209fb5',
-    '#1e66f5', '#7287fd', '#8839ef', '#ea76cb',
-    '#dd7878', '#dc8a68', '#4c4f69', '#7c7f93',
-];
-
-function presetColors() {
-    const light = document.documentElement.getAttribute('data-theme') === 'light';
-    return light ? PRESET_COLORS_LIGHT : PRESET_COLORS_DARK;
-}
+// Couleurs d'acces rapide: voir color-presets.js.
 
 // --- Conversions HSV <-> hex (nuancier inline) ---
 let colorPopoverEl = null;

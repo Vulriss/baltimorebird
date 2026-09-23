@@ -3,6 +3,7 @@
 
 import { S } from '../core/state.js';
 import { purgeExtendedZonesForPlots } from './bool-zones.js';
+import { themedPresetColor } from './color-presets.js';
 import { API, ectx } from './context.js';
 import { canRenderFromCache } from './data-views.js';
 import { renderCommentPlot, setCommentPlotSignal } from './events-strip.js';
@@ -101,8 +102,10 @@ export function exportCurrentLayout() {
 function applyRestoredStyle(plot, sigIdx, style) {
     if (!style) return;
     if (!plot.signalStyles) plot.signalStyles = {};
+    // Une couleur de palette enregistree sous l'autre theme reprend sa case dans le theme courant.
+    const light = document.documentElement.getAttribute('data-theme') === 'light';
     plot.signalStyles[sigIdx] = {
-        color: style.color,
+        color: themedPresetColor(style.color, light),
         width: style.width || 1.5,
         dash: style.dash || '',
         path: style.path || '',

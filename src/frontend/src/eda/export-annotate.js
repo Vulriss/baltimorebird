@@ -11,6 +11,7 @@
  * coherents et nets.
  */
 
+import { presetColors } from './color-presets.js';
 import { hexToRgb, rgbToHsv, hsvToHex } from './color-utils.js';
 import { resizeAllChartsNow } from './plots.js';
 
@@ -26,19 +27,6 @@ import { resizeAllChartsNow } from './plots.js';
     const TARGET_WIDTH = 1134;
     const TARGET_HEIGHT = 700;
     const DEFAULT_COLORS = ['#f38ba8', '#94e2d5', '#fab387', '#89b4fa', '#a6e3a1', '#f9e2af', '#cba6f7'];
-
-    const PRESET_COLORS_DARK = [
-        '#f38ba8', '#eba0ac', '#fab387', '#f9e2af',
-        '#a6e3a1', '#94e2d5', '#89dceb', '#74c7ec',
-        '#89b4fa', '#b4befe', '#cba6f7', '#f5c2e7',
-        '#f2cdcd', '#f5e0dc', '#cdd6f4', '#9399b2',
-    ];
-    const PRESET_COLORS_LIGHT = [
-        '#d20f39', '#e64553', '#fe640b', '#df8e1d',
-        '#40a02b', '#179299', '#04a5e5', '#209fb5',
-        '#1e66f5', '#7287fd', '#8839ef', '#ea76cb',
-        '#dd7878', '#dc8a68', '#4c4f69', '#7c7f93',
-    ];
 
     const TOOL_ICONS = {
         text: `
@@ -1176,11 +1164,6 @@ ${body}
                 }
             });
         });
-    }
-
-    function presetColors() {
-        const light = document.documentElement.getAttribute('data-theme') === 'light';
-        return light ? PRESET_COLORS_LIGHT : PRESET_COLORS_DARK;
     }
 
     // --- Conversions HSV <-> hex (nuancier inline) ---
