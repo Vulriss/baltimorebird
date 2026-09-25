@@ -5,6 +5,9 @@ description: Sujet de hackathon Capgemini. Frictions de l'éditeur relevées par
 tags: [dashboard, hackathon, capgemini, ux, frontend]
 status: draft
 generated:
+  by: claude/sonnet-5
+  at: 2026-09-25T00:00:00Z
+verified:
   by: human:Geo
   at: 2026-09-25
 ---
