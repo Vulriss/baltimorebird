@@ -56,3 +56,5 @@ contribution. Les concepts sous `roadmap/` sont prospectifs et portent
 - [Portabilité multi-cloud](/roadmap/multi-cloud-portability.md) - object_store, fsspec, OIDC, Terraform
 - [Mode hors ligne](/roadmap/offline-first.md) - bundle local et question CORS
 - [Suite du Dashboard Builder](/roadmap/dashboard-builder-next.md) - ce qui est reporté après le PoC
+- [Dashboard Builder, ergonomie et chaîne d'exécution](/roadmap/dashboard-builder-ux.md) - hackathon Capgemini, audit et tranches
+- [Décimation à budget partagé dans l'EDA](/roadmap/budget-constrained-decimation.md) - hackathon Capgemini, allocation globale du budget de points
