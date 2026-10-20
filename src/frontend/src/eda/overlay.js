@@ -4,7 +4,7 @@
 import { S } from '../core/state.js';
 import { resizePlotCharts } from './bootstrap.js';
 import { API, ectx } from './context.js';
-import { canRenderFromCache, targetPointsForPlot } from './data-views.js';
+import { canRenderFromCache, plotHeightPx, targetPointsForPlot } from './data-views.js';
 import { autoEnableExtendedZones, updatePlotHeader, updateSignalActiveStates } from './plot-legend.js';
 import { buildSeriesConfig, commitPlotRender, resolveSignalStyle, themedSignalColor } from './plot-ui.js';
 import { cacheServerSignals, fetchAndRenderPlot, fetchRawSignals, fetchViewData, fullDataInFlight } from './render.js';
@@ -121,7 +121,7 @@ export async function fetchViewGrouped(plot, maxPts) {
         const start = ectx.globalView.min - off;
         const end = ectx.globalView.max - off;
         let url = `${API}/view?signals=${realIdx.join(',')}&start=${start}`
-            + `&end=${end}&max_points=${maxPts}`;
+            + `&end=${end}&max_points=${maxPts}&height=${plotHeightPx(plot)}`;
         const headers = {};
         if (sid) {
             url += `&session_id=${encodeURIComponent(sid)}&format=bin`;
@@ -197,6 +197,7 @@ export function renderOverlayChart(plot, data) {
 export function renderOverlayFromCache(plot) {
     const sigs = [];
     const maxPts = targetPointsForPlot(plot);
+    const heightPx = plotHeightPx(plot);
     for (const key of plot.signals) {
         const cached = plot.cachedData[key];
         if (!cached || !cached.timestamps || !cached.timestamps.length) continue;
@@ -208,7 +209,7 @@ export function renderOverlayFromCache(plot) {
             const run = d.sessionId ? S.runs.find(r => r.sessionId === d.sessionId) : null;
             off = effectiveRunOffset(run);
         }
-        const f = windowedView(cached, ectx.globalView.min - off, ectx.globalView.max - off, maxPts);
+        const f = windowedView(cached, ectx.globalView.min - off, ectx.globalView.max - off, maxPts, heightPx);
         if (!f.timestamps.length) continue;
         sigs.push({
             index: key, name: cached.name, unit: cached.unit, color: cached.color,

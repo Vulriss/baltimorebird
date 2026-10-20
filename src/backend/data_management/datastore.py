@@ -16,7 +16,7 @@ from typing import Any, Optional
 import numpy as np
 
 from config import BASE_DIR, DATA_SOURCES
-from core.downsampling import lttb_downsample
+from core.screen_decimation import DEFAULT_VIEW_HEIGHT, group_by_raster, screen_select, warmup
 from .loaders import load_mf4_with_dbc, load_synthetic_data
 
 logger = logging.getLogger(__name__)
@@ -125,9 +125,10 @@ class MultiSourceDataStore:
         logger.info(f"Ready: {len(self.signals)} signals")
 
     def get_view(
-        self, signal_indices: list[int], start_time: float, end_time: float, max_points: int
+        self, signal_indices: list[int], start_time: float, end_time: float, max_points: int,
+        height: int = DEFAULT_VIEW_HEIGHT,
     ) -> Optional[dict[str, Any]]:
-        """Retourne une vue downsamplée des signaux demandés."""
+        """Retourne une vue décimée des signaux demandés (sélection en espace écran)."""
         if not self.loaded:
             self.load()
 
@@ -140,6 +141,7 @@ class MultiSourceDataStore:
             },
             "signals": [],
         }
+        selected: list[tuple[int, Any, Any, Any]] = []
 
         for sig_idx in signal_indices:
             if sig_idx < 0 or sig_idx >= len(self.signals):
@@ -154,7 +156,7 @@ class MultiSourceDataStore:
             i1 = int(np.searchsorted(timestamps, end_time, side="right"))
             view_vals = values[i0:i1]
             # Un echantillon de part et d'autre de la fenetre pour que le trace atteigne les
-            # bords de la vue (meme contrat que windowBounds cote client). LTTB conserve le
+            # bords de la vue (meme contrat que windowBounds cote client). La selection garde le
             # premier et le dernier point; les statistiques restent sur la fenetre stricte.
             a0, a1 = max(0, i0 - 1), min(len(timestamps), i1 + 1)
             trace_ts, trace_vals = timestamps[a0:a1], values[a0:a1]
@@ -166,10 +168,12 @@ class MultiSourceDataStore:
             stat_vals = view_vals if len(view_vals) > 0 else trace_vals
 
             t_start = time.time()
-            if len(trace_ts) > max_points:
-                ds_ts, ds_vals = lttb_downsample(trace_ts, trace_vals, max_points)
-            else:
+            picked = screen_select(timestamps, values, a0, a1 - 1, start_time, end_time, max_points, height, max_points)
+            if picked is None:
                 ds_ts, ds_vals = trace_ts, trace_vals
+            else:
+                ds_ts, ds_vals = timestamps[picked], values[picked]
+                selected.append((len(result["signals"]), timestamps, values, picked))
             lttb_time = (time.time() - t_start) * 1000
 
             result["view"]["returned_points"] += len(ds_ts)
@@ -188,17 +192,21 @@ class MultiSourceDataStore:
                 },
             })
 
+        # Union des selections par raster partage, comme groupedWindowedViews cote client.
+        for group in group_by_raster([entry[1] for entry in selected]):
+            if len(group) < 2:
+                continue
+            union = np.unique(np.concatenate([selected[pos][3] for pos in group]))
+            for pos in group:
+                position, timestamps, values, _ = selected[pos]
+                result["signals"][position]["timestamps"] = timestamps[union].tolist()
+                result["signals"][position]["values"] = values[union].tolist()
+
         return result if result["signals"] else None
 
     def _warmup_lttb(self) -> None:
-        """JIT Numba warmup avec un petit échantillon."""
-        try:
-            if self.signals:
-                sig = self.signals[0]
-                n = min(1000, len(sig["timestamps"]))
-                _ = lttb_downsample(sig["timestamps"][:n], sig["values"][:n], 100)
-        except Exception:
-            logger.warning("LTTB warmup failed", exc_info=True)
+        """Compile les noyaux Numba de la décimation avant la première vue."""
+        warmup()
 
 
 datastore = MultiSourceDataStore()

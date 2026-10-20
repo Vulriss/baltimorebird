@@ -4,9 +4,11 @@
 import { S } from '../core/state.js';
 import { API, ectx } from './context.js';
 import { buildMinMaxPyramid } from './minmax-pyramid.js';
+import { buildChangeIndex } from './screen-decimation.js';
+import { withRenderSource } from './latency-probe.js';
 import { isSeriesSynth, plotHasSynth, seriesDescriptor } from './overlay.js';
 import { updateSignalsLoadedStatus } from './plots.js';
-import { cacheServerSignals, fetchViewData, renderBoolPlot, renderPlotChart } from './render.js';
+import { cacheServerSignals, fetchViewChunked, renderBoolPlot, renderPlotChart } from './render.js';
 import { plotIsVisible } from './view-nav.js';
 
 // =========================================================================
@@ -40,6 +42,16 @@ export function targetPointsForPlot(plot) {
     const raw = Math.ceil(cssWidth * dpr);
     const bucketed = Math.ceil(raw / PX_BUCKET) * PX_BUCKET;
     return Math.min(MAX_TARGET_POINTS, Math.max(MIN_TARGET_POINTS, bucketed));
+}
+
+// Plot height in physical pixels: the vertical resolution the screen-space selector measures
+// its pixel error at.
+export const DEFAULT_PLOT_HEIGHT_PX = 400;
+
+export function plotHeightPx(plot) {
+    const body = plot && plot.element && plot.element.querySelector('.plot-body');
+    const cssHeight = body && body.clientHeight;
+    return cssHeight ? Math.ceil(cssHeight * (window.devicePixelRatio || 1)) : DEFAULT_PLOT_HEIGHT_PX;
 }
 
 // Cle d'une vue: plage + signaux, SANS la resolution. La resolution (maxPts) peut
@@ -78,6 +90,27 @@ function estimatedMaxPtsForNewPlot() {
     return Math.min(MAX_TARGET_POINTS, Math.max(MIN_TARGET_POINTS, bucketed));
 }
 
+// Hauteur estimee du graphique qu'un drop va creer: les panneaux analogiques se partagent la
+// hauteur (flex 1), un nouveau prend donc ~1/(n+1) de l'espace des n existants. Estimation
+// seulement: si elle tombe a cote, le full-send redessine a la vraie hauteur.
+function estimatedHeightForNewPlot() {
+    const bodies = Array.from(document.querySelectorAll('.plot-container .plot-body'))
+        .filter(body => body.offsetParent !== null && !body.closest('.bool-strip, .comment-strip'));
+    const dpr = window.devicePixelRatio || 1;
+    if (bodies.length > 0) {
+        const total = bodies.reduce((sum, body) => sum + body.clientHeight, 0);
+        return Math.max(1, Math.ceil((total / (bodies.length + 1)) * dpr));
+    }
+    return DEFAULT_PLOT_HEIGHT_PX;
+}
+
+// Parametres d'une vue serveur (fenetre, colonnes, hauteur): ceux de la selection en espace
+// ecran qu'elle porte. Le client produit exactement la meme selection avec les memes
+// parametres une fois la pleine resolution recue.
+export function viewParams(maxPts, heightPx) {
+    return { min: ectx.globalView.min, max: ectx.globalView.max, cols: maxPts, height: heightPx };
+}
+
 export function prefetchSignalView(signalIndices) {
     const indices = (Array.isArray(signalIndices) ? signalIndices : [signalIndices])
         .filter(i => i != null && S.signalsInfo[i]);
@@ -87,16 +120,23 @@ export function prefetchSignalView(signalIndices) {
     if (prefetchCache.has(key)) return;
 
     const maxPts = estimatedMaxPtsForNewPlot();
-    let url = `${API}/view?signals=${indices.join(',')}&start=${ectx.globalView.min}&end=${ectx.globalView.max}`
-        + `&max_points=${maxPts}`;
+    const params = viewParams(maxPts, estimatedHeightForNewPlot());
+    let sessionQuery = '';
     const headers = {};
     if (ectx.currentLazySessionId) {
-        url += `&session_id=${encodeURIComponent(ectx.currentLazySessionId)}&format=bin`;
+        sessionQuery = `&session_id=${encodeURIComponent(ectx.currentLazySessionId)}&format=bin`;
         const token = sessionStorage.getItem('auth_token');
         if (token) headers['Authorization'] = 'Bearer ' + token;
     }
+    const urlFor = chunk => `${API}/view?signals=${chunk.join(',')}&start=${params.min}&end=${params.max}`
+        + `&max_points=${maxPts}&height=${params.height}${sessionQuery}`;
 
-    const promise = fetchViewData(url, headers).catch(() => null);
+    const promise = fetchViewChunked(indices, urlFor, headers)
+        .then(data => {
+            if (data) data.viewParams = params;
+            return data;
+        })
+        .catch(() => null);
     prefetchCache.set(key, { promise, maxPts });
     setTimeout(() => prefetchCache.delete(key), PREFETCH_TTL);
 }
@@ -203,9 +243,11 @@ export function replayServerData(plot, data) {
     }
     if (plot.isBoolPlot) {
         cacheServerSignals(plot, data);
-        renderBoolPlot(plot);
+        withRenderSource('server', () => renderBoolPlot(plot));
+        plot.displayedViewParams = null;
     } else {
-        renderPlotChart(plot, data);
+        withRenderSource('server', () => renderPlotChart(plot, data));
+        plot.displayedViewParams = data.viewParams || null;
     }
     if (data.signals_status) updateSignalsLoadedStatus(data.signals_status);
 }
@@ -298,6 +340,7 @@ export function schedulePyramidBuild(entry) {
         entry._pyramidPending = false;
         entry._pyramidBuilt = true;
         entry.pyramid = buildMinMaxPyramid(entry.values);
+        if (entry.unit === 'bool' || entry.stringMap) entry.changeIndex = buildChangeIndex(entry.values);
     };
     if (typeof requestIdleCallback === 'function') requestIdleCallback(run, { timeout: 3000 });
     else setTimeout(run, 250);

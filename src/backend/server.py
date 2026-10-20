@@ -23,6 +23,7 @@ from config import (
 )
 from middleware import register_metrics_middleware, register_security_middleware
 from api import register_blueprints
+from core.screen_decimation import warmup as warmup_screen_decimation
 from data_management import datastore, lazy_eda, purge_ingest_scratch, purge_orphan_files
 from services import conversion_manager, concatenation_manager, get_supported_conversions
 
@@ -148,6 +149,8 @@ def start_maintenance() -> None:
     run_maintenance_cycle()
 
     def maintenance_loop() -> None:
+        # Compilation Numba de la decimation des vues hors du chemin de la premiere requete.
+        warmup_screen_decimation()
         while True:
             time.sleep(MAINTENANCE_INTERVAL_SECONDS)
             run_maintenance_cycle()

@@ -12,7 +12,7 @@ import { updatePlotHeader } from './plot-legend.js';
 import { addSignalToPlot, createPlotInTab, ensureBoolPlot, ensureCommentPlot, isBoolSignalIndex, isEventSignalIndex } from './plots.js';
 import { renderBoolPlot } from './render.js';
 import { renderSignalList } from './signal-list.js';
-import { renderPlotFromCacheFiltered } from './transforms.js';
+import { renderPlotFromCacheFiltered, setDecimationSelector } from './transforms.js';
 import { applyGlobalViewLocal, refreshAllPlots } from './view-nav.js';
 
 // =========================================================================
@@ -219,6 +219,14 @@ window.setGlobalView = (v) => {
 };
 
 window.applyGlobalViewLocal = applyGlobalViewLocal;
+
+// Console switch between point selectors, for side by side comparison:
+// setDecimationSelector('pyramid') or setDecimationSelector('screen').
+window.setDecimationSelector = (name) => {
+    const selected = setDecimationSelector(name);
+    applyGlobalViewLocal();
+    return selected;
+};
 
 export async function applyLayout(layout) {
     if (!layout || !layout.tabs) {

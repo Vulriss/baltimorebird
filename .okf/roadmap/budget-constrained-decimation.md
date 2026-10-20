@@ -95,6 +95,50 @@ sur le contenu en ajoute une fraction.
 - **Coût d'allocation.** Le tas global tourne à chaque déplacement de fenêtre.
   Profiler `pyramidView` avant, fixer la cible après mesure.
 
+## Avancement après le hackathon
+
+Le hackathon a livré les modules des tranches 0 à 4. Leur bench montrait un gain
+nul ou négatif sur le chemin de l'application, pour trois raisons mesurées
+ensuite : un budget sept fois plus contraint que celui de l'EDA (W/7 points par
+panneau au lieu de W), une priorité σ·ρ·cols qui surestime l'erreur des signaux
+bruités, et un tas glouton qui ne coupe jamais un grand nœud dont la coupe ne
+paie qu'un niveau plus bas.
+
+La méthode retravaillée prend les colonnes de pixels comme feuilles, note chaque
+nœud par son erreur en pixels réelle et raffine la plus forte erreur d'abord (voir
+[Pipeline de rendu](/architecture/rendering-pipeline.md)). Mesures sur trois
+fichiers réels anonymisés, 114 scènes de 12 traces, largeurs 900 et 1600 px, zooms
+de la fenêtre entière à 0,1 % :
+
+| Sélecteur | Erreur médiane | Pire trace médiane | Points émis |
+|---|---|---|---|
+| Pyramide actuelle | 11,3 % | 44,2 % | 5 664 |
+| Hackathon, tas global | 8,3 % | 29,2 % | 7 266 |
+| Colonnes, budget par trace | 2,0 % | 20,5 % | 5 676 |
+| Colonnes, tas global, plancher 50 % | 0,0 % | 0,0 % | 8 089 |
+
+- **Tranche A, livrée** : sélecteur par colonnes, budget par trace inchangé.
+  Gagne les 90 scènes non triviales, ne dégrade la pire trace dans aucune.
+- **Chaîne complète, livrée** : le critère « aucun changement serveur » est levé
+  (décision du 2026-10-19, objectif fidélité maximale aux meilleures
+  performances). `/view` décime avec la même méthode que le client et le client
+  l'applique aussi avant la pyramide : le premier affichage est le rendu final.
+  Indices identiques sur 1 296 cas réels (3 fichiers, 3 tailles d'écran, 4 zooms).
+  Coût serveur 20 ms contre 30 ms pour LTTB sur 8,6 millions d'échantillons.
+- **Tranche B, à faire** : tas unique sur les traces visibles avec plancher de
+  50 % de la part uniforme. Sans plancher, des panneaux sont affamés (pire
+  panneau 99 %). Le budget total est la somme des budgets actuels, que la
+  pyramide actuelle ne dépensait qu'à moitié.
+- **Abandonnés** : frontières alignées sur le contenu (tranche 3) et détection
+  des canaux de transport, que les feuilles en colonnes et le plancher rendent
+  inutiles. Le module de métrique `raster-error.js` est repris tel quel.
+
+Le coût de sélection reste à surveiller : 4,9 ms médian par scène de 12 traces,
+28 ms au pire, contre 0,4 ms. Le temps restant est fait de lectures mémoire
+dispersées dans la pyramide et de la notation des nœuds. Si le pan en navigateur
+en souffre, la piste est de garder `pyramidSelect` pendant le geste et de
+raffiner à l'arrêt.
+
 ## Critères de fin
 
 - Bench vitest rejouant au moins trois fichiers réels, erreur moyenne et pire

@@ -102,7 +102,7 @@ export function buildMinMaxPyramid(values, factor = DEFAULT_FACTOR, minSamples =
 // Emet dans `out` les indices {first, argmin, argmax, last} d'un bucket, tries et dedupliques.
 // Les buckets etant traites de gauche a droite sur des plages disjointes, la sortie globale
 // reste strictement croissante. Un bucket plat se deduplique naturellement a 2 points.
-function emitBucket(first, last, iMin, iMax, out) {
+export function emitBucket(first, last, iMin, iMax, out) {
     const a = Math.min(iMin, iMax);
     const b = Math.max(iMin, iMax);
     if (out.length === 0 || out[out.length - 1] !== first) out.push(first);
@@ -344,7 +344,7 @@ export function scanSelect(values, startIdx, endIdx, maxPts) {
 /**
  * Materialise une vue {timestamps, values} depuis des indices bruts selectionnes.
  */
-function materializeSelection(timestamps, values, indices) {
+export function materializeSelection(timestamps, values, indices) {
     const m = indices.length;
     const ts = new Float64Array(m);
     const vs = new Float32Array(m);

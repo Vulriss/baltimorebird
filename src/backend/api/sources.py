@@ -2,12 +2,14 @@
 
 import json
 import struct
+from typing import Optional
 
 import numpy as np
 from flask import Blueprint, Response, g, jsonify, request
 
 from api.auth import optional_auth
 from config import DATA_SOURCES
+from core.screen_decimation import DEFAULT_VIEW_HEIGHT, MAX_VIEW_HEIGHT, MIN_VIEW_HEIGHT, same_raster
 from data_management import datastore, lazy_eda
 
 sources_bp = Blueprint("sources", __name__)
@@ -198,9 +200,33 @@ def get_view():
         max_points = max(100, min(max_points, 10000))
     except (ValueError, TypeError):
         max_points = 2000
+    height = _view_height()
 
-    result = datastore.get_view(signal_indices, start, end, max_points)
+    result = datastore.get_view(signal_indices, start, end, max_points, height)
     return jsonify(result) if result else (jsonify({"error": "No data in range"}), 404)
+
+
+def _view_height() -> int:
+    """Hauteur du graphique en pixels physiques (paramètre ``height`` de /view), bornée."""
+    try:
+        height = int(request.args.get("height", DEFAULT_VIEW_HEIGHT))
+    except (ValueError, TypeError):
+        return DEFAULT_VIEW_HEIGHT
+    return max(MIN_VIEW_HEIGHT, min(height, MAX_VIEW_HEIGHT))
+
+
+# Bases de temps distinctes qu'un client peut declarer detenir dans une requete /raw.
+MAX_HELD_RASTERS = 8
+
+
+def _shared_timestamps_position(timestamps: np.ndarray, emitted: list[Optional[np.ndarray]]) -> Optional[int]:
+    """Position of an already emitted signal carrying exactly the same timestamps, if any."""
+    for position, previous in enumerate(emitted):
+        if previous is None:
+            continue
+        if previous is timestamps or (same_raster(previous, timestamps) and np.array_equal(previous, timestamps)):
+            return position
+    return None
 
 
 def _encode_signals_binary(header_extra: dict, signals: list[dict]) -> Response:
@@ -210,16 +236,32 @@ def _encode_signals_binary(header_extra: dict, signals: list[dict]) -> Response:
     Chaque entrée de `signals` porte ses tableaux numpy sous 'timestamps' et 'values' ; les
     autres clés sont recopiées telles quelles dans l'entête, avec 'n' (nombre d'échantillons)
     ajouté. Les blocs suivent dans le même ordre : horodatages float64 puis valeurs float32.
+    Un signal dont les horodatages sont identiques à ceux d'un signal précédent porte
+    ``ts_ref`` (position de ce signal) et n'envoie que ses valeurs : un groupe de signaux d'un
+    même raster ne paie ses horodatages qu'une fois. Un signal portant ``timestamps_from``
+    (index d'un signal dont le client détient déjà les horodatages) n'envoie que ses valeurs.
     """
     header_signals = []
     chunks: list[bytes] = []
+    emitted: list[Optional[np.ndarray]] = []
     for sig in signals:
-        timestamps = np.ascontiguousarray(sig["timestamps"], dtype="<f8")
         values = np.ascontiguousarray(sig["values"], dtype="<f4")
         meta = {key: value for key, value in sig.items() if key not in ("timestamps", "values")}
-        meta["n"] = int(timestamps.size)
+        meta["n"] = int(values.size)
+        if "timestamps_from" in sig:
+            emitted.append(None)
+            header_signals.append(meta)
+            chunks.append(values.tobytes())
+            continue
+        timestamps = np.ascontiguousarray(sig["timestamps"], dtype="<f8")
+        shared = _shared_timestamps_position(timestamps, emitted)
+        if shared is None:
+            chunks.append(timestamps.tobytes())
+            emitted.append(timestamps)
+        else:
+            meta["ts_ref"] = shared
+            emitted.append(None)
         header_signals.append(meta)
-        chunks.append(timestamps.tobytes())
         chunks.append(values.tobytes())
 
     header = json.dumps({**header_extra, "signals": header_signals}, ensure_ascii=False).encode("utf-8")
@@ -253,8 +295,9 @@ def _get_lazy_view(session_id: str):
         max_points = max(100, min(max_points, 10000))
     except (ValueError, TypeError):
         max_points = 2000
+    height = _view_height()
 
-    result = lazy_eda.get_view(session_id, signal_indices, start, end, max_points)
+    result = lazy_eda.get_view(session_id, signal_indices, start, end, max_points, height)
     if not result:
         return jsonify({"error": "No data in range"}), 404
 
@@ -300,10 +343,19 @@ def _get_lazy_raw(session_id: str):
     """
     try:
         indices = [int(x) for x in request.args.get("signals", "").split(",") if x.strip()][:50]
+        held = [int(x) for x in request.args.get("have_ts", "").split(",") if x.strip()][:MAX_HELD_RASTERS]
     except ValueError:
         return jsonify({"error": "Paramètre signals invalide"}), 400
     if not indices:
         return jsonify({"error": "Aucun signal demandé"}), 400
+
+    # Horodatages complets que le client declare deja detenir (have_ts): un signal dont les
+    # horodatages leur sont exactement egaux n'envoie que ses valeurs (timestamps_from).
+    held_timestamps = []
+    for index in held:
+        held_signal = lazy_eda.get_signal_data(session_id, index)
+        if held_signal and held_signal.is_loaded:
+            held_timestamps.append((index, held_signal.timestamps))
 
     signals = []
     for index in indices:
@@ -311,7 +363,7 @@ def _get_lazy_raw(session_id: str):
         if not signal or not signal.is_loaded:
             continue
         meta = signal.metadata
-        signals.append({
+        entry = {
             "index": index,
             "name": meta.name,
             "unit": meta.unit,
@@ -320,7 +372,13 @@ def _get_lazy_raw(session_id: str):
             "string_map": signal.string_map or None,
             "timestamps": signal.timestamps,
             "values": signal.values,
-        })
+        }
+        for held_index, timestamps in held_timestamps:
+            if timestamps is signal.timestamps or (
+                    same_raster(timestamps, signal.timestamps) and np.array_equal(timestamps, signal.timestamps)):
+                entry["timestamps_from"] = held_index
+                break
+        signals.append(entry)
 
     if not signals:
         return jsonify({"error": "No data"}), 404

@@ -22,7 +22,7 @@ from config import (
     TEMP_DIR,
 )
 from core import allowed_file
-from core.downsampling import lttb_downsample
+from core.screen_decimation import DEFAULT_VIEW_HEIGHT, MAX_VIEW_HEIGHT, MIN_VIEW_HEIGHT, screen_select
 from data_management import lazy_eda
 from data_management.event_comments import serialize_event_comments
 
@@ -382,6 +382,7 @@ def get_lazy_eda_view(session_id: str):
         start = float(request.args.get("start", session.t_min))
         end = float(request.args.get("end", session.t_max))
         max_points = max(100, min(int(request.args.get("max_points", 2000)), 10000))
+        height = max(MIN_VIEW_HEIGHT, min(int(request.args.get("height", DEFAULT_VIEW_HEIGHT)), MAX_VIEW_HEIGHT))
     except (ValueError, TypeError):
         return jsonify({"error": "Paramètres invalides"}), 400
 
@@ -401,10 +402,11 @@ def get_lazy_eda_view(session_id: str):
             continue
 
         result["view"]["original_points"] += len(view_ts)
-        if len(view_ts) > max_points:
-            ds_ts, ds_vals = lttb_downsample(view_ts, view_vals, max_points)
-        else:
+        picked = screen_select(ts, vs, i0, i1 - 1, start, end, max_points, height, max_points)
+        if picked is None:
             ds_ts, ds_vals = view_ts, view_vals
+        else:
+            ds_ts, ds_vals = ts[picked], vs[picked]
         result["view"]["returned_points"] += len(ds_ts)
 
         result["signals"].append({

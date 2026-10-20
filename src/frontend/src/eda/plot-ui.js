@@ -14,6 +14,7 @@ import { colorWithOpacity } from './plots.js';
 import { assembleAlignedData, renderBoolPlot } from './render.js';
 import { timeAxisSpace, timeAxisValues } from './time-axis.js';
 import { traceEnvelope } from './trace-envelope.js';
+import { probeNow, recordRender } from './latency-probe.js';
 import { effectiveCache, groupedWindowedViews, renderPlotFromCacheFiltered } from './transforms.js';
 import { applyGlobalViewLocal, panPlotsScaleOnly, recordViewChange, refreshAllPlots } from './view-nav.js';
 
@@ -339,12 +340,14 @@ function renderSignature(plot, series) {
 // X suit globalView (fonction range); un changement de signaux/style/borne-Y change
 // la signature et declenche une reconstruction.
 export function commitPlotRender(plot, series, uplotData, bands) {
+    const startedAt = probeNow();
     const sig = renderSignature(plot, series);
 
     if (plot.chart && plot._renderSig === sig) {
         // Reutilisation: setData declenche un redraw qui re-evalue les fonctions range
         // X (globalView) et Y (plot.yRange) -> fenetre et cadrage Y suivis sans rebuild.
         plot.chart.setData(uplotData);
+        recordRender(plot, startedAt, uplotData[0].length, uplotData.length - 1);
         return;
     }
 
@@ -358,6 +361,7 @@ export function commitPlotRender(plot, series, uplotData, bands) {
         uplotData, chartDiv
     );
     plot._renderSig = sig;
+    recordRender(plot, startedAt, uplotData[0].length, uplotData.length - 1);
 }
 
 // Boutons icone de la barre overlay. SVG inline plutot qu'emoji: les emoji sont

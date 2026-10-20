@@ -8,6 +8,7 @@ import { canRenderFromCache } from './data-views.js';
 import { renderCommentPlot } from './events-strip.js';
 import { fetchAndRenderPlot, renderBoolPlot } from './render.js';
 import { renderPlotFromCacheFiltered } from './transforms.js';
+import { frameEnd, frameStart } from './latency-probe.js';
 
 // Historique des niveaux de zoom/vue. recordViewChange() memorise l'etat courant
 // avant un changement (zoom ou pan) et invalide le redo. undoView()/redoView()
@@ -76,6 +77,7 @@ export function plotIsVisible(plot) {
 }
 
 export function applyGlobalViewLocal() {
+    frameStart();
     S.plots.forEach(plot => {
         plot._needsRender = false;
         if (plot.signals.length === 0) return;
@@ -88,5 +90,6 @@ export function applyGlobalViewLocal() {
         }
     });
     scheduleAnalysisRefresh();
+    frameEnd();
 }
 

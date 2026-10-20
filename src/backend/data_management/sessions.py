@@ -16,6 +16,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 from config import LAZY_EDA_EVICTION_GRACE, LAZY_EDA_MEMORY_BUDGET_BYTES, LAZY_EDA_SESSION_TIMEOUT
+from core.screen_decimation import DEFAULT_VIEW_HEIGHT, group_by_raster, screen_select
 from .loaders import iter_channel_occurrences, disambiguate_name
 from .session_descriptor import (
     ComputedSignalSpec,
@@ -1159,10 +1160,16 @@ class LazyEDAManager:
         signal_indices: List[int],
         start: float,
         end: float,
-        max_points: int = 2000
+        max_points: int = 2000,
+        height: int = DEFAULT_VIEW_HEIGHT,
     ) -> Optional[Dict]:
-        """Récupère une vue downsamplée des signaux demandés."""
-        from core.downsampling import lttb_downsample
+        """Récupère une vue décimée des signaux demandés.
+
+        Les signaux continus passent par la sélection en espace écran
+        (``core.screen_decimation``), la même que le client applique ensuite à la pleine
+        résolution : le tracé ne change pas quand celle-ci arrive. ``max_points`` est la
+        largeur du graphique en pixels physiques, ``height`` sa hauteur.
+        """
 
         session = self.get_session(session_id)
         if not session or not session.listed:
@@ -1182,6 +1189,9 @@ class LazyEDAManager:
             self.preload_signals(session_id, unloaded)
 
         result_signals = []
+        # Signaux continus decimes: (position dans result_signals, horodatages complets,
+        # valeurs completes, debut de fenetre, indices selectionnes), pour l'union par raster.
+        selected: List[Tuple[int, NDArray[np.float64], NDArray, int, NDArray[np.int64]]] = []
 
         for idx in signal_indices:
             lazy_signal = session.signals.get(idx)
@@ -1212,12 +1222,11 @@ class LazyEDAManager:
                 t_red, v_red = state_change_points(t_seg, v_seg)
                 if len(t_red) > max(2 * max_points, 4000):
                     # Cas pathologique (transitions quasi a chaque echantillon): repli.
-                    t_slice = timestamps[i0:i1]
-                    v_slice = values[i0:i1]
-                    if len(t_slice) > max_points:
-                        t_down, v_down = lttb_downsample(t_slice, v_slice, max_points)
+                    picked = screen_select(timestamps, values, a0, a1 - 1, start, end, max_points, height, max_points)
+                    if picked is None:
+                        t_down, v_down = t_seg, v_seg
                     else:
-                        t_down, v_down = t_slice, v_slice
+                        t_down, v_down = timestamps[picked], values[picked]
                 else:
                     t_down, v_down = t_red, v_red
                 stat_values = values[i0:i1]
@@ -1234,10 +1243,13 @@ class LazyEDAManager:
                 if len(t_slice) == 0:
                     continue
                 n_original = i1 - i0
-                if len(t_slice) > max_points:
-                    t_down, v_down = lttb_downsample(t_slice, v_slice, max_points)
-                else:
+                a_end = a0 + len(t_slice) - 1
+                picked = screen_select(timestamps, values, a0, a_end, start, end, max_points, height, max_points)
+                if picked is None:
                     t_down, v_down = t_slice, v_slice
+                else:
+                    t_down, v_down = timestamps[picked], values[picked]
+                    selected.append((len(result_signals), timestamps, values, a0, picked))
                 stat_values = v_slice[i0 - a0 : i1 - a0]
                 is_complete = len(t_slice) <= max_points
 
@@ -1266,6 +1278,19 @@ class LazyEDAManager:
                 signal_data["is_categorical"] = True
 
             result_signals.append(signal_data)
+
+        # Les signaux d'un meme raster recoivent l'union de leurs selections, comme dans
+        # groupedWindowedViews cote client (axe X partage, enveloppe de chacun exacte).
+        for group in group_by_raster([entry[1] for entry in selected]):
+            if len(group) < 2:
+                continue
+            union = np.unique(np.concatenate([selected[pos][4] for pos in group]))
+            shared_timestamps = selected[group[0]][1][union]  # un seul tableau: envoye une fois
+            for pos in group:
+                position, _, values, _, _ = selected[pos]
+                result_signals[position]["timestamps"] = shared_timestamps
+                result_signals[position]["values"] = values[union]
+                result_signals[position]["n_returned"] = int(len(union))
 
         if not result_signals:
             return None
