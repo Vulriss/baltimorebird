@@ -118,10 +118,6 @@
     border-radius: $radius-sm;
     cursor: pointer;
 
-    &:hover {
-        background: $bg-hover-subtle;
-    }
-
     .legend-name {
         flex: 1;
         min-width: 0;
@@ -181,14 +177,82 @@
     cursor: pointer;
 }
 
-/* Panneau de reglages: pleine largeur sous la ligne, visible si depliee */
-.legend-row .legend-controls {
-    grid-column: 1 / -1;
-    display: none;
+/* Survol: toute la ligne, comme la selection (cellules jointives). La ligne est en
+   display: contents, mais :hover remonte aux ancetres du survole, donc > * suffit. */
+.legend-row:not(.selected):hover > * {
+    background: $bg-hover-subtle;
 }
 
-.legend-row.expanded .legend-controls {
-    display: block;
+.legend-row:not(.selected):hover > :first-child {
+    border-radius: $radius-sm 0 0 $radius-sm;
+}
+
+.legend-row:not(.selected):hover > .ct-unit {
+    border-radius: 0 $radius-sm $radius-sm 0;
+}
+
+.legend-table:not(.cursors-active) .legend-row:not(.selected):hover > .lt-name {
+    border-radius: $radius-sm;
+}
+
+/* Panneau de reglages: flottant au-dessus du contenu, rattache a body et deroule en JS
+   depuis la fleche de la ligne. Au-dessus du panneau d'analyse (900), sous les modales
+   (1000) et la palette de couleurs (2000) qu'il peut ouvrir. Fond $bg-modal (base):
+   $bg-card-elevated (surface0) est un gris soutenu en theme clair. */
+.legend-controls.legend-controls-floating {
+    position: fixed;
+    z-index: 950;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    width: 280px;
+    max-height: calc(100vh - 16px);
+    overflow-y: auto;
+    padding: 8px 10px 10px;
+    background: $bg-modal;
+    border: 1px solid $border-color;
+    border-radius: 10px;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+    font-family: $font-mono;
+    font-size: $font-size-sm;
+}
+
+/* Ombre adoucie sur fond clair: a 0.35 elle salit le contour du panneau. */
+:root[data-theme="light"] .legend-controls.legend-controls-floating {
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+.legend-controls-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid $border-color;
+}
+
+.legend-controls-title {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: $font-weight-semibold;
+}
+
+.legend-controls-close {
+    background: transparent;
+    border: none;
+    color: $text-muted;
+    font-size: 14px;
+    line-height: 1;
+    padding: 2px 6px;
+    border-radius: $radius-sm;
+    cursor: pointer;
+
+    &:hover {
+        color: $text-primary;
+        background: $bg-hover-subtle;
+    }
 }
 
 /* Mutateurs rapides: boutons d'analyse KDE/FFT de la legende */

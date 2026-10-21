@@ -310,6 +310,80 @@ document.addEventListener('keydown', (e) => {
 });
 document.addEventListener('scroll', () => closeColorPopover(), true);
 
+// =========================================================================
+// Reglages d'un signal: panneau flottant au-dessus du contenu
+// =========================================================================
+// Deplie dans la ligne, le panneau etait coupe par les strips fins. Il est donc rattache
+// a body en position fixe et deroule depuis la fleche qui l'ouvre, comme un menu: bord
+// droit aligne sur la fleche, sous elle, ou au-dessus faute de place. Non bloquant (pas
+// de voile): l'effet d'un reglage se lit en direct sur la courbe. Un seul panneau a la
+// fois; il survit au rebuild de legende de son panneau.
+const LEGEND_CONTROLS_GAP = 8;
+const LEGEND_CONTROLS_OFFSET = 4;
+let openControls = null; // { el, row, anchor, plotId, sigIdx }
+
+function closeLegendControls() {
+    if (!openControls) return;
+    openControls.row.classList.remove('expanded');
+    openControls.el.remove();
+    openControls = null;
+}
+
+function placeLegendControls() {
+    if (!openControls) return;
+    const { el, anchor } = openControls;
+    const rect = anchor.getBoundingClientRect();
+    // Ancre detachee (plot retire) ou masquee (onglet change): plus rien a regler ici.
+    if (!anchor.isConnected || rect.width === 0) {
+        closeLegendControls();
+        return;
+    }
+    const width = el.offsetWidth;
+    const height = el.offsetHeight;
+    const maxLeft = window.innerWidth - width - LEGEND_CONTROLS_GAP;
+    const left = Math.max(LEGEND_CONTROLS_GAP, Math.min(rect.right - width, maxLeft));
+    const below = rect.bottom + LEGEND_CONTROLS_OFFSET;
+    const above = rect.top - LEGEND_CONTROLS_OFFSET - height;
+    const fitsBelow = below + height <= window.innerHeight - LEGEND_CONTROLS_GAP;
+    // Sous la fleche par defaut; au-dessus si la place manque et qu'elle y est; sinon le
+    // cote le plus spacieux, borne a l'ecran (le panneau defile en interne).
+    let top;
+    if (fitsBelow || (above < LEGEND_CONTROLS_GAP && window.innerHeight - rect.bottom >= rect.top)) top = below;
+    else top = above;
+    top = Math.max(LEGEND_CONTROLS_GAP, Math.min(top, window.innerHeight - height - LEGEND_CONTROLS_GAP));
+    el.style.left = `${left}px`;
+    el.style.top = `${top}px`;
+}
+
+function openLegendControls(plot, sigIdx, row, controls, anchor) {
+    closeColorPopover();
+    closeLegendControls();
+    row.classList.add('expanded');
+    controls.classList.add('legend-controls-floating');
+    controls.setAttribute('role', 'dialog');
+    controls.setAttribute('aria-label', 'Réglages du signal');
+    document.body.appendChild(controls);
+    openControls = { el: controls, row, anchor, plotId: plot.id, sigIdx };
+    placeLegendControls();
+}
+
+// Clic exterieur: ferme, sauf dans les popovers ouverts depuis le panneau (couleur,
+// analyse KDE/FFT, stats de zone) et sur la fleche, qui gere sa propre bascule.
+const LEGEND_CONTROLS_COMPANIONS = '.color-preset-popover, .analysis-popover, .zone-stats-popover, .legend-toggle';
+document.addEventListener('pointerdown', (e) => {
+    if (!openControls || openControls.el.contains(e.target)) return;
+    if (e.target.closest && e.target.closest(LEGEND_CONTROLS_COMPANIONS)) return;
+    closeLegendControls();
+});
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeLegendControls();
+});
+// Le panneau suit sa ligne (scroll de la legende, redimensionnement des strips).
+document.addEventListener('scroll', (e) => {
+    if (openControls && !openControls.el.contains(e.target)) placeLegendControls();
+}, true);
+window.addEventListener('resize', placeLegendControls);
+
 export function updatePlotHeader(plot) {
     // Le rebuild recree les lignes de legende: un popover de couleur ouvert
     // pointerait un input orphelin, on le ferme.
@@ -317,10 +391,11 @@ export function updatePlotHeader(plot) {
     const legendDiv = plot.element.querySelector('.plot-legend');
     if (!legendDiv) return;
 
-    const expandedItems = new Set();
-    legendDiv.querySelectorAll('.legend-row.expanded').forEach(row => {
-        expandedItems.add(row.dataset.sigIdx);
-    });
+    // Panneau de reglages ouvert sur ce plot: ferme avant le rebuild (ses lignes vont etre
+    // recreees), puis rouvert sur la nouvelle ligne du meme signal s'il existe toujours.
+    const reopenSigIdx = openControls && openControls.plotId === plot.id ? openControls.sigIdx : null;
+    if (reopenSigIdx !== null) closeLegendControls();
+    let reopen = null;
 
     // Vide et reconstruit avec createElement (CSP safe, XSS safe).
     // Table unifiee (modele desktop): chaque ligne est a la fois l'entree de
@@ -389,9 +464,6 @@ export function updatePlotHeader(plot) {
         row.className = 'legend-row';
         row.dataset.sigIdx = sigIdx;
         row.dataset.plotId = plot.id;
-        if (expandedItems.has(String(sigIdx))) {
-            row.classList.add('expanded');
-        }
 
         // Cellule nom = entree de legende complete
         const nameCell = document.createElement('div');
@@ -481,6 +553,25 @@ export function updatePlotHeader(plot) {
         // Panneau de reglages (pleine largeur, visible quand la ligne est depliee)
         const controls = document.createElement('div');
         controls.className = 'legend-controls';
+
+        // Detache de sa ligne, le panneau rappelle le signal qu'il regle.
+        const controlsHeader = document.createElement('div');
+        controlsHeader.className = 'legend-controls-header';
+        const controlsTitle = document.createElement('span');
+        controlsTitle.className = 'legend-controls-title';
+        controlsTitle.textContent = labelText;
+        controlsTitle.title = labelText;
+        controlsTitle.style.color = style.color;
+        const controlsClose = document.createElement('button');
+        controlsClose.type = 'button';
+        controlsClose.className = 'legend-controls-close';
+        controlsClose.textContent = '×';
+        controlsClose.title = 'Fermer (Échap)';
+        controlsClose.setAttribute('aria-label', 'Fermer les réglages');
+        controlsClose.addEventListener('click', () => closeLegendControls());
+        controlsHeader.appendChild(controlsTitle);
+        controlsHeader.appendChild(controlsClose);
+        controls.appendChild(controlsHeader);
 
         const widthRow = document.createElement('div');
         widthRow.className = 'legend-control-row';
@@ -710,13 +801,15 @@ export function updatePlotHeader(plot) {
             controls.appendChild(zstatsRow);
         }
 
-        row.appendChild(controls);
+        // Le panneau n'est pas insere dans la ligne: il vit dans body pendant qu'il est ouvert.
+        if (reopenSigIdx === sigIdx) reopen = { row, controls, anchor: toggleSpan };
 
         // Event listeners: la fleche ouvre les reglages, le clic sur la ligne
         // (nom ou cellules de mesure) selectionne/deselectionne le signal
         toggleSpan.addEventListener('click', (e) => {
             e.stopPropagation();
-            row.classList.toggle('expanded');
+            if (openControls && openControls.el === controls) closeLegendControls();
+            else openLegendControls(plot, sigIdx, row, controls, toggleSpan);
         });
 
         const selectableCells = [nameCell, ...row.querySelectorAll('.ct-val, .ct-unit')];
@@ -750,7 +843,7 @@ export function updatePlotHeader(plot) {
             e.stopPropagation();
             const enabled = !ectx.extendedBoolZones.has(sigIdx);
             toggleExtendedZones(plot.id, sigIdx, enabled);
-            const cb = row.querySelector('.extend-zones-toggle');
+            const cb = controls.querySelector('.extend-zones-toggle');
             if (cb) cb.checked = enabled;
         });
         colorInput.addEventListener('change', (e) => {
@@ -809,6 +902,7 @@ export function updatePlotHeader(plot) {
     });
 
     legendDiv.appendChild(table);
+    if (reopen) openLegendControls(plot, reopenSigIdx, reopen.row, reopen.controls, reopen.anchor);
 
     updateCursorReadout(plot);
 }
@@ -912,8 +1006,9 @@ function updateSignalStyle(plotId, sigIdx, property, value) {
 
     if (property === 'width') {
         plot.signalStyles[sigIdx].width = parseFloat(value);
-        const row = plot.element.querySelector(`.legend-row[data-sig-idx="${sigIdx}"]`);
-        const widthValue = row?.querySelector('.legend-width-value');
+        // Le libelle vit dans le panneau de reglages, rattache a body quand il est ouvert.
+        const widthValue = openControls && openControls.plotId === plotId && openControls.sigIdx === sigIdx
+            ? openControls.el.querySelector('.legend-width-value') : null;
         if (widthValue) widthValue.textContent = value;
     } else if (property === 'color') {
         plot.signalStyles[sigIdx].color = value;
