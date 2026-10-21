@@ -125,6 +125,17 @@ window.getRunPalette = () => {
     });
 };
 
+// Numero de fichier affiche dans le roster et dans la legende en comparaison, a la place
+// du nom de fichier. Fixe a l'enregistrement: retirer ou supprimer un autre fichier ne
+// renumerote pas les series deja tracees. Plus petit numero libre: il n'est reutilise
+// qu'apres suppression du fichier qui le portait (ses series ont alors quitte les graphes).
+function allocateRunNumber() {
+    const taken = new Set(S.runs.map(r => r.number));
+    let n = 1;
+    while (taken.has(n)) n++;
+    return n;
+}
+
 export function registerRun(sessionId, filename, ephemeral, signals) {
     if (!sessionId) return;
     let run = S.runs.find(r => r.sessionId === sessionId);
@@ -133,7 +144,7 @@ export function registerRun(sessionId, filename, ephemeral, signals) {
         // runs deja enregistres pour prendre une teinte encore libre.
         const colorIndex = allocateRunColorIndex();
         run = {
-            sessionId, filename: filename || sessionId, ephemeral: !!ephemeral,
+            sessionId, filename: filename || sessionId, ephemeral: !!ephemeral, number: allocateRunNumber(),
             ref: S.runs.length === 0, colorIndex, color: null, compared: false,
             nameToIndex: null, signals: null, nSignals: null, duration: null, offset: 0,
         };

@@ -385,6 +385,8 @@
         el.dataset.id = run.sessionId;
         el.innerHTML = ''
             + `<span class="run-swatch" style="background:${run.color || colorForId(run.sessionId)}"></span>`
+            // Numero repris dans la legende des graphes, a la place du nom de fichier.
+            + (run.number ? `<span class="run-num" title="Fichier n°${Number(run.number)}">${Number(run.number)}</span>` : '')
             + `<span class="run-name" title="${escapeHtml(run.filename)}">${escapeHtml(run.filename)}</span>`
             + (run.ref ? `<span class="run-ref" title="Reference temporelle">${pinSvg()}</span>` : '')
             + `<button class="run-details-btn" type="button" title="Details du run" aria-label="Details du run">${detailsSvg()}</button>`

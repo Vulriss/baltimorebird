@@ -64,7 +64,7 @@ export function seriesDescriptor(key) {
             const realIndex = run && run.nameToIndex ? run.nameToIndex.get(m.name) : undefined;
             return {
                 synthetic: true, sessionId: m.sessionId, name: m.name,
-                realIndex, color: m.color, runLabel: m.label,
+                realIndex, color: m.color, runLabel: m.label, runNumber: run ? run.number : null,
             };
         }
     }
@@ -73,8 +73,14 @@ export function seriesDescriptor(key) {
         synthetic: false, sessionId: ectx.currentLazySessionId || null,
         name: sig ? sig.name : String(key),
         realIndex: typeof key === 'number' ? key : Number(key),
-        color: sig ? sig.color : '#ffffff', runLabel: null,
+        color: sig ? sig.color : '#ffffff', runLabel: null, runNumber: null,
     };
+}
+
+// Libelle d'une serie: nom du signal, suivi du numero de fichier en comparaison (le meme
+// que dans le roster). Le nom de fichier, trop long pour la legende, n'y figure plus.
+export function seriesLabel(name, desc) {
+    return desc.runNumber ? `${name} #${desc.runNumber}` : name;
 }
 
 // Ajoute un signal (par nom) en overlay: une serie par run du roster qui le contient,
@@ -181,7 +187,7 @@ export function renderOverlayChart(plot, data) {
         }
         const style = resolveSignalStyle(plot, sig.index, sig.color);
         const desc = seriesDescriptor(sig.index);
-        const label = desc.runLabel ? `${sig.name} · ${desc.runLabel}` : sig.name;
+        const label = seriesLabel(sig.name, desc);
         const sc = buildSeriesConfig(label, sig.unit, style);
         sc.spanGaps = true;
         uplotData.push(y);

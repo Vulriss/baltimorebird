@@ -88,6 +88,24 @@
     flex: 0 0 auto;
 }
 
+/* Numero de fichier en comparaison: meme pastille dans le roster et dans la legende des
+   graphes, pour relier une serie a son fichier sans afficher le nom. */
+.run-num {
+    flex: 0 0 auto;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 4px;
+    border-radius: $radius-sm;
+    background: $bg-hover-subtle;
+    border: 1px solid $border-color;
+    color: $text-secondary;
+    font-family: $font-mono;
+    font-size: $font-size-2xs;
+    font-weight: $font-weight-semibold;
+    line-height: 14px;
+    text-align: center;
+}
+
 .run-slot .run-slot-select,
 .run-slot #sourceSelector {
     flex: 1;

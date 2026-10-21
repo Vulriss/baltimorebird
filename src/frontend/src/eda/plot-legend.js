@@ -7,7 +7,7 @@ import { extractBoolHighRanges } from './bool-zones.js';
 import { presetColors } from './color-presets.js';
 import { ectx } from './context.js';
 import { isLegendSignalSelected, toggleLegendSignalSelection, updateCursorReadout } from './cursors.js';
-import { isSeriesSynth, seriesDescriptor } from './overlay.js';
+import { isSeriesSynth, seriesDescriptor, seriesLabel } from './overlay.js';
 import { FILL_MODES, PATH_MODES, effectiveFillMode, effectivePathMode, exitSolo, isFirstPlot, renderPlotFromCache, rerenderPlotFromCache, resolveSignalStyle } from './plot-ui.js';
 import { rebuildPlotsLayout } from './plots.js';
 import { signalActiveColorMap } from './signal-list.js';
@@ -454,7 +454,10 @@ export function updatePlotHeader(plot) {
         const rowTransform = signalTransform(plot, sigIdx);
         const rowSpec = rowTransform && sig && sig.unit !== 'bool' ? SIGNAL_TRANSFORMS[rowTransform.mode] : null;
         const displayName = rowSpec ? desc.name + rowSpec.suffix : desc.name;
-        const labelText = desc.runLabel ? `${displayName} · ${desc.runLabel}` : displayName;
+        // Comparaison: numero de fichier (celui du roster) au lieu du nom de fichier; le nom
+        // complet reste lisible au survol.
+        const labelText = seriesLabel(displayName, desc);
+        const hoverText = desc.runLabel ? `${labelText} · ${desc.runLabel}` : labelText;
 
         const style = resolveSignalStyle(plot, sigIdx, desc.color);
 
@@ -468,16 +471,23 @@ export function updatePlotHeader(plot) {
         // Cellule nom = entree de legende complete
         const nameCell = document.createElement('div');
         nameCell.className = 'lt-name';
-        nameCell.title = labelText;
+        nameCell.title = hoverText;
 
         const colorInput = document.createElement('input');
         colorInput.type = 'color';
         colorInput.className = 'legend-color-btn';
         colorInput.value = rgbToHex(style.color);
 
+        // Pastille hors de .legend-name: un nom long est tronque, le numero reste visible.
+        const runBadge = desc.runNumber ? document.createElement('span') : null;
+        if (runBadge) {
+            runBadge.className = 'run-num';
+            runBadge.textContent = String(desc.runNumber);
+        }
+
         const nameSpan = document.createElement('span');
         nameSpan.className = 'legend-name';
-        nameSpan.textContent = labelText;
+        nameSpan.textContent = displayName;
         nameSpan.style.color = style.color;
 
         const toggleSpan = document.createElement('span');
@@ -486,6 +496,7 @@ export function updatePlotHeader(plot) {
         toggleSpan.title = 'Réglages du signal';
 
         nameCell.appendChild(colorInput);
+        if (runBadge) nameCell.appendChild(runBadge);
         nameCell.appendChild(nameSpan);
         nameCell.appendChild(toggleSpan);
         row.appendChild(nameCell);
@@ -560,7 +571,7 @@ export function updatePlotHeader(plot) {
         const controlsTitle = document.createElement('span');
         controlsTitle.className = 'legend-controls-title';
         controlsTitle.textContent = labelText;
-        controlsTitle.title = labelText;
+        controlsTitle.title = hoverText;
         controlsTitle.style.color = style.color;
         const controlsClose = document.createElement('button');
         controlsClose.type = 'button';
