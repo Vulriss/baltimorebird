@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { derivative, gaussianKde, fftMagnitude, savitzkyGolay } from '../src/eda/signal-math.js';
+import { cumulativeIntegral, derivative, gaussianKde, fftMagnitude, savitzkyGolay } from '../src/eda/signal-math.js';
 
 describe('derivative', () => {
   it('dérivée exacte d\'une rampe linéaire = pente constante', () => {
@@ -20,6 +20,38 @@ describe('derivative', () => {
 
   it('renvoie des zéros pour moins de 2 points', () => {
     expect(Array.from(derivative([0], [5]))).toEqual([0]);
+  });
+});
+
+describe('cumulativeIntegral', () => {
+  it('part de 0 et intègre une constante en rampe', () => {
+    const t = [0, 1, 2, 3];
+    const out = cumulativeIntegral(t, [2, 2, 2, 2]);
+    expect(Array.from(out)).toEqual([0, 2, 4, 6]);
+  });
+
+  it('exacte sur une rampe (trapèzes) avec pas irrégulier', () => {
+    // y = t -> ∫ = t²/2, exact pour la méthode des trapèzes
+    const t = [0, 0.5, 2, 2.1, 5];
+    const out = cumulativeIntegral(t, t);
+    t.forEach((x, i) => expect(out[i]).toBeCloseTo((x * x) / 2, 12));
+  });
+
+  it('ignore les NaN : l\'intégrale garde sa dernière valeur au lieu de devenir NaN', () => {
+    const t = [0, 1, 2, 3, 4, 5];
+    const out = cumulativeIntegral(t, [1, 1, NaN, NaN, 1, 1]);
+    expect(Array.from(out)).toEqual([0, 1, 1, 1, 1, 2]);
+  });
+
+  it('NaN en tête : reste à 0 jusqu\'au premier couple valide', () => {
+    const out = cumulativeIntegral([0, 1, 2, 3], [NaN, 3, 3, 3]);
+    expect(Array.from(out)).toEqual([0, 0, 3, 6]);
+  });
+
+  it('accepte un Float32Array et les cas dégénérés', () => {
+    expect(Array.from(cumulativeIntegral([0, 2], new Float32Array([1, 3])))).toEqual([0, 4]);
+    expect(Array.from(cumulativeIntegral([0], [5]))).toEqual([0]);
+    expect(cumulativeIntegral([], []).length).toBe(0);
   });
 });
 

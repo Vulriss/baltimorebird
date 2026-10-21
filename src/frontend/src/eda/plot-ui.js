@@ -14,7 +14,10 @@ import { colorWithOpacity } from './plots.js';
 import { assembleAlignedData, renderBoolPlot } from './render.js';
 import { timeAxisSpace, timeAxisValues } from './time-axis.js';
 import { traceEnvelope } from './trace-envelope.js';
-import { effectiveCache, groupedWindowedViews, renderPlotFromCacheFiltered } from './transforms.js';
+import {
+    SIGNAL_TRANSFORMS, commitPendingRender, effectiveCache, groupedWindowedViews, renderPlotFromCacheFiltered,
+    signalTransform,
+} from './transforms.js';
 import { applyGlobalViewLocal, panPlotsScaleOnly, recordViewChange, refreshAllPlots } from './view-nav.js';
 
 // =========================================================================
@@ -48,8 +51,14 @@ export function themedSignalColor(color) {
 }
 
 export function resolveSignalStyle(plot, sigIdx, fallbackColor) {
-    return plot.signalStyles?.[sigIdx]
+    const style = plot.signalStyles?.[sigIdx]
         || { color: themedSignalColor(fallbackColor), width: 1.5, dash: '' };
+    // Remplissage par defaut du mutateur actif (integrale: aire sous la courbe). Calcule
+    // ici sans etre stocke, il disparait avec le mutateur; un choix explicite l'emporte.
+    const transform = signalTransform(plot, sigIdx);
+    const defaultFill = transform && SIGNAL_TRANSFORMS[transform.mode]?.defaultFill;
+    // fill vide = jamais choisi (les layouts restaures portent ''); 'none' est un choix explicite.
+    return defaultFill && !style.fill ? { ...style, fill: defaultFill } : style;
 }
 
 // Constructeurs de chemins uPlot, instancies a la demande puis memorises
@@ -79,7 +88,9 @@ export function effectivePathMode(style, unit) {
 // Modes de remplissage par bande, jusqu'a la courbe voisine du panneau:
 // 'above' remplit vers la courbe precedente (au-dessus dans la legende),
 // 'below' vers la suivante. Materialise par l'option top-level bands.
-export const FILL_MODES = ['none', 'above', 'below'];
+// 'zero' remplit entre la courbe et y = 0 (aire signee, defaut de l'integrale): il ne
+// depend d'aucune voisine et ne recouvre donc pas les autres courbes du panneau.
+export const FILL_MODES = ['none', 'above', 'below', 'zero'];
 
 export function effectiveFillMode(style) {
     return style.fill || 'none';
@@ -198,6 +209,11 @@ export function buildBands(series, data) {
 
     for (let i = 1; i < series.length; i++) {
         const mode = series[i]._fillMode;
+        if (mode === 'zero') {
+            series[i].fill = colorWithOpacity(series[i].stroke, FILL_OPACITY);
+            series[i].fillTo = 0;
+            continue;
+        }
         if (mode !== 'above' && mode !== 'below') continue;
 
         const down = mode === 'below';
@@ -674,7 +690,7 @@ export function renderPlotFromCache(plot) {
             selected: isLegendSignalSelected(plot.id, sigIdx),
         });
     });
-    if (sigList.length === 0) return;
+    if (sigList.length === 0) { commitPendingRender(plot); return; }
 
     const { uplotData, series } = assembleAlignedData(sigList);
 

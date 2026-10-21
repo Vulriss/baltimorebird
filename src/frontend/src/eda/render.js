@@ -11,7 +11,9 @@ import { fetchViewGrouped, isSeriesSynth, plotHasSynth, renderOverlayChart, rend
 import { autoEnableExtendedZones } from './plot-legend.js';
 import { PLOT_PAD_BOTTOM, PLOT_PAD_RIGHT, PLOT_PAD_TOP, Y_AXIS_SIZE, axisDragPlugin, buildBands, buildSeriesConfig, commitPlotRender, isLastPlot, pathRenderer, resolveSignalStyle, themeChartColors, xAxisConfig, zoomToSelection } from './plot-ui.js';
 import { colorWithOpacity } from './plots.js';
-import { SIGNAL_TRANSFORMS, renderPlotFromCacheFiltered, signalTransform, windowedView } from './transforms.js';
+import {
+    SIGNAL_TRANSFORMS, commitPendingRender, renderPlotFromCacheFiltered, signalTransform, windowedView,
+} from './transforms.js';
 import { plotIsVisible } from './view-nav.js';
 
 // --- Full send : rapatriement pleine résolution côté client ---
@@ -394,13 +396,16 @@ export function renderPlotChart(plot, data) {
         // bascule immediatement visible (approximation transitoire jusqu'au full-send).
         const transform = signalTransform(plot, sig.index);
         const spec = transform && unit !== 'bool' ? SIGNAL_TRANSFORMS[transform.mode] : null;
+        // Integrale: pas d'approximation transitoire, la courbe attend le full-send.
+        if (spec && spec.requiresFullData) return null;
         if (spec) {
             values = spec.compute(sig.timestamps, values, transform);
             unit = spec.unit(unit);
             name += spec.suffix;
         }
         return { name, unit, style, timestamps: sig.timestamps, values };
-    });
+    }).filter(Boolean);
+    if (sigList.length === 0) { commitPendingRender(plot); return; }
 
     const { uplotData, series } = assembleAlignedData(sigList);
 

@@ -116,6 +116,27 @@ export function derivative(timestamps, values) {
     return out;
 }
 
+/**
+ * Integrale cumulee par la methode des trapezes sur les timestamps reels, nulle au
+ * premier echantillon. Un trapeze n'est compte qu'entre deux echantillons finis
+ * consecutifs: un trou (NaN, Infinity) n'apporte aucune aire et l'integrale garde sa
+ * derniere valeur, au lieu de propager NaN sur le reste du fichier ou d'inventer une
+ * interpolation lineaire a travers une plage invalide potentiellement longue.
+ */
+export function cumulativeIntegral(timestamps, values) {
+    const n = values.length;
+    const out = new Float64Array(n);
+    let acc = 0;
+    for (let i = 1; i < n; i++) {
+        const v0 = values[i - 1];
+        const v1 = values[i];
+        const dt = timestamps[i] - timestamps[i - 1];
+        if (Number.isFinite(v0) && Number.isFinite(v1) && dt > 0) acc += 0.5 * (v0 + v1) * dt;
+        out[i] = acc;
+    }
+    return out;
+}
+
 // Quantile exact par interpolation lineaire sur un tableau trie.
 function sortedQuantile(sorted, q) {
     const pos = q * (sorted.length - 1);

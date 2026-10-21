@@ -9,7 +9,7 @@ import { plotHasSynth, renderOverlayFromCache } from './overlay.js';
 import { autoEnableExtendedZones, updatePlotHeader } from './plot-legend.js';
 import { buildBands, commitPlotRender, resolveSignalStyle } from './plot-ui.js';
 import { assembleAlignedData, fetchAndRenderPlot } from './render.js';
-import { derivative, savitzkyGolay } from './signal-math.js';
+import { cumulativeIntegral, derivative, savitzkyGolay } from './signal-math.js';
 
 // =========================================================================
 // Mutateurs rapides par signal: f(t) (brut), lissage Savitzky-Golay, derivee dx/dt.
@@ -30,6 +30,17 @@ export const SIGNAL_TRANSFORMS = {
         unit: (u) => (u ? `${u}/s` : '1/s'),
         compute: (ts, vs) => derivative(ts, vs),
     },
+    // Cumul depuis le premier echantillon du fichier: calcule sur une serie decimee ou
+    // partielle, il serait biaise puis sauterait a l'arrivee du full-send. Aucun rendu
+    // tant que la serie complete n'est pas en cache (requiresFullData).
+    integral: {
+        label: 'Integrale ∫x dt',
+        suffix: ' [∫dt]',
+        unit: (u) => (u ? `${u}·s` : 's'),
+        compute: (ts, vs) => cumulativeIntegral(ts, vs),
+        requiresFullData: true,
+        defaultFill: 'zero',
+    },
 };
 
 export const SAVGOL_WINDOWS = [
@@ -43,6 +54,23 @@ export function signalTransform(plot, sigIdx) {
     return plot.signalTransforms ? plot.signalTransforms[sigIdx] || null : null;
 }
 
+// Vrai si le mutateur actif attend la serie complete (integrale avant le full-send):
+// le signal n'a alors aucune courbe a tracer.
+export function transformPending(plot, sigIdx) {
+    const transform = signalTransform(plot, sigIdx);
+    const spec = transform ? SIGNAL_TRANSFORMS[transform.mode] : null;
+    if (!spec || !spec.requiresFullData) return false;
+    const cached = plot.cachedData ? plot.cachedData[sigIdx] : null;
+    return !(cached && cached.isComplete && cached.fullTimeRange);
+}
+
+// Aucun signal tracable parce que tous attendent leur serie complete: le graphe est vide
+// explicitement. Sans cela l'instance uPlot precedente reste affichee, avec la courbe et
+// le libelle d'avant la bascule de mutateur.
+export function commitPendingRender(plot) {
+    if (plot.signals.some(sigIdx => transformPending(plot, sigIdx))) commitPlotRender(plot, [{}], [[]], null);
+}
+
 // Entree de cache effective d'un signal: la derivee memoisee si un mutateur est actif,
 // sinon l'entree brute. Tous les chemins de rendu et de lecture de valeurs (fenetrage,
 // legende, tableau de curseurs) passent par cet accesseur.
@@ -53,6 +81,8 @@ export function effectiveCache(plot, sigIdx) {
 
     const spec = SIGNAL_TRANSFORMS[transform.mode];
     if (!spec) return cached;
+    // Cache partiel (vue decimee, zoom grossier avant full-send): rien plutot qu'un cumul faux.
+    if (transformPending(plot, sigIdx)) return null;
 
     if (!plot._derivedCache) plot._derivedCache = {};
     const memo = plot._derivedCache[sigIdx];
@@ -216,7 +246,7 @@ export function renderPlotFromCacheFiltered(plot) {
             values: filtered.values,
         });
     }
-    if (sigList.length === 0) return;
+    if (sigList.length === 0) { commitPendingRender(plot); return; }
 
     const { uplotData, series } = assembleAlignedData(sigList);
 

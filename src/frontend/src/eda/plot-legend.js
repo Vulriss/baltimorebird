@@ -374,7 +374,12 @@ export function updatePlotHeader(plot) {
         const desc = seriesDescriptor(sigIdx);
         if (!desc.name) return;
         const sig = S.signalsInfo[sigIdx]; // absent pour une serie overlay
-        const labelText = desc.runLabel ? `${desc.name} · ${desc.runLabel}` : desc.name;
+        // Mutateur actif: suffixe et unite derives de la spec, pas du cache, pour rester
+        // justes avant le full-send (l'integrale n'a pas d'entree de cache d'ici la).
+        const rowTransform = signalTransform(plot, sigIdx);
+        const rowSpec = rowTransform && sig && sig.unit !== 'bool' ? SIGNAL_TRANSFORMS[rowTransform.mode] : null;
+        const displayName = rowSpec ? desc.name + rowSpec.suffix : desc.name;
+        const labelText = desc.runLabel ? `${displayName} · ${desc.runLabel}` : displayName;
 
         const style = resolveSignalStyle(plot, sigIdx, desc.color);
 
@@ -467,7 +472,8 @@ export function updatePlotHeader(plot) {
         row.appendChild(makeCell('ct-val ct-b lt-measure', '-', { 'data-sig': sigIdx, 'data-col': 'b' }));
         row.appendChild(makeCell('ct-val ct-d lt-measure', '-', { 'data-sig': sigIdx, 'data-col': 'd' }));
         const unitConv = plot.unitConversions?.[sigIdx];
-        const unitText = unitConv ? unitConv.targetUnit : ((sig && sig.unit) || '');
+        const baseUnit = unitConv ? unitConv.targetUnit : ((sig && sig.unit) || '');
+        const unitText = rowSpec ? rowSpec.unit(baseUnit) : baseUnit;
         const unitCell = makeCell('ct-unit lt-measure', unitText);
         if (plot.unitErrors?.has(sigIdx)) unitCell.classList.add('ct-unit-error');
         row.appendChild(unitCell);
@@ -561,7 +567,8 @@ export function updatePlotHeader(plot) {
             [
                 { value: 'none', text: 'Aucun' },
                 { value: 'above', text: 'Au-dessus' },
-                { value: 'below', text: 'En dessous' }
+                { value: 'below', text: 'En dessous' },
+                { value: 'zero', text: 'Jusqu\'à zéro' }
             ].forEach(opt => {
                 const option = document.createElement('option');
                 option.value = opt.value;
@@ -594,10 +601,22 @@ export function updatePlotHeader(plot) {
                     { value: '', text: 'f(t)' },
                     { value: 'savgol', text: SIGNAL_TRANSFORMS.savgol.label },
                     { value: 'ddt', text: SIGNAL_TRANSFORMS.ddt.label },
+                    // La serie complete n'existe que pour un fichier charge (full-send): sur une
+                    // source de demonstration l'integrale ne pourrait jamais s'afficher.
+                    {
+                        value: 'integral',
+                        text: SIGNAL_TRANSFORMS.integral.label,
+                        disabled: !ectx.currentLazySessionId,
+                        title: 'Disponible sur un fichier chargé : l\'intégrale exige la série complète',
+                    },
                 ].forEach(opt => {
                     const option = document.createElement('option');
                     option.value = opt.value;
                     option.textContent = opt.text;
+                    if (opt.disabled) {
+                        option.disabled = true;
+                        option.title = opt.title;
+                    }
                     option.selected = (activeT ? activeT.mode : '') === opt.value;
                     transformSelect.appendChild(option);
                 });
