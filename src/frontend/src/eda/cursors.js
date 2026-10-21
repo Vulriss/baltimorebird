@@ -656,6 +656,45 @@ function setTextIfChanged(el, text) {
     if (el && el.textContent !== text) el.textContent = text;
 }
 
+// Colonnes de mesure communes a tous les panneaux d'un onglet, comme un seul tableau.
+// Chaque legende est une grille distincte: en colonnes auto, chacune se dimensionnait sur
+// ses propres valeurs et les colonnes se decalaient d'un strip a l'autre. La police des
+// cellules etant a chasse fixe, la largeur d'une colonne se deduit du nombre de caracteres
+// de sa plus longue valeur (unite ch): aucune mesure de layout pendant le drag. Une passe
+// par frame et par onglet, quel que soit le nombre de panneaux mis a jour.
+// Minimum de la colonne unite: l'en-tete "unit" (4 caracteres).
+const LEGEND_COLUMNS = [
+    { prop: '--lt-a-ch', selector: '.ct-val.ct-a', min: 1 },
+    { prop: '--lt-b-ch', selector: '.ct-val.ct-b', min: 1 },
+    { prop: '--lt-d-ch', selector: '.ct-val.ct-d', min: 1 },
+    { prop: '--lt-unit-ch', selector: '.ct-unit', min: 4 },
+];
+const pendingColumnSync = new Set();
+
+function syncLegendColumns(wrapper) {
+    const tables = wrapper.querySelectorAll('.legend-table.cursors-active');
+    for (const col of LEGEND_COLUMNS) {
+        let chars = col.min;
+        tables.forEach(table => {
+            table.querySelectorAll(col.selector).forEach(cell => {
+                if (cell.textContent.length > chars) chars = cell.textContent.length;
+            });
+        });
+        const value = String(chars);
+        if (wrapper.style.getPropertyValue(col.prop) !== value) wrapper.style.setProperty(col.prop, value);
+    }
+}
+
+function scheduleLegendColumnSync(plot) {
+    const wrapper = plot.element?.closest('.plots-wrapper');
+    if (!wrapper || pendingColumnSync.has(wrapper)) return;
+    pendingColumnSync.add(wrapper);
+    requestAnimationFrame(() => {
+        pendingColumnSync.delete(wrapper);
+        if (wrapper.isConnected) syncLegendColumns(wrapper);
+    });
+}
+
 // Met a jour la table de mesure A / B / delta de la legende d'un panneau.
 // Appele par le chemin leger des curseurs (drag) et apres reconstruction
 // de la legende: uniquement des ecritures DOM gardees, aucun layout force.
@@ -707,6 +746,7 @@ export function updateCursorReadout(plot) {
         }
         setTextIfChanged(table.querySelector(`[data-sig="${sigIdx}"][data-col="d"]`), deltaText);
     });
+    scheduleLegendColumnSync(plot);
 }
 
 // Instant a lire dans la serie brute pour une abscisse curseur donnee: une serie decalee

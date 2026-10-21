@@ -21,8 +21,20 @@
     font-size: $font-size-sm;
 }
 
+/* Colonnes de mesure a largeur commune a tous les strips de l'onglet (un seul tableau
+   visuel): --lt-*-ch = nombre de caracteres de la plus longue valeur de la colonne,
+   pose en JS sur .plots-wrapper (cursors.js). Police a chasse fixe, donc 1ch = 1
+   caractere; on ajoute le padding des cellules. Le nom prend le reste: les legendes
+   ont toutes la meme largeur, sa colonne s'aligne donc aussi. */
+$lt-cell-pad: calc(#{$spacing-2} + 2px);
+
 .legend-table.cursors-active {
-    grid-template-columns: minmax(0, 1.3fr) repeat(3, minmax(46px, auto)) minmax(22px, auto);
+    grid-template-columns:
+        minmax(0, 1fr)
+        max(46px, calc(var(--lt-a-ch, 1) * 1ch + #{$lt-cell-pad}))
+        max(46px, calc(var(--lt-b-ch, 1) * 1ch + #{$lt-cell-pad}))
+        max(46px, calc(var(--lt-d-ch, 1) * 1ch + #{$lt-cell-pad}))
+        max(22px, calc(var(--lt-unit-ch, 4) * 1ch + #{$lt-cell-pad}));
 }
 
 /* Les cellules de mesure n'existent visuellement qu'avec un curseur pose.
