@@ -320,7 +320,8 @@ document.addEventListener('scroll', () => closeColorPopover(), true);
 // fois; il survit au rebuild de legende de son panneau.
 const LEGEND_CONTROLS_GAP = 8;
 const LEGEND_CONTROLS_OFFSET = 4;
-let openControls = null; // { el, row, anchor, plotId, sigIdx }
+// offset: position du panneau relative a la fleche, figee a l'ouverture (voir placeLegendControls).
+let openControls = null; // { el, row, anchor, plotId, sigIdx, offset }
 
 function closeLegendControls() {
     if (!openControls) return;
@@ -341,6 +342,20 @@ function placeLegendControls() {
     const width = el.offsetWidth;
     const height = el.offsetHeight;
     const maxLeft = window.innerWidth - width - LEGEND_CONTROLS_GAP;
+    const maxTop = window.innerHeight - height - LEGEND_CONTROLS_GAP;
+
+    // Deja place: on suit la fleche (scroll, rebuild de legende) en gardant le decalage
+    // de l'ouverture. Recalculer le cote a chaque fois faisait sauter un panneau ouvert
+    // vers le haut des que sa hauteur changeait (ligne Intensite du lissage): le select
+    // utilise se derobait sous le pointeur. Seul le bord d'ecran peut encore le deplacer.
+    if (openControls.offset) {
+        const left = Math.max(LEGEND_CONTROLS_GAP, Math.min(rect.left + openControls.offset.dx, maxLeft));
+        const top = Math.max(LEGEND_CONTROLS_GAP, Math.min(rect.top + openControls.offset.dy, maxTop));
+        el.style.left = `${left}px`;
+        el.style.top = `${top}px`;
+        return;
+    }
+
     const left = Math.max(LEGEND_CONTROLS_GAP, Math.min(rect.right - width, maxLeft));
     const below = rect.bottom + LEGEND_CONTROLS_OFFSET;
     const above = rect.top - LEGEND_CONTROLS_OFFSET - height;
@@ -350,12 +365,14 @@ function placeLegendControls() {
     let top;
     if (fitsBelow || (above < LEGEND_CONTROLS_GAP && window.innerHeight - rect.bottom >= rect.top)) top = below;
     else top = above;
-    top = Math.max(LEGEND_CONTROLS_GAP, Math.min(top, window.innerHeight - height - LEGEND_CONTROLS_GAP));
+    top = Math.max(LEGEND_CONTROLS_GAP, Math.min(top, maxTop));
     el.style.left = `${left}px`;
     el.style.top = `${top}px`;
+    openControls.offset = { dx: left - rect.left, dy: top - rect.top };
 }
 
-function openLegendControls(plot, sigIdx, row, controls, anchor) {
+// offset: celui d'un panneau rouvert apres rebuild de legende, pour qu'il reste en place.
+function openLegendControls(plot, sigIdx, row, controls, anchor, offset = null) {
     closeColorPopover();
     closeLegendControls();
     row.classList.add('expanded');
@@ -363,7 +380,7 @@ function openLegendControls(plot, sigIdx, row, controls, anchor) {
     controls.setAttribute('role', 'dialog');
     controls.setAttribute('aria-label', 'Réglages du signal');
     document.body.appendChild(controls);
-    openControls = { el: controls, row, anchor, plotId: plot.id, sigIdx };
+    openControls = { el: controls, row, anchor, plotId: plot.id, sigIdx, offset };
     placeLegendControls();
 }
 
@@ -394,8 +411,11 @@ export function updatePlotHeader(plot) {
     // Panneau de reglages ouvert sur ce plot: ferme avant le rebuild (ses lignes vont etre
     // recreees), puis rouvert sur la nouvelle ligne du meme signal s'il existe toujours.
     const reopenSigIdx = openControls && openControls.plotId === plot.id ? openControls.sigIdx : null;
+    const reopenOffset = reopenSigIdx !== null ? openControls.offset : null;
     if (reopenSigIdx !== null) closeLegendControls();
     let reopen = null;
+    // Vider la legende remet son scroll a zero: les lignes (et un panneau ancre) sautaient.
+    const legendScroll = legendDiv.scrollTop;
 
     // Vide et reconstruit avec createElement (CSP safe, XSS safe).
     // Table unifiee (modele desktop): chaque ligne est a la fois l'entree de
@@ -913,7 +933,8 @@ export function updatePlotHeader(plot) {
     });
 
     legendDiv.appendChild(table);
-    if (reopen) openLegendControls(plot, reopenSigIdx, reopen.row, reopen.controls, reopen.anchor);
+    legendDiv.scrollTop = legendScroll;
+    if (reopen) openLegendControls(plot, reopenSigIdx, reopen.row, reopen.controls, reopen.anchor, reopenOffset);
 
     updateCursorReadout(plot);
 }
