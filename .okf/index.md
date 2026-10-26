@@ -25,6 +25,7 @@ contribution. Les concepts sous `roadmap/` sont prospectifs et portent
 - [Sessions EDA paresseuses](/architecture/eda-sessions.md) - chargement par canal, budget mémoire, éviction
 - [Lecture MF4](/architecture/mf4-reading.md) - moteur Rust, repli asammdf, routage et falaise de performance
 - [Ingestion CAN et BLF](/architecture/can-ingestion.md) - cantools, assainissement ARXML, résolution par bus
+- [Ingestion CSV](/architecture/csv-ingestion.md) - détection du dialecte, axe de temps, normalisation en MF4
 - [Variables calculées](/architecture/computed-variables.md) - interpréteur AST sur liste blanche
 - [Dashboard Builder](/architecture/dashboard-builder.md) - recette, compilation, exécution confinée, rapport
 

@@ -32,6 +32,10 @@ logger = logging.getLogger(__name__)
 
 eda_bp = Blueprint("eda", __name__)
 
+# Formats normalisés en MF4 à l'ingestion: ils n'ont plus de trames CAN à décoder ensuite et le MF4
+# produit est l'unique artefact de la session.
+_DECODED_SUFFIXES = (".blf", ".mat", ".csv")
+
 
 def _decode_blf_to_mf4(blf_path: Path, database_upload, dest_dir: Path, session_id: str):
     """Décode un log BLF en MF4 physique via une base de communication ARXML ou DBC.
@@ -68,6 +72,22 @@ def _decode_mat_to_mf4(mat_path: Path, dest_dir: Path, session_id: str):
         report = convert_mat_to_mf4(mat_path, mf4_path)
     finally:
         mat_path.unlink(missing_ok=True)
+    return mf4_path, report
+
+
+def _decode_csv_to_mf4(csv_path: Path, dest_dir: Path, session_id: str):
+    """Normalise un CSV d'acquisition en MF4 physique.
+
+    Le CSV est décrit par son seul en-tête: séparateur, encodage et format de temps sont détectés
+    à la lecture. Le CSV source est supprimé après conversion. Retourne (chemin_mf4, rapport).
+    """
+    from services.csv_ingest import convert_csv_to_mf4
+
+    mf4_path = dest_dir / f"{session_id}.mf4"
+    try:
+        report = convert_csv_to_mf4(csv_path, mf4_path)
+    finally:
+        csv_path.unlink(missing_ok=True)
     return mf4_path, report
 
 
@@ -124,8 +144,8 @@ def _handover_to_storage(
 ) -> Tuple[str, Path, Optional[Path]]:
     """Remet au stockage utilisateur les artefacts produits par un upload authentifié.
 
-    L'artefact conservé est toujours le MF4: un BLF ou un .mat décodé n'a plus d'intérêt sous sa
-    forme d'origine, et la catégorie de stockage n'accepte que les formats MDF. Le nom d'origine
+    L'artefact conservé est toujours le MF4: un BLF, un .mat ou un CSV décodé n'a plus d'intérêt sous
+    sa forme d'origine, et la catégorie de stockage n'accepte que les formats MDF. Le nom d'origine
     est reporté en description pour garder la traçabilité de la conversion.
 
     L'identifiant de fichier du registre devient l'identifiant de session: rouvrir le fichier
@@ -135,7 +155,7 @@ def _handover_to_storage(
     from services.storage import storage
 
     display_name = Path(original_filename).with_suffix(".mf4").name
-    description = f"Décodé depuis {original_filename}" if suffix in (".blf", ".mat") else ""
+    description = f"Décodé depuis {original_filename}" if suffix in _DECODED_SUFFIXES else ""
     stored = storage.store_existing_file(
         user_id, mf4_path, display_name, "mf4", description=description,
     )
@@ -220,6 +240,7 @@ def upload_eda_file():
     dbc_path = None
     blf_report = None
     mat_report = None
+    csv_report = None
 
     if suffix == ".blf":
         database_upload = (request.files.get("arxml") or request.files.get("database")
@@ -252,7 +273,17 @@ def upload_eda_file():
             session_mf4_path.unlink(missing_ok=True)
             return jsonify({"error": "Échec de la lecture du fichier .mat"}), 400
 
-    if suffix not in (".blf", ".mat") and "dbc" in request.files:
+    elif suffix == ".csv":
+        try:
+            session_mf4_path, csv_report = _decode_csv_to_mf4(file_path, dest_dir, session_id)
+        except ValueError as exc:
+            return jsonify({"error": str(exc)}), 400
+        except Exception:
+            logger.error("[EDA] Échec de la conversion CSV", exc_info=True)
+            session_mf4_path.unlink(missing_ok=True)
+            return jsonify({"error": "Échec de la lecture du fichier CSV : structure non reconnue"}), 400
+
+    if suffix not in _DECODED_SUFFIXES and "dbc" in request.files:
         dbc_file = request.files["dbc"]
         if dbc_file.filename and dbc_file.filename.lower().endswith(".dbc"):
             if secure_filename(dbc_file.filename):
@@ -271,7 +302,7 @@ def upload_eda_file():
             # Le scratch ne survit à aucune issue: succès, refus du stockage ou erreur.
             shutil.rmtree(dest_dir, ignore_errors=True)
 
-    if suffix not in (".blf", ".mat") and not dbc_path and not ephemeral:
+    if suffix not in _DECODED_SUFFIXES and not dbc_path and not ephemeral:
         dbc_path = _default_user_dbc(user.id)
 
     lazy_eda.create_session(
@@ -312,6 +343,17 @@ def upload_eda_file():
             "constant_signals": mat_report.constant_signals,
             "skipped_variables": len(mat_report.skipped_variables),
             "time_variable": mat_report.time_variable,
+        }
+    if csv_report is not None:
+        response["csv"] = {
+            "signal_count": csv_report.signal_count,
+            "row_count": csv_report.row_count,
+            "skipped_columns": len(csv_report.skipped_columns),
+            "time_column": csv_report.time_column,
+            "time_unit": csv_report.time_unit,
+            "delimiter": csv_report.delimiter,
+            "decimal": csv_report.decimal,
+            "reordered": csv_report.reordered,
         }
     return jsonify(response)
 
