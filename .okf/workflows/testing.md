@@ -25,9 +25,15 @@ python -m pytest services/dashboard/test_dashboard.py
 python -m pytest services/dashboard/test_formatting.py
 ```
 
-Les fichiers préfixés `smoke_test_` dans `services/` (`smoke_test_blf_ingest.py`,
-`smoke_test_mat_ingest.py`) demandent des fichiers de mesure et ne tournent pas
-en intégration continue.
+Les fichiers préfixés `smoke_test_` dans `services/` se lancent directement, sans
+pytest. `smoke_test_csv_ingest.py` et `smoke_test_mat_ingest.py` fabriquent leurs
+fichiers d'entrée et ne demandent donc aucune mesure externe.
+
+```bash
+cd src/backend
+python services/smoke_test_csv_ingest.py
+python services/smoke_test_mat_ingest.py
+```
 
 ## Frontend
 

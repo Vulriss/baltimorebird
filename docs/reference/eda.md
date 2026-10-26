@@ -4,6 +4,44 @@ L'espace EDA est le module central de Baltimore Bird : il permet de charger un
 fichier MF4, de sélectionner des signaux et de les explorer sous forme de graphiques
 synchronisés.
 
+## Formats acceptés
+
+| Format | Ce qu'il faut fournir |
+| --- | --- |
+| `.mf4`, `.dat` | Le fichier seul. Un DBC optionnel décode les trames CAN brutes. |
+| `.blf` | Le fichier et une base de communication `.dbc` ou `.arxml`, obligatoire. |
+| `.mat` | Le fichier seul (export de simulation Simulink). |
+| `.csv` | Le fichier seul. |
+
+Les formats autres que MF4 sont convertis à l'import : le fichier conservé dans la
+bibliothèque est toujours un MF4, et toutes les fonctions de l'espace EDA s'appliquent
+ensuite sans distinction.
+
+### Structure CSV attendue
+
+Aucun réglage n'est demandé, la structure est détectée à la lecture.
+
+- **Encodage** : UTF-8 (avec ou sans BOM), Windows-1252 ou Latin-1.
+- **Séparateur** : virgule, point-virgule, tabulation ou barre verticale.
+- **Première ligne** : les noms de colonnes. L'unité peut y être accolée entre
+  crochets ou parenthèses, par exemple `Speed [km/h]`.
+- **Deuxième ligne** : facultative, les unités, à condition qu'elle ne contienne
+  aucune valeur numérique. C'est le format produit par l'export CSV de
+  l'application, qui se relit donc tel quel.
+- **Colonne de temps** : la première colonne, ou celle nommée `time`,
+  `timestamps`, `t`, `temps` ou `datetime`. Les nombres sont des secondes, sauf
+  unité contraire indiquée dans le nom ou la ligne d'unités (`ms`, `us`, `ns`,
+  `min`, `h`). Les dates ISO-8601 (`2026-01-02T10:00:00`) sont acceptées.
+- **Valeurs** : décimale point ou virgule, notation scientifique admise. Une
+  cellule vide est un échantillon absent, pas un zéro. Les colonnes de texte sont
+  ignorées et leur nombre est indiqué à la fin de l'import.
+- **Taille** : 1500 Mo par fichier, soit le plafond de l'envoi HTTP, et 150 millions
+  de valeurs au maximum.
+
+Un fichier dont la structure n'est pas reconnue est refusé avec un message qui
+précise ce qui a échoué : séparateur introuvable, colonne de temps inexploitable
+ou absence de colonne numérique.
+
 ## Barre latérale
 
 Deux onglets composent la barre latérale gauche :

@@ -340,6 +340,20 @@ export async function uploadEdaFile() {
                     }
                     showNotification(msg, 'success');
                 }
+
+                if (data.csv && typeof showNotification === 'function') {
+                    const r = data.csv;
+                    const separator = r.delimiter === '\t' ? 'tabulation' : r.delimiter;
+                    let msg = `CSV lu : ${r.signal_count} signaux sur ${r.row_count} lignes, temps `
+                        + `« ${r.time_column} » en ${r.time_unit} (séparateur « ${separator} »)`;
+                    if (r.skipped_columns > 0) {
+                        msg += ` - ${r.skipped_columns} colonne(s) non numérique(s) ignorée(s)`;
+                    }
+                    if (r.reordered) {
+                        msg += ' - lignes réordonnées chronologiquement';
+                    }
+                    showNotification(msg, r.skipped_columns > 0 ? 'info' : 'success');
+                }
                 
                 closeUploadModal();
                 
