@@ -448,7 +448,9 @@ function importLayoutFromFile() {
         }
 
         // Avertit si aucun signal du layout ne correspond au fichier courant (sinon onglets vides).
+        // Les variables calculees du fichier LXF sont recreees par applyLayout.
         const available = new Set(signalsInfo.map(s => s.name));
+        doc.computed_variables.forEach(cv => { if (cv && cv.name) available.add(cv.name); });
         const referenced = doc.tabs.flatMap(
             t => (t.plots || []).flatMap(p => (p.signals || []).map(s => s.name))
         );

@@ -8,6 +8,7 @@ from flask import Blueprint, g, jsonify, request, send_file
 from werkzeug.utils import secure_filename
 
 from api.auth import admin_required, login_required
+from api.layouts import validate_layout_content
 from config import BASE_DIR, DEFAULT_QUOTA_BYTES, TEMP_DIR
 from core import is_safe_path
 from services.storage import CATEGORIES, allowed_file, storage
@@ -130,6 +131,11 @@ def upload_json(category: str):
         if not name:
             return jsonify({"error": "Nom requis"}), 400
 
+        if category == "layouts":
+            is_valid, error = validate_layout_content(content)
+            if not is_valid:
+                return jsonify({"error": error}), 400
+
         stored_file = storage.store_json(
             user_id=user.id,
             data=content,
@@ -233,6 +239,11 @@ def update_file(file_id: str):
     content = data.get("content")
     if content is None:
         return jsonify({"error": "Contenu JSON requis"}), 400
+
+    if stored_file.category == "layouts":
+        is_valid, error = validate_layout_content(content)
+        if not is_valid:
+            return jsonify({"error": error}), 400
 
     description = data.get("description")
     if description is not None:

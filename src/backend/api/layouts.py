@@ -11,13 +11,22 @@ from typing import Any, Dict, List, Optional, Tuple
 from flask import Blueprint, g, jsonify, request
 
 from api.auth import login_required, optional_auth
-from config import BASE_DIR
+from api.computed import validate_formula
+from config import (
+    BASE_DIR,
+    LAYOUT_MAX_COMPUTED_VARIABLES,
+    LAYOUT_MAX_DESCRIPTION_LENGTH,
+    LAYOUT_MAX_NAME_LENGTH,
+    LAYOUT_MAX_TRANSFORM_WINDOW,
+    LAYOUT_VERSION,
+)
 from core import utc_now_iso, is_safe_path
 from mda.layout_import import parse_mda_layout
 
 layouts_bp = Blueprint("layouts", __name__)
 
-LAYOUT_VERSION = 1
+SIGNAL_TRANSFORM_MODES = frozenset({"savgol", "ddt", "integral"})
+_FORMULA_LETTER = re.compile(r"[A-Z]")
 _layouts_dir: Optional[Path] = None
 _demo_layouts_dir: Optional[Path] = None
 
@@ -82,15 +91,133 @@ def _sanitize_layout_id(name: str) -> str:
     return safe[:50] if safe else "layout"
 
 
+def _is_bounded_str(value: Any, max_length: int) -> bool:
+    return isinstance(value, str) and 0 < len(value) <= max_length
+
+
+def _validate_signal_transform(transform: Any) -> Optional[str]:
+    """Checks the optional quick mutator persisted on a plot signal.
+
+    Returns:
+        None when valid or absent, otherwise the reason in French.
+    """
+    if transform is None:
+        return None
+    if not isinstance(transform, dict):
+        return "le mutateur doit être un objet"
+    if transform.get("mode") not in SIGNAL_TRANSFORM_MODES:
+        return "mode de mutateur inconnu"
+    window = transform.get("window")
+    if window is None:
+        return None
+    if isinstance(window, bool) or not isinstance(window, int) or not 1 <= window <= LAYOUT_MAX_TRANSFORM_WINDOW:
+        return f"intensité de lissage invalide (1 à {LAYOUT_MAX_TRANSFORM_WINDOW})"
+    return None
+
+
+def _validate_plot_signals(signals: List[Any], where: str) -> Optional[str]:
+    """Checks the signal entries of one plot. Returns the error message, or None."""
+    for k, signal in enumerate(signals):
+        if not isinstance(signal, dict) or not _is_bounded_str(signal.get("name"), LAYOUT_MAX_NAME_LENGTH):
+            return f"Le signal {k + 1} {where} doit être un objet avec un nom valide"
+        error = _validate_signal_transform(signal.get("transform"))
+        if error:
+            return f"Signal '{signal['name']}' {where}: {error}"
+    return None
+
+
+def _validate_computed_variable(cv: Dict[str, Any]) -> Optional[str]:
+    """Checks one computed variable definition whose name is already validated."""
+    formula = cv.get("formula")
+    ok, error = validate_formula(formula if isinstance(formula, str) else "")
+    if not ok:
+        return error
+    for key, max_length in (("unit", LAYOUT_MAX_NAME_LENGTH), ("description", LAYOUT_MAX_DESCRIPTION_LENGTH)):
+        value = cv.get(key)
+        if value is not None and (not isinstance(value, str) or len(value) > max_length):
+            return f"'{key}' invalide (texte, max {max_length} caractères)"
+    mapping = cv.get("mapping")
+    if mapping is not None and not (
+        isinstance(mapping, dict)
+        and all(
+            isinstance(letter, str) and _FORMULA_LETTER.fullmatch(letter)
+            and _is_bounded_str(source, LAYOUT_MAX_NAME_LENGTH)
+            for letter, source in mapping.items()
+        )
+    ):
+        return "'mapping' doit associer des lettres A-Z à des noms de signaux"
+    sources = cv.get("source_signals")
+    if sources is not None and not (
+        isinstance(sources, list)
+        and len(sources) <= 26
+        and all(_is_bounded_str(source, LAYOUT_MAX_NAME_LENGTH) for source in sources)
+    ):
+        return "'source_signals' doit être une liste de 26 noms de signaux au plus"
+    return None
+
+
+def _validate_computed_variables(computed: Any) -> Tuple[bool, Optional[str]]:
+    """Validates the computed variable definitions carried by a layout.
+
+    Legacy layouts (version 1) have no 'mapping' and remain valid.
+
+    Returns:
+        (True, None) when valid, otherwise (False, message in French).
+    """
+    if not isinstance(computed, list):
+        return False, "'computed_variables' doit être un tableau"
+    if len(computed) > LAYOUT_MAX_COMPUTED_VARIABLES:
+        return False, f"Trop de variables calculées (max {LAYOUT_MAX_COMPUTED_VARIABLES})"
+    for i, cv in enumerate(computed):
+        if not isinstance(cv, dict):
+            return False, f"La variable calculée {i + 1} doit être un objet"
+        name = cv.get("name")
+        if not _is_bounded_str(name, 100) or not name.strip():
+            return False, f"La variable calculée {i + 1} doit avoir un nom (max 100 caractères)"
+        error = _validate_computed_variable(cv)
+        if error:
+            return False, f"Variable calculée '{name}': {error}"
+    return True, None
+
+
+def validate_layout_content(content: Any) -> Tuple[bool, Optional[str]]:
+    """Structural validation of an exported layout ({tabs, computed_variables}).
+
+    Shared with the user storage API, which stores layouts without the name and count
+    constraints of this blueprint.
+
+    Returns:
+        (True, None) when valid, otherwise (False, message in French).
+    """
+    if not isinstance(content, dict):
+        return False, "Le layout doit être un objet JSON"
+    tabs = content.get("tabs", [])
+    if not isinstance(tabs, list):
+        return False, "Le layout doit contenir un tableau 'tabs'"
+    for i, tab in enumerate(tabs):
+        if not isinstance(tab, dict) or not isinstance(tab.get("plots"), list):
+            return False, f"L'onglet {i + 1} doit être un objet avec un tableau 'plots'"
+        for j, plot in enumerate(tab["plots"]):
+            if not isinstance(plot, dict) or not isinstance(plot.get("signals"), list):
+                return False, f"Le plot {j + 1} de l'onglet {i + 1} doit contenir 'signals'"
+            error = _validate_plot_signals(plot["signals"], f"du plot {j + 1} de l'onglet {i + 1}")
+            if error:
+                return False, error
+    return _validate_computed_variables(content.get("computed_variables", []))
+
+
 def _validate_layout(data: Dict[str, Any]) -> Tuple[bool, Optional[str]]:
     if not isinstance(data, dict):
         return False, "Le layout doit être un objet JSON"
 
-    if not data.get("name"):
+    if not isinstance(data.get("name"), str) or not data["name"].strip():
         return False, "Le nom du layout est requis"
 
-    if len(data.get("name", "")) > 100:
+    if len(data["name"]) > 100:
         return False, "Le nom est trop long (max 100 caractères)"
+
+    if not isinstance(data.get("description", ""), str):
+        return False, "La description doit être un texte"
 
     if not isinstance(data.get("tabs"), list):
         return False, "Le layout doit contenir un tableau 'tabs'"
@@ -124,15 +251,7 @@ def _validate_layout(data: Dict[str, Any]) -> Tuple[bool, Optional[str]]:
             if len(plot["signals"]) > 10:
                 return False, f"Trop de signaux dans le plot {j + 1} (max 10)"
 
-    computed = data.get("computed_variables", [])
-    if not isinstance(computed, list):
-        return False, "'computed_variables' doit être un tableau"
-
-    for cv in computed:
-        if not cv.get("name") or not cv.get("formula"):
-            return False, "Chaque variable calculée doit avoir 'name' et 'formula'"
-
-    return True, None
+    return validate_layout_content(data)
 
 
 init_layouts()

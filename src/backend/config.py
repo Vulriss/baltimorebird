@@ -119,7 +119,12 @@ LAZY_EDA_EVICTION_GRACE = 300
 
 METRICS_IP_SALT = os.environ.get("METRICS_IP_SALT", "baltimore_bird_2025")  # Different en prod
 
-LAYOUT_VERSION = 1
+# v2: mapping explicite des variables calculées et mutateur (transform) par signal de plot.
+LAYOUT_VERSION = 2
+LAYOUT_MAX_COMPUTED_VARIABLES = 200
+LAYOUT_MAX_NAME_LENGTH = 512
+LAYOUT_MAX_DESCRIPTION_LENGTH = 1000
+LAYOUT_MAX_TRANSFORM_WINDOW = 1001
 
 # --- Banniere d'annonce temporaire (editable par ops sans redeploiement) ---
 # Fichier JSON optionnel; absent ou active=false => aucune banniere.

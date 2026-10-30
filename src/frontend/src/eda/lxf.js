@@ -3,6 +3,29 @@ const UNIT_PER_FLEX = 100;
 const CANVAS_WIDTH = 1000;
 const DATA_COMPONENT = 'measurement';
 
+// Donnees propres a Baltimore Bird portees par des processing instructions XML: hors
+// schema LXF, ignorees par tout parseur conforme, relues par lxfToLayout.
+const PI_LAYOUT = 'baltimorebird-layout';
+const PI_SIGNAL = 'baltimorebird-signal';
+const LXF_DASH = '4,4';
+
+// "?>" ne peut apparaitre en JSON que dans une chaine, ou \u003e est un echappement valide.
+function piXml(target, payload) {
+    return `<?${target} ${JSON.stringify(payload).replace(/\?>/g, '?\\u003e')}?>`;
+}
+
+function readPi(parent, target) {
+    const node = Array.from(parent.childNodes)
+        .find(n => n.nodeType === 7 && n.target === target);
+    if (!node) return null;
+    try {
+        const payload = JSON.parse(node.data);
+        return payload && typeof payload === 'object' && !Array.isArray(payload) ? payload : null;
+    } catch {
+        return null;
+    }
+}
+
 function esc(value) {
     return String(value)
         .replace(/&/g, '&amp;')
@@ -16,7 +39,18 @@ function dashToPenStyle(dash) {
 }
 
 function penStyleToDash(style) {
-    return style === 'solid' ? '' : '4,4';
+    return style === 'solid' ? '' : LXF_DASH;
+}
+
+// Ce que LXF ne sait pas representer: mutateur, trace, remplissage, motif de tirets exact.
+function signalExtension(signal) {
+    const style = signal.style || {};
+    const ext = {};
+    if (signal.transform) ext.transform = signal.transform;
+    if (style.path) ext.path = style.path;
+    if (style.fill) ext.fill = style.fill;
+    if (style.dash && style.dash !== LXF_DASH) ext.dash = style.dash;
+    return Object.keys(ext).length ? piXml(PI_SIGNAL, ext) : '';
 }
 
 function lineCurveXml(signal) {
@@ -25,6 +59,7 @@ function lineCurveXml(signal) {
     const width = Number.isFinite(style.width) ? style.width : 1.5;
     return [
         '<LineCurve xmlns="" xAxisIndex="0" yAxisIndex="0">',
+        signalExtension(signal),
         `<XInput component="${DATA_COMPONENT}" item="time"/>`,
         `<YInput component="${DATA_COMPONENT}" item="${esc(signal.name)}"/>`,
         `<Line style="${dashToPenStyle(style.dash)}" width="${width}">`,
@@ -85,8 +120,11 @@ export function layoutToLxf(doc) {
         '</PageFormat>' +
         '</Predefinitions>';
     const canvases = tabs.map(canvasXml).join('');
+    const computed = (doc && doc.computed_variables) || [];
+    const extension = computed.length ? piXml(PI_LAYOUT, { computed_variables: computed }) + '\n' : '';
     return (
         '<?xml version="1.0" encoding="UTF-8"?>\n' +
+        extension +
         `<Layout version="1.0" xmlns="${LXF_NS}">` +
         predefinitions +
         canvases +
@@ -106,16 +144,19 @@ function curveToSignal(curve) {
     const yInput = firstChild(curve, 'YInput');
     const line = firstChild(curve, 'Line');
     const color = line && firstChild(line, 'Color');
-    return {
+    const ext = readPi(curve, PI_SIGNAL) || {};
+    const signal = {
         name: yInput ? yInput.getAttribute('item') : '',
         style: {
             color: color ? color.getAttribute('color') : '#ffffff',
             width: line ? parseFloat(line.getAttribute('width')) || 1.5 : 1.5,
-            dash: line ? penStyleToDash(line.getAttribute('style')) : '',
-            path: '',
-            fill: '',
+            dash: typeof ext.dash === 'string' ? ext.dash : (line ? penStyleToDash(line.getAttribute('style')) : ''),
+            path: typeof ext.path === 'string' ? ext.path : '',
+            fill: typeof ext.fill === 'string' ? ext.fill : '',
         },
     };
+    if (ext.transform && typeof ext.transform === 'object') signal.transform = ext.transform;
+    return signal;
 }
 
 function chartToPlot(chart) {
@@ -148,5 +189,7 @@ export function lxfToLayout(xmlString) {
         const charts = graphicSet ? childrenByName(graphicSet, 'CartesianChart2D') : [];
         return { name, plots: charts.map(chartToPlot) };
     });
-    return { tabs, computed_variables: [] };
+    const ext = readPi(dom, PI_LAYOUT) || readPi(root, PI_LAYOUT) || {};
+    const computed = Array.isArray(ext.computed_variables) ? ext.computed_variables : [];
+    return { tabs, computed_variables: computed };
 }

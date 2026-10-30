@@ -557,7 +557,8 @@ def create_variable():
             "computed": True,
             "formula": formula,
             "description": description,
-            "source_signals": list(mapping.values())
+            "source_signals": list(mapping.values()),
+            "mapping": dict(mapping)
         })
 
         payload = {
@@ -586,7 +587,8 @@ def list_computed_variables():
                 "unit": meta.get("unit", ""),
                 "formula": meta.get("formula", ""),
                 "description": meta.get("description", ""),
-                "source_signals": meta.get("source_signals", [])
+                "source_signals": meta.get("source_signals", []),
+                "mapping": meta.get("mapping", {})
             })
 
     return jsonify({"variables": computed})
@@ -713,7 +715,8 @@ def update_computed_variable(index: int):
             "unit": unit,
             "description": description,
             "formula": formula,
-            "source_signals": list(mapping.values())
+            "source_signals": list(mapping.values()),
+            "mapping": dict(mapping)
         })
 
         name = meta["name"]

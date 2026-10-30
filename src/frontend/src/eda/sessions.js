@@ -179,6 +179,7 @@ export async function activateLazySession(sessionId, filename, ephemeral, preser
     // fichier: on change de fichier sans perdre les strips ni les signaux affiches.
     const preserved = preserveLayout ? exportCurrentLayout() : null;
     const preservedNames = preserved ? layoutSignalNames(preserved) : null;
+    S.unresolvedComputedVars = [];
 
     S.plots.slice().forEach(p => deletePlot(p.id));
     // Purge les zones etendues residuelles d'un fichier precedent.

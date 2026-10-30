@@ -31,6 +31,9 @@ export const S = {
     // chacun. Par defaut true = comportement historique (globalView unique).
     // Desactive, chaque onglet memorise sa fenetre dans tab.view.
     syncTabViews: true,
+    // Variables calculees du dernier layout applique qui n'ont pas pu etre recreees sur le
+    // fichier courant: re-exportees telles quelles par exportCurrentLayout.
+    unresolvedComputedVars: [],
 };
 
 // Exposition pour le debug (devtools) et un accès éventuel d'autres modules en façade.

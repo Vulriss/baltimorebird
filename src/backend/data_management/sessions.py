@@ -1132,6 +1132,7 @@ class LazyEDAManager:
                     "formula": meta.formula,
                     "description": meta.description,
                     "source_signals": meta.source_signals,
+                    "mapping": dict(meta.mapping),
                 })
             signals.append(entry)
 

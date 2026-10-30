@@ -79,7 +79,8 @@ export function openComputedVariableForEdit(signal) {
     if (descInput) descInput.value = signal.description || '';
     if (formulaInput) formulaInput.value = signal.formula || '';
     
-    // Reconstruire les mappings depuis source_signals et la formule
+    // Mapping explicite lettre -> signal; source_signals par position pour les anciennes variables.
+    const savedMapping = signal.mapping && Object.keys(signal.mapping).length > 0 ? signal.mapping : null;
     const sourceSignals = signal.source_signals || [];
     const formula = signal.formula || '';
     
@@ -92,8 +93,8 @@ export function openComputedVariableForEdit(signal) {
     
     // Mapper les variables aux signaux sources
     usedVars.forEach((varLetter, idx) => {
-        if (idx < sourceSignals.length) {
-            const signalName = sourceSignals[idx];
+        const signalName = savedMapping ? savedMapping[varLetter] : sourceSignals[idx];
+        if (signalName) {
             // Trouver le signal dans signalsInfo
             const foundSignal = S.signalsInfo.find(s => s.name === signalName);
             if (foundSignal) {

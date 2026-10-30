@@ -141,6 +141,7 @@ def get_info():
             signal_info["formula"] = m.get("formula", "")
             signal_info["description"] = m.get("description", "")
             signal_info["source_signals"] = m.get("source_signals", [])
+            signal_info["mapping"] = m.get("mapping", {})
 
         signals_list.append(signal_info)
 

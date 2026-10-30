@@ -21,6 +21,7 @@ import { plotIsVisible } from './view-nav.js';
 // affichés en pleine résolution (binaire). Une fois en cache avec isComplete, tout le pan/zoom
 // est rendu localement par canRenderFromCache -> renderPlotFromCacheFiltered, sans réseau.
 export const fullDataInFlight = new Set();
+const fullDataRequests = new Map();
 
 // Decode l'enveloppe binaire commune a /raw et /view:
 // [uint32 LE longueur d'entete][entete JSON UTF-8][par signal: float64 ts + float32 vals].
@@ -90,18 +91,30 @@ function scheduleFullData(plot) {
 async function ensureFullData(plot) {
     if (!ectx.currentLazySessionId || !plot || plot.signals.length === 0) return;
     if (plotHasSynth(plot)) return; // overlay: full-send dedie groupe par run
-    const need = plot.signals.filter(i => {
+    const incomplete = plot.signals.filter(i => {
         const c = plot.cachedData[i];
-        const complete = c && c.isComplete && c.fullTimeRange;
-        return !complete && !fullDataInFlight.has(i);
+        return !(c && c.isComplete && c.fullTimeRange);
     });
-    if (need.length === 0) return;
+    if (incomplete.length === 0) return;
 
-    need.forEach(i => fullDataInFlight.add(i));
+    // Meme signal sur deux plots (restauration de layout): le second attend la requete en vol
+    // au lieu d'etre ignore, sinon il reste sans serie complete et son integrale ne s'affiche pas.
+    const requests = new Set(incomplete.filter(i => fullDataRequests.has(i)).map(i => fullDataRequests.get(i)));
+    const need = incomplete.filter(i => !fullDataInFlight.has(i));
+    let request = null;
+    if (need.length > 0) {
+        request = fetchRawSignals(need);
+        need.forEach(i => { fullDataInFlight.add(i); fullDataRequests.set(i, request); });
+        requests.add(request);
+    }
+    if (requests.size === 0) return;
+
     try {
-        const data = await fetchRawSignals(need);
-        if (data && data.signals && data.signals.length) {
-            cacheServerSignals(plot, data);
+        const responses = await Promise.all(requests);
+        const signals = responses.flatMap(data => (data && data.signals) || [])
+            .filter(sig => incomplete.includes(sig.index));
+        if (signals.length) {
+            cacheServerSignals(plot, { signals });
             // Le full-send est differe (idle + reseau): l'onglet a pu changer entre-temps.
             if (plotIsVisible(plot) && canRenderFromCache(plot, ectx.globalView.min, ectx.globalView.max)) {
                 if (plot.isBoolPlot) renderBoolPlot(plot);
@@ -111,7 +124,7 @@ async function ensureFullData(plot) {
     } catch (e) {
         console.error('Full send error:', e);
     } finally {
-        need.forEach(i => fullDataInFlight.delete(i));
+        if (request) need.forEach(i => { fullDataInFlight.delete(i); fullDataRequests.delete(i); });
     }
 }
 
