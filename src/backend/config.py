@@ -52,7 +52,7 @@ METRICS_DATA_DIR.mkdir(parents=True, exist_ok=True)
 AUTH_DATA_DIR.mkdir(parents=True, exist_ok=True)
 SESSION_DESCRIPTOR_DIR.mkdir(parents=True, exist_ok=True)
 
-MAX_CONTENT_LENGTH = 1500 * 1024 * 1024  # 1.5GB
+MAX_CONTENT_LENGTH = 5 * 1024 * 1024 * 1024  # 5 Go, a aligner sur client_max_body_size de nginx
 ALLOWED_ORIGINS = _parse_cors_origins()
 
 AUTH_SECRET_KEY = _get_auth_secret_key()

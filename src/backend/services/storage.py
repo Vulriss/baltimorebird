@@ -26,7 +26,7 @@ CATEGORIES: Dict[str, Dict[str, Any]] = {
         "name": "Fichiers MF4",
         "extensions": {"mf4", "mdf", "dat"},
         "description": "Fichiers de données pour Interactive EDA",
-        "max_size_mb": 2000,
+        "max_size_mb": 5 * 1024,
     },
     "dbc": {
         "name": "Fichiers DBC",

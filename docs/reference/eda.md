@@ -35,7 +35,7 @@ Aucun réglage n'est demandé, la structure est détectée à la lecture.
 - **Valeurs** : décimale point ou virgule, notation scientifique admise. Une
   cellule vide est un échantillon absent, pas un zéro. Les colonnes de texte sont
   ignorées et leur nombre est indiqué à la fin de l'import.
-- **Taille** : 1500 Mo par fichier, soit le plafond de l'envoi HTTP, et 150 millions
+- **Taille** : 5 Go par fichier, soit le plafond de l'envoi HTTP, et 150 millions
   de valeurs au maximum.
 
 Un fichier dont la structure n'est pas reconnue est refusé avec un message qui

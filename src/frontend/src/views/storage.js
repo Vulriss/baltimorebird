@@ -455,8 +455,7 @@ const StorageManager = (() => {
                     window.loadSources();
                 }
             } else {
-                const err = JSON.parse(xhr.responseText || '{}');
-                showNotification(err.error || 'Upload échoué', 'error');
+                showNotification(window.uploadErrorMessage(xhr), 'error');
                 if (uploadBtn) uploadBtn.disabled = false;
                 setDisplay('storageUploadProgress', false);
             }

@@ -91,7 +91,7 @@ def register_error_handlers(app: Flask) -> None:
 
     @app.errorhandler(413)
     def request_entity_too_large(e):
-        return jsonify({"error": "Fichier trop volumineux (max 1500 MB)"}), 413
+        return jsonify({"error": f"Fichier trop volumineux (max {MAX_CONTENT_LENGTH // 1024 ** 3} Go)"}), 413
 
     @app.errorhandler(500)
     def internal_error(e):

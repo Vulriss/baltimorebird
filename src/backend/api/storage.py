@@ -8,7 +8,7 @@ from flask import Blueprint, g, jsonify, request, send_file
 from werkzeug.utils import secure_filename
 
 from api.auth import admin_required, login_required
-from config import BASE_DIR, DEFAULT_QUOTA_BYTES
+from config import BASE_DIR, DEFAULT_QUOTA_BYTES, TEMP_DIR
 from core import is_safe_path
 from services.storage import CATEGORIES, allowed_file, storage
 
@@ -82,11 +82,13 @@ def upload_file(category: str):
 
     description = request.form.get("description", "")[:500]
 
+    # Passage par le disque: un MF4 de plusieurs Go lu en memoire emporterait le worker unique.
+    tmp_path = TEMP_DIR / f"storage_upload_{uuid.uuid4()}{Path(filename).suffix.lower()}"
     try:
-        file_data = file.read()
-        stored_file = storage.store_file(
+        file.save(tmp_path)
+        stored_file = storage.store_existing_file(
             user_id=user.id,
-            file_data=file_data,
+            source_path=tmp_path,
             original_name=filename,
             category=category,
             description=description
@@ -98,6 +100,8 @@ def upload_file(category: str):
         return jsonify({"error": str(e)}), 400
     except Exception as e:
         return jsonify({"error": f"Erreur lors de l'upload: {str(e)}"}), 500
+    finally:
+        tmp_path.unlink(missing_ok=True)
 
 
 @storage_bp.route("/api/storage/json/<category>", methods=["POST"])

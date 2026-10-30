@@ -40,6 +40,27 @@ async function authFetch(url, options = {}) {
 
     return res;
 }
+
+// Message d'echec d'un upload XHR. Un corps non JSON vient de nginx (timeout, taille), pas de Flask.
+function uploadErrorMessage(xhr) {
+    try {
+        const err = JSON.parse(xhr.responseText);
+        if (err && err.error) return err.error;
+    } catch (e) { /* page d'erreur HTML du proxy */ }
+
+    switch (xhr.status) {
+        case 408:
+        case 504:
+            return `Délai dépassé (HTTP ${xhr.status}) : connexion trop lente ou interrompue pendant l'envoi`;
+        case 413:
+            return 'Fichier trop volumineux (max 5 Go)';
+        case 502:
+        case 503:
+            return `Serveur indisponible (HTTP ${xhr.status}), réessayez dans quelques instants`;
+        default:
+            return `Upload échoué (HTTP ${xhr.status || 'inconnu'})`;
+    }
+}
 // =========================================================================
 // Expose globals for other modules (Vite compatibility)
 // =========================================================================
@@ -47,3 +68,4 @@ window.Utils = Utils;
 window.formatFileSize = formatFileSize;
 window.getAuthToken = getAuthToken;
 window.authFetch = authFetch;
+window.uploadErrorMessage = uploadErrorMessage;

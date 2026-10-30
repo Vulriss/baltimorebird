@@ -106,7 +106,7 @@ Le worker gunicorn est unique et porte toutes les sessions EDA: voir
 qui déborde doit échouer avec un message, pas emporter le processus. Deux bornes
 y veillent, et elles ne disent pas la même chose.
 
-La première, 1500 Mo de fichier source, est alignée sur `MAX_CONTENT_LENGTH`:
+La première, 5 Go de fichier source, est alignée sur `MAX_CONTENT_LENGTH`:
 un fichier plus gros est déjà refusé par Flask, une valeur plus basse ne
 protégerait de rien et refuserait des mesures légitimes du parc.
 

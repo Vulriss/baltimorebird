@@ -79,6 +79,12 @@ users.db
 # User data (private uploads, scripts, etc.)
 src/backend/data/users/
 
+# Descripteurs de sessions EDA (etat d'execution, references aux fichiers utilisateurs)
+src/backend/data/sessions/
+
+# Gabarits DECEL: proprietaires, jamais publies sur le depot open source
+*decel_template*
+
 # Métriques (données générées)
 src/backend/metrics_data/
 

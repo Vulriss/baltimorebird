@@ -127,7 +127,8 @@ server {
     ssl_certificate /etc/letsencrypt/live/your-domain.com/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/your-domain.com/privkey.pem;
 
-    client_max_body_size 1500M;    # MF4 uploads
+    client_max_body_size 5G;       # MF4 uploads, aligned on MAX_CONTENT_LENGTH
+    client_body_timeout 300s;      # tolerate stalls on slow or flaky connections
 
     location /assets/ {
         expires 1y;
@@ -145,7 +146,8 @@ server {
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_read_timeout 300s;
+        proxy_read_timeout 900s;   # post-upload processing of a multi-GB file (copy, decoding)
+        proxy_send_timeout 300s;   # with unbuffered bodies, armed while waiting on a slow client
         proxy_request_buffering off;
     }
 }

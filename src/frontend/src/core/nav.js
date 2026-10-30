@@ -6,7 +6,7 @@
 const CONVERT_API = '/api/convert';
 const CONCAT_API = '/api/concat';
 const CONCAT_MAX_FILES = 5;
-const CONCAT_MAX_FILE_SIZE = 1.5 * 1024 * 1024 * 1024;
+const CONCAT_MAX_FILE_SIZE = 5 * 1024 * 1024 * 1024;
 
 // Conversion state
 let selectedFile = null;
@@ -348,7 +348,7 @@ function handleConcatFilesSelect(input) {
         }
 
         if (file.size > CONCAT_MAX_FILE_SIZE) {
-            alert(`Le fichier "${file.name}" dépasse la limite de 1.5 GB par fichier.`);
+            alert(`Le fichier "${file.name}" dépasse la limite de 5 GB par fichier.`);
             continue;
         }
 
@@ -404,7 +404,7 @@ function updateConcatInfo() {
     const totalSize = concatFiles.reduce((sum, file) => sum + file.size, 0);
 
     infoEl.innerHTML = concatFiles.length === 0
-        ? `<span>Max ${CONCAT_MAX_FILES} fichiers, 1.5 GB par fichier</span>`
+        ? `<span>Max ${CONCAT_MAX_FILES} fichiers, 5 GB par fichier</span>`
         : `<span>${concatFiles.length}/${CONCAT_MAX_FILES} fichiers</span>
            <span class="concat-info-sep">•</span>
            <span>Total: ${formatFileSize(totalSize)}</span>`;

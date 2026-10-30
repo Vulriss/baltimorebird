@@ -358,12 +358,7 @@ export async function uploadEdaFile() {
                 closeUploadModal();
                 
             } else {
-                let errMsg = 'Upload échoué';
-                try {
-                    const err = JSON.parse(xhr.responseText);
-                    errMsg = err.error || errMsg;
-                } catch (e) {}
-                showUploadError(errMsg);
+                showUploadError(window.uploadErrorMessage(xhr));
             }
         });
 

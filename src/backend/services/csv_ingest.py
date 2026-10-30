@@ -48,7 +48,7 @@ _FLOAT = np.float64
 # rather than take the process down.
 # The source cap is aligned on MAX_CONTENT_LENGTH: a bigger file is already refused by Flask, so a
 # lower value here would only move the refusal earlier without protecting anything.
-MAX_SOURCE_BYTES = 1500 * 1024 * 1024
+MAX_SOURCE_BYTES = 5 * 1024 * 1024 * 1024
 # The cell budget is the one that actually bounds memory, and it is not implied by the file size: a
 # file of compact values holds several times more cells per byte than a file of formatted floats.
 # 150 million cells represent 1.2 Go once in float64.
