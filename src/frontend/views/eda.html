@@ -1,58 +1,37 @@
 <div class="app">
-    <aside class="sidebar">
-        <!-- Zone fichiers (haut, redimensionnable) -->
-        <div class="sidebar-files" id="sidebarFiles">
-            <!-- Connecté : fichier conservé dans l'espace personnel -->
-            <button class="upload-btn" id="uploadBtnAuth" title="Charger votre fichier (MF4, CSV, MAT, DAT, BLF)" data-auth="required">
+    <!-- Onglets fichiers: un onglet par fichier ouvert, l'onglet actif est le fichier
+         courant (rendu par run-list.js). En comparaison, les onglets deviennent le
+         roster des runs compares. -->
+    <div class="file-bar" id="fileBar">
+        <div class="file-tabs" id="fileTabs" role="tablist" aria-label="Fichiers ouverts"></div>
+        <div class="file-add">
+            <button class="file-add-btn" id="fileAddBtn" type="button" aria-haspopup="menu" aria-expanded="false"
+                    title="Ajouter un fichier (MF4, CSV, MAT, DAT, BLF)">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
                     <polyline points="17 8 12 3 7 8"/>
                     <line x1="12" y1="3" x2="12" y2="15"/>
                 </svg>
-                <span class="upload-btn-title">Charger un fichier</span>
-            </button>
-            <!-- Non connecté : fichier temporaire, non sauvegardé -->
-            <button class="upload-btn" id="uploadBtnGuest" title="Charger un fichier temporaire, non sauvegardé" data-auth="guest">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                    <polyline points="17 8 12 3 7 8"/>
-                    <line x1="12" y1="3" x2="12" y2="15"/>
-                </svg>
-                <span class="upload-btn-title">Charger un fichier</span>
-            </button>
-
-            <div class="sidebar-section-title run-slots-title">Exemples et fichiers récents</div>
-
-            <!-- Mono-fichier: selecteur de source actif (demo + uploads). En mode comparaison
-                 (opt-in via le bouton Comparer), ce slot se masque au profit du roster ci-dessous. -->
-            <div class="run-slots" id="runSlots">
-                <div class="run-slot">
-                    <span class="run-swatch"></span>
-                    <select id="sourceSelector" class="run-slot-select">
-                        <option value="">Chargement...</option>
-                    </select>
-                    <button class="run-details-btn" type="button" title="Details du fichier" aria-label="Details du fichier">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/>
-                        </svg>
-                    </button>
-                </div>
-            </div>
-            <!-- Roster des runs en comparaison (rendu par run-list.js) -->
-            <div class="run-roster" id="runRoster"></div>
-            <!-- Entree / sortie du mode comparaison (opt-in), visible des deux fichiers uploades -->
-            <button class="run-compare-btn" id="runCompareBtn" type="button" style="display: none;">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <rect x="3" y="4" width="8" height="16" rx="1"/><rect x="13" y="4" width="8" height="16" rx="1"/>
-                </svg>
-                <span>Comparer les fichiers</span>
+                <span>Ajouter un fichier</span>
             </button>
         </div>
+        <div class="file-bar-compare" id="fileBarCompare"></div>
+        <!-- Pont de selection de source: reste la source de verite lue par sessions.js,
+             runs.js, export-annotate.js et l'onboarding. Les onglets et le menu d'ajout
+             le pilotent, il n'est jamais affiche. -->
+        <select id="sourceSelector" class="visually-hidden" tabindex="-1" aria-hidden="true">
+            <option value="">Chargement...</option>
+        </select>
+    </div>
 
-        <!-- Splitter vertical entre zone fichiers et zone signaux -->
-        <div class="sidebar-vsplitter" id="sidebarVSplitter" title="Redimensionner"></div>
+    <div class="app-body">
+    <aside class="sidebar">
+        <!-- Zone infos fichier, reservee (nombre de signaux, duree, nom complet...).
+             Sa hauteur suit celle de la toolbar pour aligner la zone signaux sur la
+             rangee des onglets de layout. -->
+        <div class="sidebar-info" id="sidebarInfo"></div>
 
-        <!-- Zone signaux (bas) -->
+        <!-- Zone signaux -->
         <div class="sidebar-signals" id="sidebarSignals">
             <div class="sidebar-section-header">
                 <span class="sidebar-section-title">Signaux</span>
@@ -77,98 +56,168 @@
     </aside>
 
     <main class="main">
-        <div class="toolbar">
-            <button class="toolbar-btn" id="addCursorBtn" title="Ajouter un curseur (Ctrl + clic gauche)">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <line x1="9" y1="4" x2="9" y2="20"/>
-                    <line x1="6" y1="4" x2="12" y2="4"/>
-                    <line x1="6" y1="20" x2="12" y2="20"/>
-                    <line x1="17" y1="9" x2="17" y2="15"/>
-                    <line x1="14" y1="12" x2="20" y2="12"/>
-                </svg>
-            </button>
-
-            <button class="toolbar-btn active" id="cursorLabelsToggle" aria-pressed="true" title="Afficher les infos des curseurs">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
-                    <line x1="7" y1="7" x2="7.01" y2="7"/>
-                </svg>
-            </button>
-
-            <span class="toolbar-divider" aria-hidden="true"></span>
-
-            <button class="toolbar-btn active" id="syncViewsToggle" aria-pressed="true" title="Synchroniser zoom et pan entre les onglets">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
-                    <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
-                    <line class="icon-off-slash" x1="2" y1="2" x2="22" y2="22"/>
-                </svg>
-            </button>
-
-            <button class="toolbar-btn" id="syncCursorsToggle" aria-pressed="false" title="Synchroniser les curseurs entre les onglets">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <line x1="6" y1="4" x2="6" y2="20"/>
-                    <line x1="3" y1="4" x2="9" y2="4"/>
-                    <line x1="3" y1="20" x2="9" y2="20"/>
-                    <line x1="21" y1="9" x2="12" y2="9"/>
-                    <polyline points="15 6 12 9 15 12"/>
-                    <line x1="12" y1="15" x2="21" y2="15"/>
-                    <polyline points="18 12 21 15 18 18"/>
-                </svg>
-            </button>
-
-            <button class="toolbar-btn active" id="zoneTooltipToggle" aria-pressed="true" title="Stats au survol des zones booleennes (min/moy/max)">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-                    <line x1="8" y1="9" x2="8" y2="12"/>
-                    <line x1="12" y1="7" x2="12" y2="12"/>
-                    <line x1="16" y1="10" x2="16" y2="12"/>
-                </svg>
-            </button>
-
-            <button id="resetBtn">Réinitialiser le zoom</button>
-            <span class="toolbar-divider" aria-hidden="true"></span>
-            <button id="clearBtn">Effacer tout</button>
-
-            <!-- Actions de layout (session/workspace, pas par-onglet): regroupees ici avec
-                 les autres controles globaux plutot que sur la rangee des tabs, pour ne pas
-                 scinder un meme niveau de controle entre deux rangees. Le divider avant ce
-                 groupe pousse le reste a droite (voir .toolbar-divider:has(+ .toolbar-actions)). -->
-            <span class="toolbar-divider" aria-hidden="true"></span>
-            <div class="toolbar-actions">
-                <button class="toolbar-btn" id="saveLayoutBtn" title="Enregistrer le layout">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
-                        <polyline points="17 21 17 13 7 13 7 21"/>
-                        <polyline points="7 3 7 8 15 8"/>
-                    </svg>
-                </button>
-                <button class="toolbar-btn" id="loadLayoutBtn" title="Charger un layout">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                        <polyline points="7 10 12 15 17 10"/>
-                        <line x1="12" y1="15" x2="12" y2="3"/>
-                    </svg>
-                </button>
-                <button class="toolbar-btn" id="shareViewBtn" title="Copier le lien de cette vue">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
-                        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
-                    </svg>
-                </button>
-                <button class="toolbar-btn" id="exportPngBtn" title="Capturer et annoter la vue">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
-                        <circle cx="12" cy="13" r="4"/>
-                    </svg>
-                </button>
+        <!-- Toolbar en groupes. Repliee: icones seules; depliee: titres de groupe et
+             libelles sous chaque bouton (etat persiste par toolbar.js). -->
+        <div class="toolbar" id="edaToolbar">
+            <div class="toolbar-section">
+                <span class="toolbar-section-title">Analyse</span>
+                <div class="toolbar-section-btns">
+                    <button class="toolbar-btn" id="addCursorBtn" title="Ajouter un curseur (Ctrl + clic gauche)">
+                        <span class="toolbar-btn-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <line x1="9" y1="4" x2="9" y2="20"/>
+                                <line x1="6" y1="4" x2="12" y2="4"/>
+                                <line x1="6" y1="20" x2="12" y2="20"/>
+                                <line x1="17" y1="9" x2="17" y2="15"/>
+                                <line x1="14" y1="12" x2="20" y2="12"/>
+                            </svg>
+                        </span>
+                        <span class="toolbar-btn-label">Ajouter un curseur</span>
+                    </button>
+                    <button class="toolbar-btn active" id="cursorLabelsToggle" aria-pressed="true" title="Afficher les infos des curseurs">
+                        <span class="toolbar-btn-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
+                                <line x1="7" y1="7" x2="7.01" y2="7"/>
+                            </svg>
+                        </span>
+                        <span class="toolbar-btn-label">Infos curseurs</span>
+                    </button>
+                    <button class="toolbar-btn active" id="zoneTooltipToggle" aria-pressed="true" title="Stats au survol des zones booleennes (min/moy/max)">
+                        <span class="toolbar-btn-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                                <line x1="8" y1="9" x2="8" y2="12"/>
+                                <line x1="12" y1="7" x2="12" y2="12"/>
+                                <line x1="16" y1="10" x2="16" y2="12"/>
+                            </svg>
+                        </span>
+                        <span class="toolbar-btn-label">Stats au survol</span>
+                    </button>
+                </div>
             </div>
+
+            <span class="toolbar-divider" aria-hidden="true"></span>
+
+            <div class="toolbar-section">
+                <span class="toolbar-section-title">Synchronisation</span>
+                <div class="toolbar-section-btns">
+                    <button class="toolbar-btn" id="syncCursorsToggle" aria-pressed="false" title="Synchroniser les curseurs entre les onglets">
+                        <span class="toolbar-btn-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <line x1="6" y1="4" x2="6" y2="20"/>
+                                <line x1="3" y1="4" x2="9" y2="4"/>
+                                <line x1="3" y1="20" x2="9" y2="20"/>
+                                <line x1="21" y1="9" x2="12" y2="9"/>
+                                <polyline points="15 6 12 9 15 12"/>
+                                <line x1="12" y1="15" x2="21" y2="15"/>
+                                <polyline points="18 12 21 15 18 18"/>
+                            </svg>
+                        </span>
+                        <span class="toolbar-btn-label">Sync curseurs</span>
+                    </button>
+                    <button class="toolbar-btn active" id="syncViewsToggle" aria-pressed="true" title="Synchroniser zoom et pan entre les onglets">
+                        <span class="toolbar-btn-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+                                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+                                <line class="icon-off-slash" x1="2" y1="2" x2="22" y2="22"/>
+                            </svg>
+                        </span>
+                        <span class="toolbar-btn-label">Sync zoom/pan</span>
+                    </button>
+                </div>
+            </div>
+
+            <span class="toolbar-divider" aria-hidden="true"></span>
+
+            <div class="toolbar-section">
+                <span class="toolbar-section-title">Vue</span>
+                <div class="toolbar-section-btns">
+                    <button class="toolbar-btn" id="resetBtn" title="Réinitialiser le zoom (plage complète, bornes Y libérées)">
+                        <span class="toolbar-btn-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="11" cy="11" r="7"/>
+                                <line x1="21" y1="21" x2="16" y2="16"/>
+                                <path d="M8.5 12.5a3 3 0 1 0 .4-3.4"/>
+                                <polyline points="8.5 7.5 8.5 9.5 10.5 9.5"/>
+                            </svg>
+                        </span>
+                        <span class="toolbar-btn-label">Réinitialiser le zoom</span>
+                    </button>
+                    <button class="toolbar-btn toolbar-btn--danger" id="clearBtn" title="Effacer tous les graphiques">
+                        <span class="toolbar-btn-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="23 4 23 10 17 10"/>
+                                <polyline points="1 20 1 14 7 14"/>
+                                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+                            </svg>
+                        </span>
+                        <span class="toolbar-btn-label">Effacer tout</span>
+                    </button>
+                </div>
+            </div>
+
+            <span class="toolbar-divider" aria-hidden="true"></span>
+
+            <div class="toolbar-section">
+                <span class="toolbar-section-title">Outils</span>
+                <div class="toolbar-section-btns">
+                    <button class="toolbar-btn" id="exportPngBtn" title="Capturer et annoter la vue">
+                        <span class="toolbar-btn-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                                <circle cx="12" cy="13" r="4"/>
+                            </svg>
+                        </span>
+                        <span class="toolbar-btn-label">Capture</span>
+                    </button>
+                    <button class="toolbar-btn" id="shareViewBtn" title="Copier le lien de cette vue">
+                        <span class="toolbar-btn-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="18" cy="5" r="3"/>
+                                <circle cx="6" cy="12" r="3"/>
+                                <circle cx="18" cy="19" r="3"/>
+                                <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
+                                <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+                            </svg>
+                        </span>
+                        <span class="toolbar-btn-label">Partager</span>
+                    </button>
+                </div>
+            </div>
+
+            <button class="toolbar-collapse" id="toolbarCollapseBtn" type="button" aria-expanded="false" title="Afficher les libellés">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="6 9 12 15 18 9"/>
+                </svg>
+            </button>
         </div>
 
         <div class="plots-area" id="plotsArea">
             <div class="tabs-container">
                 <div class="tabs-list" id="tabsList"></div>
                 <button class="tab-add" id="tabAddBtn" title="Nouvel onglet">+</button>
+                <!-- Actions de layout: elles portent sur l'ensemble des onglets de layout,
+                     d'ou leur place au bout de la rangee qui les affiche. -->
+                <div class="tabs-actions">
+                    <button class="tabs-action-btn" id="saveLayoutBtn" type="button" title="Exporter le layout">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                            <polyline points="17 8 12 3 7 8"/>
+                            <line x1="12" y1="3" x2="12" y2="15"/>
+                        </svg>
+                        <span>Exporter</span>
+                    </button>
+                    <button class="tabs-action-btn" id="loadLayoutBtn" type="button" title="Importer un layout">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                            <polyline points="7 10 12 15 17 10"/>
+                            <line x1="12" y1="15" x2="12" y2="3"/>
+                        </svg>
+                        <span>Importer</span>
+                    </button>
+                </div>
             </div>
             <!-- Tab contents will be created dynamically by JavaScript -->
         </div>
@@ -179,4 +228,5 @@
             <span class="text"><span class="text-label">Crafted with ❤️ by the <b>MINT Team</b></span></span>
         </div>
     </main>
+    </div>
 </div>

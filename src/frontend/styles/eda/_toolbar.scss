@@ -1,4 +1,4 @@
-// Baltimore Bird - Toolbar EDA (selecteur de source, clear/reset)
+// Baltimore Bird - Toolbar EDA (groupes, boutons losange, repli des libelles)
 // Partial extrait de _styles.scss (refactoring)
 @use '../abstracts/variables' as *;
 
@@ -12,7 +12,7 @@
 
 .toolbar {
     min-height: $toolbar-height;
-    padding: 10px 16px;
+    padding: 6px 12px 6px 16px;
     box-sizing: border-box;
     /* $bg-toolbar (mantle) plutot que $bg-darkest (crust): le crust est le
        fond le plus sombre du systeme et faisait de la toolbar la zone la
@@ -23,7 +23,7 @@
     border-bottom: 1px solid $border-color;
     display: flex;
     align-items: center;
-    gap: 16px;
+    gap: 12px;
     flex-wrap: wrap;
 }
 
@@ -37,30 +37,38 @@
 
 .toolbar-group label { font-size: 11px; color: $text-muted; }
 
-/* Source selector */
-#sourceSelector {
-    height: $button-height-sm; /* Meme hauteur que les autres controles principaux
-       (.toolbar-btn, search-box et create-variable-btn de la sidebar signaux) */
-    padding: 6px 10px;
-    background: $bg-card;
-    border: 1px solid $border-color;
-    border-radius: 4px;
-    color: $text-primary;
-    font-size: 12px;
-    cursor: pointer;
-    min-width: 150px;
-    max-width: 250px;      /* Largeur max fixe */
-    width: 250px;          /* Largeur fixe */
-    text-overflow: ellipsis;  /* Tronque les noms longs */
+/* Groupe de boutons (Analyse, Synchronisation, Vue, Outils). Le titre n'apparait
+   qu'une fois la toolbar depliee. */
+.toolbar-section {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
 }
 
-#sourceSelector:focus { outline: none; border-color: $border-focus; }
+.toolbar-section-title {
+    display: none;
+    font-family: $font-sans;
+    font-size: $font-size-xs;
+    font-weight: $font-weight-bold;
+    color: $ctp-overlay2;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
 
-#sourceSelector:hover { background: $bg-hover; }
+.toolbar-section-btns {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+}
 
-#sourceSelector option { background: $bg-card; color: $text-primary; }
+.toolbar.is-expanded {
+    align-items: stretch;
 
-#sourceSelector option:disabled { color: $text-dark; }
+    .toolbar-section-title { display: block; }
+    .toolbar-btn { width: 76px; }
+    .toolbar-btn-label { display: -webkit-box; }
+    .toolbar-divider { align-self: stretch; height: auto; }
+}
 
 button {
     background: $border-light;
@@ -72,91 +80,126 @@ button {
     font-size: 12px;
 }
 
+/* Bouton de toolbar: losange (carre arrondi tourne de 45 degres) porte par
+   .toolbar-btn-icon::before, icone droite par-dessus, libelle dessous une fois
+   la toolbar depliee. Le bouton lui-meme reste transparent: tous les etats se
+   lisent sur le losange. */
 .toolbar-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding: 0 !important;
+    background: transparent;
+    border: none;
+    color: $color-primary;
+    cursor: pointer;
+}
+
+.toolbar-btn-icon {
+    position: relative;
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 32px;
-    height: 32px;
-    padding: 0 !important;
-    background: $ctp-surface1;
-    border: 1px solid $ctp-surface2;
-    border-radius: 4px;
-    color: $ctp-subtext1;
-    cursor: pointer;
-    transition: all 0.2s;
+    width: 36px;
+    height: 36px;
 }
 
-.toolbar-btn.just-deactivated {
-    background: $ctp-surface1 !important;
-    border-color: $ctp-surface2 !important;
-    color: $ctp-subtext1 !important;
+.toolbar-btn-icon::before {
+    content: "";
+    position: absolute;
+    inset: 6px;
+    border-radius: 30%;
+    background: $bg-card;
+    transform: rotate(45deg);
+    transition: background 0.15s, box-shadow 0.15s;
 }
+
+.toolbar-btn-label {
+    display: none;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    overflow: hidden;
+    width: 100%;
+    font-size: $font-size-xs;
+    font-weight: $font-weight-medium;
+    line-height: 1.2;
+    text-align: center;
+}
+
+/* Action destructrice (Effacer tout): rouge sur icone et libelle */
+.toolbar-btn--danger { color: $ctp-red; }
 
 .toolbar-btn.disabled {
     opacity: 0.5;
     cursor: not-allowed;
 }
 
+/* Etat "actuellement actif" (persiste dans le temps): seul un toggle allume porte
+   une ombre, qui le detache du rang des boutons au repos; teinte d'accent sourde
+   pour ne pas rivaliser avec un vrai bouton d'action. */
+.toolbar-btn.active .toolbar-btn-icon::before {
+    background: color-mix(in srgb, #{$color-accent} 18%, #{$bg-card});
+    box-shadow: $shadow-sm;
+}
+
+/* Le bouton reste transparent au survol: sans cette regle, le button:hover global
+   (_upload-modal.scss, plus specifique qu'une classe seule) peignait un rectangle
+   gris autour du losange. */
+.toolbar-btn:hover { background: transparent; }
+
+/* Survol generique: neutre, jamais la teinte d'accent, pour ne pas se confondre
+   avec l'etat actif ci-dessus. */
+.toolbar-btn:hover:not(.just-deactivated):not(.active) .toolbar-btn-icon::before {
+    background: $bg-hover;
+}
+
+.toolbar-btn.active:hover .toolbar-btn-icon::before {
+    filter: brightness(1.05);
+}
+
+.toolbar-btn:focus-visible {
+    outline: none;
+
+    .toolbar-btn-icon::before { box-shadow: 0 0 0 2px $border-focus; }
+}
+
 /* Séparateur vertical entre groupes de la toolbar EDA */
 .toolbar-divider {
     align-self: center;
     width: 1px;
-    height: 24px;
+    height: 28px;
     background: $ctp-surface2;
-    margin: 0 -4px;
 }
 
-/* Actions de layout (save/load/share/export): meme niveau de controle que le
-   reste de la toolbar (workspace, pas par-onglet), donc regroupees ici plutot
-   que sur la rangee des tabs. Le divider qui les precede pousse tout le
-   groupe a droite, sans avoir besoin d'une classe dediee sur ce divider. */
-.toolbar-divider:has(+ .toolbar-actions) {
+/* Repli / depli des libelles, pousse au bout de la rangee */
+.toolbar-collapse {
     margin-left: auto;
-}
-
-.toolbar-actions {
-    display: flex;
+    align-self: center;
+    display: inline-flex;
     align-items: center;
-    gap: 8px;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    color: $color-primary;
+    cursor: pointer;
+
+    svg {
+        width: 20px;
+        height: 20px;
+        pointer-events: none;
+        transition: transform 0.2s;
+    }
+
+    &:hover { background: $bg-hover; }
 }
 
-/* Etat "actuellement actif" (persiste dans le temps): teinte sapphire sourde,
-   volontairement distincte du CTA plein ($color-accent) pour qu'un toggle
-   allume ne rivalise pas visuellement avec un vrai bouton d'action. */
-.toolbar-btn.active {
-    background: $color-toggle-on-muted !important;
-    border-color: $color-toggle-on-border !important;
-    color: $color-toggle-on !important;
-}
-
-/* color doit etre !important comme sur la regle de base ci-dessus, sinon une
-   declaration non-!important ne peut jamais la battre: le texte retombait
-   silencieusement sur $color-toggle-on (sapphire), illisible sur ce fond navy
-   (~2.5:1) au lieu du $ctp-crust clair prevu (~5.9:1). Meme bug que celui deja
-   corrige plus haut sur le survol - meme fichier, instance manquee. */
-[data-theme="light"] .toolbar-btn.active {
-    background: $bg-nav !important;
-    border-color: $bg-nav !important;
-    color: $ctp-crust !important;
-}
-
-/* Survol générique: neutre, jamais la couleur d'accent — le survol ne doit
-   pas se confondre avec l'état "actif" ci-dessus. */
-.toolbar-btn:hover:not(.just-deactivated):not(.active) {
-    background: $ctp-surface2;
-    border-color: $ctp-overlay0;
-    color: $ctp-text;
-}
-
-/* filter plutot que re-poser background/border/color: .toolbar-btn.active
-   les fixe en !important (regle au-dessus), donc toute valeur non-!important
-   sur ces proprietes serait ignoree au survol, actif ou non. brightness()
-   n'est pas concerne par ce conflit et fonctionne identiquement sur les
-   deux variantes de theme (sapphire en sombre, bg-nav en clair). */
-.toolbar-btn.active:hover {
-    filter: brightness(1.15);
-}
+.toolbar.is-expanded .toolbar-collapse svg { transform: rotate(180deg); }
 
 // Masquage des infos de curseur quand le bouton est inactif: temps en haut, ligne et
 // valeur de delta, valeurs par courbe. Les lignes de curseur restent visibles.
@@ -168,62 +211,13 @@ body.hide-cursor-labels .cursor-label {
 }
 
 .toolbar-btn svg {
-    width: 16px;
-    height: 16px;
+    position: relative; /* au-dessus du losange (::before) */
+    width: 18px;
+    height: 18px;
     /* fill:none + stroke seul: le remplissage transparent de l'icone ne
        capte pas le survol (pointer-events: visiblePainted par defaut sur
        SVG), donc le tooltip du bouton clignotait selon qu'on survolait un
        trait ou l'interieur de l'icone. pointer-events: none force tout
        survol du bouton a etre traite de facon uniforme par le bouton lui-meme. */
     pointer-events: none;
-}
-
-/* === CLEAR & RESET BUTTONS (EDA toolbar) === */
-#clearBtn,
-#resetBtn {
-    position: relative;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    height: 32px; /* Aligne sur le carre 32x32 des toggles icone de la meme rangee */
-    padding: 0 14px;
-    background: $ctp-surface1;
-    border: 1px solid $ctp-surface2;
-    border-radius: 4px;
-    color: $ctp-subtext1;
-    font-size: 12px;
-    font-weight: 500;
-    cursor: pointer;
-    overflow: hidden;
-    transition: all 0.2s ease;
-    z-index: 1;
-}
-
-/* Clear button - wipe animation */
-#clearBtn::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 0;
-    height: 100%;
-    background: $ctp-red;
-    z-index: -1;
-    transition: width 0.35s ease;
-}
-
-#clearBtn:hover {
-    color: $ctp-crust;
-    border-color: $ctp-red;
-}
-
-#clearBtn:hover::after {
-    width: 100%;
-}
-
-/* Reset button - simple hover */
-#resetBtn:hover {
-    background: $color-accent;
-    border-color: $color-accent;
-    color: $ctp-crust;
 }

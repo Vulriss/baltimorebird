@@ -9,10 +9,11 @@ import { addCursorFromButton } from './cursors.js';
 import { maybeApplyDeepLink, readDeepLinkFromUrl } from './deeplink.js';
 import { loadLegendWidth } from './legend-width.js';
 import { deletePlot } from './plot-legend.js';
-import { comparedAcquisitionRange, requestUpload } from './runs.js';
+import { comparedAcquisitionRange } from './runs.js';
 import { changeSource, loadSources, restoreEphemeralSession, updateSourceSelector } from './sessions.js';
-import { setupSidebarSplitter, setupSidebarVSplitter } from './sidebar.js';
+import { setupSidebarSplitter } from './sidebar.js';
 import { computeFilteredSignals, renderSignalList, renderVirtualList } from './signal-list.js';
+import { setupToolbar } from './toolbar.js';
 import { refreshAllPlots } from './view-nav.js';
 
 // =========================================================================
@@ -119,8 +120,8 @@ function setupEventListeners() {
 
     // Splitter de redimensionnement de la sidebar
     setupSidebarSplitter();
-    // Splitter interne fichiers / signaux
-    setupSidebarVSplitter();
+    // Repli de la toolbar et hauteur partagee avec la zone infos de la sidebar
+    setupToolbar();
 
     // Largeur partagee des legendes (persistee)
     loadLegendWidth();
@@ -261,23 +262,6 @@ function setupEdaEventListeners() {
             if (typeof changeSource === 'function') changeSource();
         });
         sourceSelector._listenerAdded = true;
-    }
-
-    // Upload buttons
-    const uploadBtnAuth = document.getElementById('uploadBtnAuth');
-    if (uploadBtnAuth && !uploadBtnAuth._listenerAdded) {
-        uploadBtnAuth.addEventListener('click', function() {
-            requestUpload();
-        });
-        uploadBtnAuth._listenerAdded = true;
-    }
-
-    const uploadBtnGuest = document.getElementById('uploadBtnGuest');
-    if (uploadBtnGuest && !uploadBtnGuest._listenerAdded) {
-        uploadBtnGuest.addEventListener('click', function() {
-            requestUpload();
-        });
-        uploadBtnGuest._listenerAdded = true;
     }
 
     // Tab add button

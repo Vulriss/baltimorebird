@@ -31,6 +31,24 @@ describe('LXF extension', () => {
     expect(integral.flex).toBe(2);
   });
 
+  it('round-trips the extended boolean zone state', () => {
+    const style = { color: '#a6e3a1', width: 1.5, dash: '', path: '', fill: '' };
+    const zones = {
+      tabs: [{
+        name: 'Etats',
+        plots: [{ flex: 1, signals: [
+          { name: 'Frein', style, extend_zones: true },
+          { name: 'Contact', style, extend_zones: false },
+          { name: 'Embrayage', style },
+        ] }],
+      }],
+    };
+    const [on, off, auto] = lxfToLayout(layoutToLxf(zones)).tabs[0].plots[0].signals;
+    expect(on.extend_zones).toBe(true);
+    expect(off.extend_zones).toBe(false);
+    expect(auto).not.toHaveProperty('extend_zones');
+  });
+
   it('keeps the document a plain LXF for other readers', () => {
     const xml = layoutToLxf(doc);
     const dom = new DOMParser().parseFromString(xml, 'application/xml');

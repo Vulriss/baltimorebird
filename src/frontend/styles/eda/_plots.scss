@@ -358,7 +358,7 @@
 
 /* Cible de depot valide pendant un drag: accent plein plutot que des gris
    attenues en opacite (qui reduisaient encore le contraste au lieu de
-   signaler l'action) - meme convention que .upload-btn/.create-variable-btn
+   signaler l'action) - meme convention que .create-variable-btn
    pour un moment "vous pouvez agir ici". */
 .drop-zone.active {
     border-color: $color-accent;

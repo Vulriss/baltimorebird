@@ -1,12 +1,21 @@
-// Baltimore Bird - Structure EDA + sidebar (zones fichiers/signaux, splitters)
+// Baltimore Bird - Structure EDA + sidebar (zone infos reservee, zone signaux, splitter)
 // Partial extrait de _styles.scss (refactoring)
 @use '../abstracts/variables' as *;
 
 /* === EDA APP === */
+/* Colonne: onglets fichiers en haut (.file-bar, _run-list.scss), puis la rangee
+   sidebar + zone principale. */
 .app {
     display: flex;
+    flex-direction: column;
     height: 100%;
     width: 100%;
+}
+
+.app-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
 }
 
 /* === SIDEBAR === */
@@ -21,25 +30,20 @@
     flex-direction: column;
 }
 
-/* Zone fichiers (haut, redimensionnable via le splitter vertical) */
-.sidebar-files {
-    flex: 0 0 auto;
-    min-height: 60px;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    /* 12px, pas 10px: .toolbar a un min-height ($toolbar-height) qui centre ses
-       boutons 32px verticalement, avec 2px de mou au-dessus du padding-top de
-       10px (56 - 2*10 - 32 = 4px repartis pour le centrage). upload-btn n'a pas
-       ce centrage (premier enfant d'une colonne), donc son padding-top doit
-       inclure ces 2px pour que les deux bords hauts tombent a la meme ligne. */
-    padding: 12px 14px 14px;
-    overflow-y: auto;
+/* Zone infos fichier, reservee (vide pour l'instant). Sa hauteur suit celle de la
+   toolbar (--eda-toolbar-height, pose par toolbar.js), filet compris: la zone
+   signaux demarre ainsi a la hauteur de la rangee des onglets de layout, et le
+   filet du bas prolonge celui de la toolbar. Deborde dans la gouttiere de gauche
+   (meme technique que .sidebar-footer) pour que la vague de la nav tranche le filet. */
+.sidebar-info {
+    flex: 0 0 var(--eda-toolbar-height, #{$toolbar-height});
+    box-sizing: border-box;
+    margin-left: -(1.5 * $nav-wave-width);
+    width: calc(100% + #{1.5 * $nav-wave-width});
+    border-bottom: 1px solid $border-color;
 }
 
-/* Zone signaux (bas, prend la hauteur restante). Meme rythme que .sidebar-files
-   (gap + padding identiques): les deux zones du panneau doivent se lire comme
-   une seule section a deux volets, pas comme deux composants distincts. */
+/* Zone signaux (prend la hauteur restante) */
 .sidebar-signals {
     flex: 1 1 auto;
     min-height: 0;
@@ -47,48 +51,6 @@
     flex-direction: column;
     gap: 10px;
     padding: 10px 14px 14px;
-}
-
-/* Splitter horizontal entre les deux zones. Deborde dans la gouttiere de gauche
-   (meme technique que .sidebar-footer ci-dessous): sans ca, son ::before
-   (le filet horizontal) s'arrete a l'inset de contenu de la sidebar au lieu
-   d'aller jusqu'au bord gauche, ou la vague de la nav est censee le trancher -
-   d'ou le trait qui semblait s'interrompre sans raison au milieu de la sidebar. */
-.sidebar-vsplitter {
-    position: relative;
-    flex: 0 0 9px;
-    margin-left: -(1.5 * $nav-wave-width);
-    width: calc(100% + #{1.5 * $nav-wave-width});
-    cursor: row-resize;
-    background: transparent;
-}
-
-.sidebar-vsplitter::before {
-    content: "";
-    position: absolute;
-    left: 0;
-    right: 0;
-    top: 50%;
-    height: 1px;
-    transform: translateY(-50%);
-    background: $ctp-surface2;
-}
-
-.sidebar-vsplitter::after {
-    content: "";
-    position: absolute;
-    left: 50%;
-    top: 50%;
-    width: 28px;
-    height: 3px;
-    transform: translate(-50%, -50%);
-    border-radius: 2px;
-    background: $ctp-overlay1;
-    transition: background 0.15s;
-}
-
-.sidebar-vsplitter:hover::after {
-    background: $color-accent;
 }
 
 .sidebar-section-header {
@@ -112,8 +74,8 @@
 
 .search-box {
     width: 100%;
-    height: $button-height-sm; /* Meme hauteur que #sourceSelector (zone fichiers)
-       et .create-variable-btn: un seul rythme de controle pour toute la sidebar. */
+    height: $button-height-sm; /* Meme hauteur que .create-variable-btn: un seul
+       rythme de controle pour toute la sidebar. */
     padding: 6px 10px;
     background: $bg-card;
     border: 1px solid $border-color;

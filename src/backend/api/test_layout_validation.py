@@ -94,6 +94,17 @@ def test_rejects_malformed_transforms() -> None:
         assert not ok and error and "EngineRPM" in error, transform
 
 
+def test_accepts_extended_zone_state() -> None:
+    for state in (None, True, False):
+        assert _validate_layout(_layout({"name": "BrakeActive", "extend_zones": state})) == (True, None)
+
+
+def test_rejects_non_boolean_extended_zone_state() -> None:
+    for state in ("true", 1, {"on": True}):
+        ok, error = _validate_layout(_layout({"name": "BrakeActive", "extend_zones": state}))
+        assert not ok and error and "BrakeActive" in error, state
+
+
 def test_layout_rejects_malformed_signal_and_computed() -> None:
     assert not _validate_layout(_layout("EngineRPM"))[0]  # type: ignore[arg-type]
     assert not _validate_layout(_layout({"name": "EngineRPM"}, computed=[None]))[0]

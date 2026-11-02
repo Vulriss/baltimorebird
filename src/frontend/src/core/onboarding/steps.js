@@ -38,7 +38,7 @@ export const WELCOME_STEP = {
 export const TOUR_STEPS = [
     {
         id: 'import',
-        reveal: ['#sidebarFiles'],
+        reveal: ['#fileBar'],
         icon: ICONS.import,
         shortTitle: 'Chargez une acquisition',
         title: 'Chargez une acquisition',
@@ -54,7 +54,7 @@ export const TOUR_STEPS = [
         },
         targets: [
             {
-                selectors: ['#uploadBtnAuth', '#uploadBtnGuest', '.sidebar-files .upload-btn'],
+                selectors: ['#fileAddBtn', '.file-bar .file-add-btn'],
                 label: 'Commencez ici',
                 padding: 6,
                 radius: 8,

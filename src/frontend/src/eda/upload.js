@@ -311,7 +311,7 @@ export async function uploadEdaFile() {
                 if (edaUploadPercent) edaUploadPercent.textContent = '100%';
 
                 await loadSources();
-                await activateLazySession(data.session_id, data.filename, data.ephemeral === true, true);
+                await activateLazySession(data.session_id, data.filename, data.ephemeral === true);
                 
                 if (typeof showNotification === 'function') {
                     const note = data.ephemeral ? ' (fichier temporaire, non sauvegardé)' : '';

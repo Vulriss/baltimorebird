@@ -164,6 +164,43 @@
     background: rgba(var(--ctp-teal-rgb), 0.1);
 }
 
+/* Actions de layout (exporter / importer), poussees au bout de la rangee: elles
+   portent sur l'ensemble des onglets de layout affiches a cote. */
+.tabs-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: auto;
+    flex-shrink: 0;
+}
+
+.tabs-action-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 26px;
+    padding: 0 10px;
+    background: $bg-card;
+    border: 1px solid $border-color;
+    border-radius: 4px;
+    color: $text-secondary;
+    font-size: $font-size-sm;
+    cursor: pointer;
+    transition: border-color 0.15s, color 0.15s;
+
+    svg {
+        width: 14px;
+        height: 14px;
+        pointer-events: none;
+    }
+
+    &:hover {
+        background: $bg-card;
+        border-color: $color-primary;
+        color: $color-primary;
+    }
+}
+
 /* Tab content areas */
 .tab-content {
     display: none;

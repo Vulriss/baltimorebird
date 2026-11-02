@@ -10,7 +10,7 @@ import { isSeriesSynth, plotHasSynth, renderOverlayFromCache, seriesDescriptor }
 import { updatePlotHeader, updateSignalActiveStates } from './plot-legend.js';
 import { removeSignalFromPlot } from './plots.js';
 import { fetchAndRenderPlot } from './render.js';
-import { changeSource } from './sessions.js';
+import { changeSource, discardWorkspace } from './sessions.js';
 import { renderSignalList, renderVirtualList } from './signal-list.js';
 import { openUploadModal } from './upload.js';
 import { applyGlobalViewLocal } from './view-nav.js';
@@ -323,6 +323,7 @@ async function deleteRun(sessionId) {
 
     S.runs.splice(idx, 1);
     sessionEventsCache.delete(sessionId);
+    discardWorkspace('session_' + sessionId);
     if (wasRef && S.runs.length) {
         (S.runs.find(r => r.compared) || S.runs[0]).ref = true;
     }

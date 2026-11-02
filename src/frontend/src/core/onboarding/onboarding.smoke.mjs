@@ -8,7 +8,7 @@ const CARD = { width: 440, height: 320 };
 const PAD = 32;
 
 const RECTS = {
-    uploadBtnAuth: { left: 12, top: 60, width: 28, height: 28 },
+    fileAddBtn: { left: 620, top: 6, width: 150, height: 28 },
     search: { left: 12, top: 320, width: 260, height: 26 },
     signalList: { left: 8, top: 356, width: 304, height: 264 },
     createVariableBtn: { left: 12, top: 640, width: 260, height: 30 },
@@ -28,7 +28,7 @@ const CARD_ORIGIN = {
 };
 
 const dom = new JSDOM(`<!DOCTYPE html><html><body>
-  <button id="uploadBtnAuth">up</button>
+  <button id="fileAddBtn">up</button>
   <input id="search">
   <select id="sourceSelector"><option value="">--</option><option value="demo">demo</option></select>
   <div class="signal-list" id="signalList"></div>

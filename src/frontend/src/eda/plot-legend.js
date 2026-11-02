@@ -36,6 +36,7 @@ export function deletePlotInTab(tabId, plotId) {
     plot.signals.forEach(sigIdx => {
         ectx.extendedBoolZones.delete(sigIdx);
         ectx.disabledBoolZones.delete(sigIdx);
+        ectx.pendingBoolZones.delete(sigIdx);
     });
 
     plot.element.remove();
@@ -977,6 +978,23 @@ window.clearAllMissingSignals = clearAllMissingSignals;
 
 export function autoEnableExtendedZones(plot) {
     if (!plot || !plot.cachedData) return;
+
+    // Zones demandees par un layout charge (applyBoolZoneLayoutState): activees des que
+    // les donnees du signal sont la, quel que soit son rang parmi les booleens.
+    let restored = false;
+    for (const sigIdx of plot.signals) {
+        if (!ectx.pendingBoolZones.has(sigIdx)) continue;
+        const cached = plot.cachedData[sigIdx];
+        if (!cached || cached.unit !== 'bool') continue;
+        ectx.pendingBoolZones.delete(sigIdx);
+        if (ectx.extendedBoolZones.has(sigIdx)) continue;
+        const ranges = extractBoolHighRanges(cached.timestamps, cached.values);
+        const color = plot.signalStyles?.[sigIdx]?.color || cached.color;
+        ectx.extendedBoolZones.set(sigIdx, { color, ranges, plotId: plot.id });
+        restored = true;
+    }
+    // Les autres graphes affiches doivent dessiner la nouvelle zone en fond.
+    if (restored) refreshAllPlots();
 
     // Premier signal booleen du graphe (dans l'ordre d'ajout): seul candidat a
     // l'activation automatique des zones etendues. Activer tous les booleens

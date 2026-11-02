@@ -1,7 +1,7 @@
 @use '../abstracts/variables' as *;
 
 /* =============================================================================
-   Run List - Zone fichiers de la vue EDA (slots de comparaison + popover)
+   Run List - Onglets fichiers de la vue EDA (barre du haut, roster, popover)
    ============================================================================= */
 
 .visually-hidden {
@@ -16,69 +16,302 @@
     border: 0;
 }
 
-/* Point d'entree principal de la zone fichiers: gestes visuel de depot (bordure en
-   tirets, comme .tab-add pour "creer/ajouter") meme si le declenchement reste un clic
-   vers la modale d'upload existante, pas un vrai drop-target.
-   Une seule ligne, meme hauteur que les boutons de la toolbar principale
-   ($button-height-sm): sans titre de section au-dessus, il demarre au meme
-   padding-top que la toolbar (10px, cf. .sidebar-files) et s'aligne avec elle.
-   L'indice qui accompagnait le titre (formats acceptes / temporaire) est
-   passe dans l'attribut title plutot qu'affiche en permanence. */
-.upload-btn {
+/* === Barre des onglets fichiers ===
+   Meme fond que la nav: la barre prolonge le chrome de l'application au lieu de
+   former une carte a part, et la vague de la nav s'y fond. L'onglet actif prend le
+   fond du contenu et le repere d'accent des onglets de layout: il appartient
+   visuellement au fichier affiche en dessous. */
+.file-bar {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+    min-height: 42px;
+    /* La gouttiere de gauche passe sous la vague de la nav (meme fond). */
+    padding: 6px 12px 0 calc(#{1.5 * $nav-wave-width} + 6px);
+    background: $bg-nav;
+}
+
+.file-tabs {
+    display: flex;
+    align-items: flex-end;
+    gap: 2px;
+    min-width: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+}
+
+.file-tabs::-webkit-scrollbar { display: none; }
+
+.file-tab {
+    flex: 0 0 auto;
     display: flex;
     align-items: center;
-    gap: 10px;
-    width: 100%;
-    height: $button-height-sm;
-    padding: 0 12px;
-    background: $color-accent-subtle;
-    border: 1px dashed color-mix(in srgb, var(--ctp-color-accent) 40%, transparent);
-    border-radius: 8px;
-    color: $color-primary;
+    gap: 8px;
+    height: 36px;
+    max-width: 260px;
+    padding: 0 8px 0 14px;
+    border-radius: 8px 8px 0 0;
+    color: $text-muted-variation;
+    font-size: $font-size-base;
     cursor: pointer;
-    text-align: left;
-    transition: background 0.15s, border-color 0.15s;
+    white-space: nowrap;
+    transition: background 0.15s, color 0.15s;
+
+    &:hover:not(.active) {
+        background: $bg-selected;
+        color: $nav-text-hover;
+    }
+
+    &:focus-visible {
+        outline: 2px solid $color-accent-on-dark;
+        outline-offset: -2px;
+    }
+
+    &.active {
+        background: $bg-card;
+        color: $text-primary;
+        font-weight: $font-weight-medium;
+        box-shadow: inset 0 2px 0 $color-accent;
+        cursor: default;
+    }
+
+    /* Fichier temporaire d'invite (perdu a l'expiration de la session) */
+    &.is-ephemeral .file-tab-name { font-style: italic; }
 }
 
-.upload-btn:hover {
-    background: $color-accent-muted;
-    border-color: $color-primary;
-    border-style: solid;
-}
-
-.upload-btn svg {
-    width: 20px;
-    height: 20px;
-    flex-shrink: 0;
-    pointer-events: none;
-}
-
-.upload-btn-title {
-    flex: 1;
+.file-tab-name {
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
-    white-space: nowrap;
-    font-size: 13px;
-    font-weight: 600;
-    color: $text-white;
 }
 
-.run-slots-title {
-    margin-top: 2px;
+.file-tab-close {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    background: transparent;
+    border: none;
+    border-radius: 4px;
+    color: inherit;
+    opacity: 0.6;
+    cursor: pointer;
+    transition: opacity 0.15s, background 0.15s, color 0.15s;
+
+    svg { width: 12px; height: 12px; pointer-events: none; }
+
+    &:hover {
+        opacity: 1;
+        background: rgba(var(--ctp-red-rgb), 0.2);
+        color: $ctp-red;
+    }
 }
 
-/* === Slots de comparaison === */
-.run-slots {
+/* Onglets du roster de comparaison: memes controles que les anciens chips */
+.file-tab.run-chip {
+    padding-right: 4px;
+
+    .run-ref {
+        flex: 0 0 auto;
+        display: inline-flex;
+        color: $color-accent;
+
+        svg { width: 13px; height: 13px; }
+    }
+
+    .run-details-btn,
+    .run-chip-remove { color: inherit; }
+}
+
+.run-chip-remove {
+    flex: 0 0 auto;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+
+    svg { width: 14px; height: 14px; }
+
+    &:hover {
+        background: $ctp-surface1;
+        color: $color-error;
+    }
+}
+
+/* Ajout de fichier: action secondaire posee sur le chrome, sans fond propre */
+.file-add {
+    position: relative;
+    flex: 0 0 auto;
+    align-self: center;
+    margin-top: -6px; /* recentre sur la barre malgre le padding-top des onglets */
+}
+
+.file-add-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    height: 30px;
+    padding: 0 10px;
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    color: $text-muted-variation;
+    font-size: $font-size-base;
+    font-weight: $font-weight-medium;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+
+    svg { width: 16px; height: 16px; pointer-events: none; }
+
+    &:hover,
+    &[aria-expanded="true"] {
+        background: $bg-selected;
+        color: $nav-text-hover;
+    }
+}
+
+.file-add-menu {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    z-index: 2000;
+    min-width: 260px;
+    max-width: 360px;
+    max-height: 60vh;
+    overflow-y: auto;
+    padding: 6px;
+    /* Fond des cartes, pas $bg-card-elevated: en theme clair ce dernier est un gris
+       moyen (surface0) qui assombrissait tout le menu sous la barre. */
+    background: $bg-card;
+    border: 1px solid $border-color;
+    border-radius: 10px;
+    box-shadow: 0 12px 32px rgba(var(--ctp-crust-rgb), 0.45);
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 2px;
 }
 
-.run-slot {
+[data-theme="light"] .file-add-menu {
+    box-shadow: 0 12px 32px rgba(var(--ctp-text-rgb), 0.18);
+}
+
+.file-add-menu-title {
+    padding: 8px 8px 4px;
+    font-size: $font-size-2xs;
+    font-weight: $font-weight-bold;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: $text-muted;
+}
+
+.file-add-menu-empty {
+    padding: 4px 8px 8px;
+    font-size: $font-size-sm;
+    color: $text-muted;
+}
+
+.file-add-item {
     display: flex;
     align-items: center;
-    gap: 7px;
+    gap: 8px;
+    width: 100%;
+    padding: 7px 8px;
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    color: $text-primary;
+    font-size: $font-size-sm;
+    text-align: left;
+    cursor: pointer;
+
+    span {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    svg { width: 16px; height: 16px; flex-shrink: 0; pointer-events: none; }
+
+    &:hover:not(:disabled) { background: $bg-hover; }
+
+    &:disabled {
+        background: transparent;
+        color: $text-muted;
+        cursor: not-allowed;
+    }
+
+    &.is-primary {
+        color: $color-primary;
+        font-weight: $font-weight-semibold;
+    }
+}
+
+/* Comparaison: entree / sortie et bascule de mode, au bout de la barre */
+.file-bar-compare {
+    flex: 0 0 auto;
+    align-self: center;
+    margin: -6px 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    &:empty { display: none; }
+
+    .run-mode-toggle { margin-bottom: 0; }
+
+    .run-mode-btn {
+        flex: 0 0 auto;
+        height: 26px;
+        border-color: rgba(var(--ctp-text-rgb), 0.2);
+        color: $text-muted-variation;
+        font-size: $font-size-xs;
+
+        &:hover:not(.active) {
+            background: transparent;
+            color: $nav-text-hover;
+        }
+
+        &.active {
+            border-color: $color-accent-on-dark;
+            color: $color-accent-on-dark;
+        }
+    }
+}
+
+.file-compare-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 28px;
+    padding: 0 10px;
+    background: transparent;
+    border: 1px solid rgba(var(--ctp-text-rgb), 0.2);
+    border-radius: 6px;
+    color: $text-muted-variation;
+    font-size: $font-size-sm;
+    cursor: pointer;
+    transition: border-color 0.12s, color 0.12s;
+
+    svg { width: 15px; height: 15px; pointer-events: none; }
+
+    &:hover,
+    &.active {
+        background: transparent;
+        border-color: $color-accent-on-dark;
+        color: $color-accent-on-dark;
+    }
 }
 
 .run-swatch {
@@ -106,14 +339,6 @@
     text-align: center;
 }
 
-.run-slot .run-slot-select,
-.run-slot #sourceSelector {
-    flex: 1;
-    width: auto;
-    min-width: 0;
-    max-width: none;
-}
-
 .run-details-btn {
     flex: 0 0 auto;
     width: 24px;
@@ -136,88 +361,6 @@
     width: 15px;
     height: 15px;
     pointer-events: none;
-}
-
-/* === Roster de comparaison (mode multi-fichiers) === */
-.run-roster {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-}
-.run-chip {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 6px 8px;
-    border-radius: 6px;
-    cursor: pointer;
-    transition: background 0.12s;
-}
-.run-chip:hover { background: $bg-hover-subtle; }
-.run-chip.active { background: $bg-selected; }
-.run-chip .run-name {
-    flex: 1;
-    min-width: 0;
-    font-size: 12px;
-    color: $text-primary;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-/* Selection qui persiste dans le temps: sapphire, pas l'accent electrique
-   reserve aux CTA (meme role que .toolbar-btn.active). */
-.run-chip.active .run-name { color: $color-toggle-on; }
-.run-chip .run-ref {
-    flex: 0 0 auto;
-    display: inline-flex;
-    color: $color-accent;
-}
-.run-chip .run-ref svg { width: 13px; height: 13px; }
-.run-chip-remove {
-    flex: 0 0 auto;
-    width: 22px;
-    height: 22px;
-    padding: 0;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    background: transparent;
-    border: none;
-    border-radius: 4px;
-    color: $text-muted;
-    cursor: pointer;
-}
-.run-chip-remove svg {
-    width: 14px;
-    height: 14px;
-}
-.run-chip-remove:hover {
-    background: $ctp-surface1;
-    color: $color-error;
-}
-
-.run-compare-btn {
-    width: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    padding: 8px;
-    background: transparent;
-    border: 1px solid $border-light;
-    border-radius: 8px;
-    color: $text-secondary;
-    font-size: 12px;
-    cursor: pointer;
-    transition: border-color 0.12s, color 0.12s;
-}
-.run-compare-btn svg {
-    width: 15px;
-    height: 15px;
-}
-.run-compare-btn:hover {
-    border-color: $color-accent;
-    color: $color-accent;
 }
 
 /* === Popover de detail du fichier === */
@@ -250,70 +393,6 @@
 .run-delete-btn:hover {
     background: var(--ctp-red, #f38ba8);
     color: var(--ctp-crust, #11111b);
-}
-
-/* Autres fichiers charges (popover du slot, mode mono): suppression sans bascule */
-.run-popover-files {
-    border-top: 1px solid $border-color;
-    padding-top: 10px;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-}
-.run-popover-files-title {
-    font-size: 10px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    color: $text-muted;
-    margin-bottom: 2px;
-}
-.run-file-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 4px 6px;
-    border-radius: 6px;
-
-    &:hover {
-        background: $bg-card;
-    }
-}
-.run-file-row .run-swatch {
-    flex-shrink: 0;
-}
-.run-file-name {
-    flex: 1;
-    min-width: 0;
-    font-size: 12px;
-    color: $text-primary;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-.run-file-del {
-    flex-shrink: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 22px;
-    height: 22px;
-    padding: 0;
-    background: transparent;
-    border: none;
-    border-radius: 6px;
-    color: $text-muted;
-    cursor: pointer;
-    transition: background 0.12s, color 0.12s;
-
-    svg {
-        width: 14px;
-        height: 14px;
-    }
-
-    &:hover {
-        background: var(--ctp-red, #f38ba8);
-        color: var(--ctp-crust, #11111b);
-    }
 }
 
 .run-popover-header {
@@ -545,7 +624,7 @@
 
     &:hover:not(.active) { border-color: $ctp-overlay0; color: $text-primary; }
 
-    /* Mode actuellement selectionne: sapphire, meme role que .run-chip.active */
+    /* Mode actuellement selectionne: sapphire, meme role que .toolbar-btn.active */
     &.active {
         border-color: $color-toggle-on;
         color: $color-toggle-on;
