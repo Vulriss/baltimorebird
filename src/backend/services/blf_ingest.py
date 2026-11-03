@@ -27,6 +27,7 @@ from can.io.blf import BLFReader
 from cantools.database import load_file as load_can_database
 from cantools.database.can.database import Database
 from cantools.database.can.message import Message
+from cantools.database.errors import DecodeError
 
 logger = logging.getLogger(__name__)
 
@@ -50,6 +51,7 @@ class IngestionReport:
     total_frames: int = 0
     decoded_frames: int = 0
     unknown_frames: int = 0
+    undecodable_frames: int = 0
     container_payloads: int = 0
     signal_count: int = 0
     group_count: int = 0
@@ -57,6 +59,7 @@ class IngestionReport:
     start_time: datetime | None = None
     dropped_secured_pdus: list[str] = field(default_factory=list)
     unknown_ids: dict[str, int] = field(default_factory=dict)
+    undecodable_ids: dict[str, int] = field(default_factory=dict)
     output_path: str | None = None
 
     @property
@@ -339,6 +342,7 @@ class BlfToMf4Converter:
         report = IngestionReport(dropped_secured_pdus=self._dropped)
         accumulator = SignalAccumulator()
         unknown: dict[tuple[int, bool], int] = {}
+        undecodable: dict[tuple[int, bool], int] = {}
         first_timestamp: float | None = None
 
         for frame in self._read_frames(blf_path):
@@ -355,22 +359,36 @@ class BlfToMf4Converter:
                 continue
 
             decoded_any = False
-            for record in self._database.decode_frame(frame_id, is_extended, data, channel, relative):
-                accumulator.add(record)
-                decoded_any = True
-                if record.is_container_payload:
-                    report.container_payloads += 1
+            try:
+                # cantools decodes the whole frame before yielding, so a failure adds no partial record.
+                for record in self._database.decode_frame(frame_id, is_extended, data, channel, relative):
+                    accumulator.add(record)
+                    decoded_any = True
+                    if record.is_container_payload:
+                        report.container_payloads += 1
+            except DecodeError:
+                report.undecodable_frames += 1
+                key = (frame_id, is_extended)
+                undecodable[key] = undecodable.get(key, 0) + 1
+                continue
             if decoded_any:
                 report.decoded_frames += 1
 
         report.start_time = (datetime.fromtimestamp(first_timestamp, tz=timezone.utc)
                              if first_timestamp is not None else None)
-        report.unknown_ids = {f"0x{fid:x}{'x' if ext else ''}": count
-                              for (fid, ext), count in sorted(unknown.items(),
-                              key=lambda item: item[1], reverse=True)}
+        report.unknown_ids = self._format_id_counts(unknown)
+        report.undecodable_ids = self._format_id_counts(undecodable)
+        if undecodable:
+            logger.warning("BLF: %d trames indecodables par la base, ignorees: %s",
+                           report.undecodable_frames, report.undecodable_ids)
         self._write_mf4(accumulator, output_path, report)
         report.output_path = str(output_path)
         return report
+
+    @staticmethod
+    def _format_id_counts(counts: dict[tuple[int, bool], int]) -> dict[str, int]:
+        return {f"0x{fid:x}{'x' if ext else ''}": count
+                for (fid, ext), count in sorted(counts.items(), key=lambda item: item[1], reverse=True)}
 
     def _read_frames(self, blf_path: Path) -> Iterator[tuple[int, bool, bytes, int, float]]:
         with BLFReader(str(blf_path)) as reader:
