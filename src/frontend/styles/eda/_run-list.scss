@@ -19,16 +19,21 @@
 /* === Barre des onglets fichiers ===
    Meme fond que la nav: la barre prolonge le chrome de l'application au lieu de
    former une carte a part, et la vague de la nav s'y fond. L'onglet actif prend le
-   fond du contenu et le repere d'accent des onglets de layout: il appartient
-   visuellement au fichier affiche en dessous. */
+   fond de la bande toolbar + zone infos placee juste dessous (cf. .sidebar-info) et
+   le repere d'accent des onglets de layout: il se prolonge dans le fichier affiche. */
+/* Rayon du conge concave qui raccorde le bas droit de l'onglet actif a la bande. */
+$file-tab-flare: 8px;
+
 .file-bar {
     flex: 0 0 auto;
     display: flex;
     align-items: flex-end;
     gap: 8px;
-    min-height: 42px;
-    /* La gouttiere de gauche passe sous la vague de la nav (meme fond). */
-    padding: 6px 12px 0 calc(#{1.5 * $nav-wave-width} + 6px);
+    min-height: $file-bar-height;
+    /* Le premier onglet est cale sur la crete de la vague de la nav (abscisse 11.25 sur
+       12 du trace de _nav.scss), que $nav-wave-offset place au bas de cette barre: son
+       bord gauche se prolonge dans la vague, comme un onglet de classeur. */
+    padding: 6px 12px 0 $nav-wave-width * 11.25 / 12;
     background: $bg-nav;
 }
 
@@ -36,6 +41,8 @@
     display: flex;
     align-items: flex-end;
     gap: 2px;
+    /* Place pour le conge du dernier onglet, sinon rogne par le defilement horizontal. */
+    padding-right: $file-tab-flare;
     min-width: 0;
     overflow-x: auto;
     overflow-y: hidden;
@@ -70,11 +77,28 @@
     }
 
     &.active {
-        background: $bg-card;
+        position: relative;
+        background: $bg-toolbar;
         color: $text-primary;
         font-weight: $font-weight-medium;
         box-shadow: inset 0 2px 0 $color-accent;
         cursor: default;
+    }
+
+    /* Onglet de classeur: bord gauche droit, et un conge concave a droite seulement, ou
+       la bande remonte en courbe dans l'onglet au lieu d'y buter a angle droit. Le conge
+       est un carre au fond de la bande, evide d'un quart de cercle centre sur son coin
+       exterieur haut. */
+    &.active::after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 100%;
+        width: $file-tab-flare;
+        height: $file-tab-flare;
+        pointer-events: none;
+        background: radial-gradient(circle $file-tab-flare at 100% 0,
+            transparent calc(100% - 0.5px), $bg-toolbar 100%);
     }
 
     /* Fichier temporaire d'invite (perdu a l'expiration de la session) */

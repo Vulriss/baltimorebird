@@ -26,10 +26,30 @@
 
     <div class="app-body">
     <aside class="sidebar">
-        <!-- Zone infos fichier, reservee (nombre de signaux, duree, nom complet...).
-             Sa hauteur suit celle de la toolbar pour aligner la zone signaux sur la
-             rangee des onglets de layout. -->
-        <div class="sidebar-info" id="sidebarInfo"></div>
+        <!-- Fiche du fichier actif (file-info.js), sous l'onglet fichier. Sa hauteur suit
+             celle de la toolbar pour aligner la zone signaux sur la rangee des onglets de
+             layout: une ligne toolbar repliee, la fiche complete toolbar depliee. -->
+        <div class="sidebar-info" id="sidebarInfo">
+            <section class="active-file" aria-label="Fichier actif">
+                <div class="active-file-head">
+                    <span class="active-file-format" id="fileInfoFormat" hidden></span>
+                    <span class="active-file-name" id="fileInfoName"></span>
+                </div>
+                <div class="active-file-stats">
+                    <span id="statSignals">-</span>
+                    <span class="active-file-duration" id="fileInfoDuration" hidden>
+                        <span class="active-file-sep" aria-hidden="true">·</span>
+                        <span id="statDuration"></span>
+                    </span>
+                </div>
+                <div class="active-file-status" id="fileInfoStatus" hidden>
+                    <span>Temporaire, non enregistré</span>
+                    <button type="button" class="active-file-login" id="fileInfoLogin"
+                            title="Les fichiers chargés une fois connecté sont enregistrés">Se connecter</button>
+                </div>
+            </section>
+            <span class="sidebar-info-divider" aria-hidden="true"></span>
+        </div>
 
         <!-- Zone signaux -->
         <div class="sidebar-signals" id="sidebarSignals">
@@ -47,11 +67,6 @@
                 </svg>
                 <span>Créer une variable</span>
             </button>
-        </div>
-
-        <div class="sidebar-footer">
-            <span class="stat"><span class="stat-label">Signaux:</span> <span id="statSignals">-</span></span>
-            <span class="stat"><span class="stat-label">Longueur:</span> <span id="statDuration">-</span></span>
         </div>
     </aside>
 

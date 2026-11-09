@@ -5,6 +5,7 @@ import { S } from '../core/state.js';
 import { activateDialog, deactivateDialog } from '../core/dialog-a11y.js';
 import { API, ectx } from './context.js';
 import { invalidateSignalCaches } from './data-views.js';
+import { setFileStats } from './file-info.js';
 import { fetchAndRenderPlot } from './render.js';
 import { escapeHtml } from './shared-dom.js';
 import { renderSignalList } from './signal-list.js';
@@ -510,13 +511,13 @@ export async function submitCreateVariable() {
                 activeRun.nameToIndex = new Map(listing.signals.map(s => [s.name, s.index]));
                 activeRun.signals = listing.signals;
             }
-            document.getElementById('statSignals').textContent = listing.n_signals;
+            setFileStats({ signals: listing.n_signals });
         } else {
             const infoRes = await fetch(`${API}/info`);
             const info = await infoRes.json();
             S.signalsInfo = info.signals;
             window.signalsInfo = S.signalsInfo;
-            document.getElementById('statSignals').textContent = info.n_signals;
+            setFileStats({ signals: info.n_signals });
         }
 
         renderSignalList();

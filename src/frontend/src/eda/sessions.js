@@ -6,6 +6,7 @@ import { clearBoolZones, restoreBoolZones, snapshotBoolZones } from './bool-zone
 import { API, ectx } from './context.js';
 import { updateCursors } from './cursors.js';
 import { maybeApplyDeepLink } from './deeplink.js';
+import { setFileStats } from './file-info.js';
 import { applyLayout, exportCurrentLayout } from './layout-state.js';
 import { deletePlot } from './plot-legend.js';
 import { exitComparison, registerRun } from './runs.js';
@@ -279,8 +280,7 @@ export async function activateLazySession(sessionId, filename, ephemeral) {
     ectx.globalView = { min: listing.time_range.min, max: listing.time_range.max };
     ectx.acquisitionView = { ...ectx.globalView };
 
-    document.getElementById('statSignals').textContent = listing.n_signals;
-    document.getElementById('statDuration').textContent = listing.duration.toFixed(0) + 's';
+    setFileStats({ signals: listing.n_signals, duration: listing.duration });
 
     // Le fichier apparaît dans le sélecteur et y est sélectionné
     const selector = document.getElementById('sourceSelector');
@@ -404,8 +404,7 @@ export async function changeSource() {
             ectx.acquisitionView = { ...ectx.globalView };
             ectx.currentSource = data.source;
             
-            document.getElementById('statSignals').textContent = data.n_signals;
-            document.getElementById('statDuration').textContent = data.duration.toFixed(0) + 's';
+            setFileStats({ signals: data.n_signals, duration: data.duration });
             
             renderSignalList();
             updateSourceSelector();
@@ -431,8 +430,7 @@ export async function changeSource() {
             ectx.acquisitionView = { ...ectx.globalView };
             ectx.currentSource = info.source;
             
-            document.getElementById('statSignals').textContent = info.n_signals;
-            document.getElementById('statDuration').textContent = info.duration.toFixed(0) + 's';
+            setFileStats({ signals: info.n_signals, duration: info.duration });
             
             renderSignalList();
             updateSourceSelector();

@@ -6,6 +6,7 @@ import { API, ectx } from './context.js';
 import { updateCursors } from './cursors.js';
 import { canRenderFromCache } from './data-views.js';
 import { sessionEventsCache } from './events-strip.js';
+import { setFileStats } from './file-info.js';
 import { isSeriesSynth, plotHasSynth, renderOverlayFromCache, seriesDescriptor } from './overlay.js';
 import { updatePlotHeader, updateSignalActiveStates } from './plot-legend.js';
 import { removeSignalFromPlot } from './plots.js';
@@ -239,10 +240,7 @@ function activateRun(sessionId) {
         S.signalsInfo = run.signals;
         window.signalsInfo = S.signalsInfo;
 
-        const statSig = document.getElementById('statSignals');
-        if (statSig && run.nSignals != null) statSig.textContent = run.nSignals;
-        const statDur = document.getElementById('statDuration');
-        if (statDur && run.duration != null) statDur.textContent = run.duration.toFixed(0) + 's';
+        setFileStats({ signals: run.nSignals, duration: run.duration });
 
         renderSignalList();
         updateSignalActiveStates();
@@ -402,15 +400,13 @@ export function comparedAcquisitionRange() {
 // Met a jour le stat de duree: union des runs compares (decalages inclus) en comparaison,
 // sinon duree du fichier actif.
 function updateDurationStat() {
-    const el = document.getElementById('statDuration');
-    if (!el) return;
     const range = comparedAcquisitionRange();
     if (range) {
-        el.textContent = (range.max - range.min).toFixed(0) + 's';
+        setFileStats({ duration: range.max - range.min });
         return;
     }
     const run = S.runs.find(r => r.sessionId === ectx.currentLazySessionId);
-    if (run && run.duration != null) el.textContent = run.duration.toFixed(0) + 's';
+    if (run) setFileStats({ duration: run.duration });
 }
 
 function setRunsMode(mode) {

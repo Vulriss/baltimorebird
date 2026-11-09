@@ -8,6 +8,7 @@ import { API, ectx } from './context.js';
 import { addCursorFromButton } from './cursors.js';
 import { maybeApplyDeepLink, readDeepLinkFromUrl } from './deeplink.js';
 import { loadLegendWidth } from './legend-width.js';
+import { setFileStats, setupFileInfo } from './file-info.js';
 import { deletePlot } from './plot-legend.js';
 import { comparedAcquisitionRange } from './runs.js';
 import { changeSource, loadSources, restoreEphemeralSession, updateSourceSelector } from './sessions.js';
@@ -54,8 +55,7 @@ export async function init() {
         ectx.acquisitionView = { ...ectx.globalView };
         ectx.currentSource = info.source;
         
-        document.getElementById('statSignals').textContent = info.n_signals;
-        document.getElementById('statDuration').textContent = info.duration.toFixed(0) + 's';
+        setFileStats({ signals: info.n_signals, duration: info.duration });
         document.getElementById('app-footer-info').textContent = __APP_VERSION__;
         
         renderSignalList();
@@ -122,6 +122,7 @@ function setupEventListeners() {
     setupSidebarSplitter();
     // Repli de la toolbar et hauteur partagee avec la zone infos de la sidebar
     setupToolbar();
+    setupFileInfo();
 
     // Largeur partagee des legendes (persistee)
     loadLegendWidth();

@@ -391,7 +391,12 @@ $text-darker: $ctp-overlay0;
 // Wave between navbar and sidebar
 $nav-wave-width: 12px;
 $nav-wave-period: 600px;
-$nav-wave-offset: -50px;
+// Hauteur de la barre des onglets fichiers de l'EDA (_run-list.scss)
+$file-bar-height: 42px;
+// Une crete du trace (_nav.scss) tombe au quart de la periode: on la cale sur le bas de
+// la barre d'onglets, ou la tangente verticale de la vague prolonge le bord du premier
+// onglet sans decalage.
+$nav-wave-offset: $file-bar-height - $nav-wave-period / 4;
 
 // ============================================================================
 // SECTION 7: TYPOGRAPHIE

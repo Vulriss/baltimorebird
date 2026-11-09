@@ -14,6 +14,8 @@
  * Comparaison / Sequentiel au bout de la barre.
  */
 
+import { renderFileInfo } from './file-info.js';
+
 (function () {
     'use strict';
 
@@ -606,6 +608,32 @@
 
         document.getElementById('fileBarCompare')?.replaceChildren(buildCompareControls(runs, comparing));
         wireAddButton();
+        renderActiveFileInfo(runs, comparing);
+    }
+
+    // Fiche sous l'onglet actif (file-info.js): format, nom complet, statut temporaire.
+    // En comparaison, la fiche couvre l'ensemble des runs compares.
+    function renderActiveFileInfo(runs, comparing) {
+        if (comparing) {
+            renderFileInfo({ name: `Comparaison de ${runs.filter(r => r.compared).length} fichiers` });
+            return;
+        }
+        const value = getSelector()?.value || '';
+        const run = value.startsWith('session_') ? runs.find(r => 'session_' + r.sessionId === value) : null;
+        if (run) {
+            // L'extension passe dans le badge; le nom complet reste en infobulle.
+            const filename = run.filename || '';
+            const ext = /\.([a-z0-9]+)$/i.exec(filename);
+            renderFileInfo({
+                name: ext ? filename.slice(0, ext.index) : filename,
+                title: filename,
+                format: ext ? ext[1].toUpperCase() : '',
+                ephemeral: !!run.ephemeral,
+            });
+            return;
+        }
+        const opt = optionFor(value);
+        renderFileInfo({ name: opt ? plainLabel(opt.textContent) : '', format: opt ? 'DÉMO' : '' });
     }
 
     window.refreshRunList = refresh;
