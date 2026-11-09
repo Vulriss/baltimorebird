@@ -13,6 +13,7 @@ import { updatePlotHeader } from './plot-legend.js';
 import { addSignalToPlot, createPlotInTab, ensureBoolPlot, ensureCommentPlot, isBoolSignalIndex, isEventSignalIndex } from './plots.js';
 import { renderBoolPlot } from './render.js';
 import { renderSignalList } from './signal-list.js';
+import { destroyTimeRuler } from './time-ruler.js';
 import { SIGNAL_TRANSFORMS, renderPlotFromCacheFiltered } from './transforms.js';
 import { applyGlobalViewLocal, refreshAllPlots } from './view-nav.js';
 
@@ -325,6 +326,7 @@ export async function applyLayout(layout, activeIndex = 0) {
             });
         }
         // Supprimer le contenu DOM de ce tab
+        destroyTimeRuler(document.getElementById(`plotsWrapper-${id}`));
         const tabContent = document.getElementById(`content-${id}`);
         if (tabContent) tabContent.remove();
     });

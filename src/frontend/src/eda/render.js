@@ -9,8 +9,9 @@ import { PX_BUCKET, cacheCoversView, canRenderFromCache, getPersistentView, pref
 import { renderCommentPlot } from './events-strip.js';
 import { fetchViewGrouped, isSeriesSynth, plotHasSynth, renderOverlayChart, renderOverlayFromCache, scheduleFullDataOverlay, seriesDescriptor } from './overlay.js';
 import { autoEnableExtendedZones } from './plot-legend.js';
-import { PLOT_PAD_BOTTOM, PLOT_PAD_RIGHT, PLOT_PAD_TOP, Y_AXIS_SIZE, axisDragPlugin, buildBands, buildSeriesConfig, commitPlotRender, isLastPlot, pathRenderer, resolveSignalStyle, themeChartColors, xAxisConfig, zoomToSelection } from './plot-ui.js';
+import { PLOT_PAD_BOTTOM, PLOT_PAD_RIGHT, PLOT_PAD_TOP, Y_AXIS_SIZE, axisDragPlugin, buildBands, buildSeriesConfig, commitPlotRender, pathRenderer, resolveSignalStyle, themeChartColors, xAxisConfig, zoomToSelection } from './plot-ui.js';
 import { colorWithOpacity } from './plots.js';
+import { rulerSyncPlugin } from './time-ruler.js';
 import {
     SIGNAL_TRANSFORMS, commitPendingRender, renderPlotFromCacheFiltered, signalTransform, windowedView,
 } from './transforms.js';
@@ -430,13 +431,13 @@ export function renderPlotChart(plot, data) {
 
 // Options uPlot du plot booleen: chaque signal sur sa propre lane discrete
 // (valeurs decalees de lane*2), echelle Y fixe, axe Y etiquete par signal.
-function buildBoolPlotOptions(series, width, height, laneCount, baselines, showTimeAxis = true) {
+function buildBoolPlotOptions(series, width, height, laneCount, baselines) {
     return {
         width,
         height,
         legend: { show: false },
         series,
-        padding: [PLOT_PAD_TOP, PLOT_PAD_RIGHT, showTimeAxis ? null : PLOT_PAD_BOTTOM, null],
+        padding: [PLOT_PAD_TOP, PLOT_PAD_RIGHT, PLOT_PAD_BOTTOM, null],
         scales: {
             // Fonction (et non tableau fige a la creation): uPlot re-evalue la plage X a
             // chaque redraw, donc le setScale('x') du pan est suivi en direct. Avec un
@@ -446,7 +447,7 @@ function buildBoolPlotOptions(series, width, height, laneCount, baselines, showT
             y: { range: [-0.2, laneCount * 2 - 0.8] },
         },
         axes: [
-            xAxisConfig(showTimeAxis),
+            xAxisConfig(),
             {
                 // Gouttiere Y vide (meme largeur que les autres panneaux pour
                 // l'alignement X), sans etiquettes; la grille marque les lanes.
@@ -460,7 +461,7 @@ function buildBoolPlotOptions(series, width, height, laneCount, baselines, showT
         ],
         cursor: { drag: { x: true, y: false, dist: 8 }, points: { show: false } },
         hooks: { setSelect: [zoomToSelection] },
-        plugins: [boolZonesPlugin(), cursorPlugin(), axisDragPlugin()],
+        plugins: [boolZonesPlugin(), cursorPlugin(), axisDragPlugin(), rulerSyncPlugin()],
     };
 }
 
@@ -552,7 +553,7 @@ export function renderBoolPlot(plot) {
     const height = bodyDiv.clientHeight || 180;
 
     plot.chart = new uPlot(
-        buildBoolPlotOptions(series, width, height, n, baselines, isLastPlot(plot)),
+        buildBoolPlotOptions(series, width, height, n, baselines),
         uplotData, chartDiv
     );
 

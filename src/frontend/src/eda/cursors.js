@@ -5,20 +5,20 @@ import { S } from '../core/state.js';
 import { resizePlotCharts } from './bootstrap.js';
 import { ectx } from './context.js';
 import { isSeriesSynth, seriesDescriptor } from './overlay.js';
-import { autoScaleY, isFirstPlot, renderPlotFromCache, resolveSignalStyle } from './plot-ui.js';
+import { autoScaleY, renderPlotFromCache, resolveSignalStyle } from './plot-ui.js';
 import { removeSignalFromPlot } from './plots.js';
 import { effectiveRunOffset } from './runs.js';
-import { formatDurationWithMinutes } from './time-axis.js';
+import { updateRulerCursors } from './time-ruler.js';
 import { effectiveCache } from './transforms.js';
 import { redoView, undoView } from './view-nav.js';
 
 // =========================================================================
 // Cursors
 // =========================================================================
+// Le temps des curseurs et le delta sont portes par la regle de temps de l'onglet
+// (time-ruler.js); chaque graphe n'affiche que les traits et les valeurs.
 export function cursorPlugin() {
     let line1, line2;
-    let timeLabel1, timeLabel2;
-    let deltaLine, deltaLabel;
     let labelPool1 = [];
     let labelPool2 = [];
     let over;
@@ -29,29 +29,11 @@ export function cursorPlugin() {
     let onDocMouseMove = null;
     let onDocMouseUp = null;
 
-    // Hauteur d'une ligne de label (px) et espace reserve en haut pour les labels
-    // de temps/delta empiles, recalcule a chaque rendu par updateTimeLabels.
-    const LABEL_ROW_H = 18;
     const VALUE_LABEL_H = 18;
     // Demi-largeur de la zone de saisie d'une ligne de curseur (.cursor-line: 6px, margin -3px).
     const CURSOR_HIT_HALF_WIDTH = 3;
-    let topReserved = 2 + LABEL_ROW_H;
-
-    // Place un label en haut (temps/delta) sur la premiere ligne libre evitant le
-    // chevauchement horizontal avec ceux deja places. Retourne l'indice de ligne.
-    function placeTopLabel(placed, centerX, width) {
-        const half = width / 2;
-        const x0 = centerX - half;
-        const x1 = centerX + half;
-        let row = 0;
-        while (row < 6) {
-            const conflict = placed.some(p => p.row === row && !(x1 < p.x0 || x0 > p.x1));
-            if (!conflict) break;
-            row++;
-        }
-        placed.push({ row, x0, x1 });
-        return row;
-    }
+    // Marge haute des labels de valeurs.
+    const TOP_RESERVED = 2;
 
     // Largeur estimee d'un label monospace (10px ~6px/char + padding + bordure).
     function estLabelWidth(text) {
@@ -59,12 +41,12 @@ export function cursorPlugin() {
     }
 
     // Repartit verticalement des labels de valeurs pour eviter les chevauchements,
-    // en restant sous la zone des labels de temps et dans la hauteur du graphe.
+    // dans la hauteur du graphe.
     function declutterValueLabels(entries, height) {
         const n = entries.length;
         if (n === 0) return;
         entries.sort((a, b) => a.y - b.y);
-        const top = topReserved + VALUE_LABEL_H / 2;
+        const top = TOP_RESERVED + VALUE_LABEL_H / 2;
         const bottom = Math.max(top, height - VALUE_LABEL_H / 2);
         let prev = -Infinity;
         for (let i = 0; i < n; i++) {
@@ -144,81 +126,6 @@ export function cursorPlugin() {
         }
     }
 
-    function updateTimeLabels(u, isFirst) {
-        // Le temps des curseurs et le delta ne sont utiles qu'une fois: l'axe X est
-        // partage par tous les graphes. On ne les affiche que sur le premier; ailleurs
-        // on libere l'espace haut pour les labels de valeurs.
-        if (!isFirst) {
-            if (timeLabel1) timeLabel1.style.display = 'none';
-            if (timeLabel2) timeLabel2.style.display = 'none';
-            if (deltaLine) deltaLine.style.display = 'none';
-            if (deltaLabel) deltaLabel.style.display = 'none';
-            topReserved = 2;
-            return;
-        }
-
-        const has1 = S.cursor1 !== null;
-        const has2 = S.cursor2 !== null;
-        const decimals = cursorTimeDecimals(u);
-        const x1 = has1 ? u.valToPos(S.cursor1, 'x') : 0;
-        const x2 = has2 ? u.valToPos(S.cursor2, 'x') : 0;
-        const placed = [];
-        let maxRow = 0;
-
-        // Labels de temps: centres sur leur curseur, empiles en lignes s'ils se
-        // chevauchent horizontalement.
-        if (has1 && timeLabel1) {
-            const text = S.cursor1.toFixed(decimals) + 's';
-            if (timeLabel1.textContent !== text) timeLabel1.textContent = text;
-            const row = placeTopLabel(placed, x1, estLabelWidth(text));
-            maxRow = Math.max(maxRow, row);
-            timeLabel1.style.display = 'block';
-            timeLabel1.style.transform =
-                `translate3d(${x1 + 3}px, ${row * LABEL_ROW_H - 5}px, 0) translateX(-50%)`;
-        } else if (timeLabel1) {
-            timeLabel1.style.display = 'none';
-        }
-
-        if (has2 && timeLabel2) {
-            const text = S.cursor2.toFixed(decimals) + 's';
-            if (timeLabel2.textContent !== text) timeLabel2.textContent = text;
-            const row = placeTopLabel(placed, x2, estLabelWidth(text));
-            maxRow = Math.max(maxRow, row);
-            timeLabel2.style.display = 'block';
-            timeLabel2.style.transform =
-                `translate3d(${x2 + 3}px, ${row * LABEL_ROW_H - 5}px, 0) translateX(-50%)`;
-        } else if (timeLabel2) {
-            timeLabel2.style.display = 'none';
-        }
-
-        // Delta: ligne au sommet entre les curseurs, label centre sur la premiere
-        // ligne libre (sous les labels de temps si necessaire).
-        if (has1 && has2 && deltaLine && deltaLabel) {
-            const left = Math.min(x1, x2);
-            const width = Math.max(x1, x2) - left;
-
-            deltaLine.style.display = 'block';
-            deltaLine.style.transform = `translate3d(${left}px, 0, 0)`;
-            deltaLine.style.width = width + 'px';
-
-            const deltaText = 'Δ ' + formatDurationWithMinutes(Math.abs(S.cursor2 - S.cursor1), decimals);
-            if (deltaLabel.textContent !== deltaText) deltaLabel.textContent = deltaText;
-            const center = left + width / 2;
-            const row = placeTopLabel(placed, center, estLabelWidth(deltaText));
-            maxRow = Math.max(maxRow, row);
-            deltaLabel.style.display = 'block';
-            deltaLabel.style.transform =
-                `translate3d(${center}px, ${row * LABEL_ROW_H - 5}px, 0) translateX(-50%)`;
-        } else {
-            if (deltaLine) deltaLine.style.display = 'none';
-            if (deltaLabel) deltaLabel.style.display = 'none';
-        }
-
-        // Reserve la hauteur occupee par les lignes de labels pour que les labels
-        // de valeurs ne les recouvrent pas.
-        topReserved = 2 + (maxRow + 1) * LABEL_ROW_H;
-    }
-
     // Curseur (1 ou 2) dont la zone de saisie contient l'abscisse x (px dans .u-over),
     // le plus proche si les deux se recouvrent. null si aucun.
     function cursorAtPos(u, x) {
@@ -235,14 +142,12 @@ export function cursorPlugin() {
         return best;
     }
 
-    // Positionne lignes, labels et delta des curseurs sans redessiner le canvas.
+    // Positionne lignes et labels de valeurs des curseurs sans redessiner le canvas.
     // Appelee par le hook draw (zoom, nouvelles donnees) et directement pendant
     // le drag (les echelles ne changent pas: un redraw complet serait du gaspillage).
     function updateOverlay(u) {
         const plot = S.plots.find(p => p.chart === u);
         if (!plot) return;
-
-        updateTimeLabels(u, isFirstPlot(plot));
 
         // Cote d'affichage des labels de valeurs: avec deux curseurs, celui de
         // gauche affiche a gauche, celui de droite a droite (pas de collision au
@@ -294,32 +199,10 @@ export function cursorPlugin() {
                 line1.style.display = 'none';
                 over.appendChild(line1);
 
-                timeLabel1 = document.createElement('div');
-                timeLabel1.className = 'cursor-time-label';
-                timeLabel1.style.cssText = '--cursor-color: var(--cursor-a);';
-                timeLabel1.style.display = 'none';
-                over.appendChild(timeLabel1);
-
                 line2 = document.createElement('div');
                 line2.className = 'cursor-line cursor-2';
                 line2.style.display = 'none';
                 over.appendChild(line2);
-
-                timeLabel2 = document.createElement('div');
-                timeLabel2.className = 'cursor-time-label';
-                timeLabel2.style.cssText = '--cursor-color: var(--cursor-b);';
-                timeLabel2.style.display = 'none';
-                over.appendChild(timeLabel2);
-
-                deltaLine = document.createElement('div');
-                deltaLine.className = 'cursor-delta-line';
-                deltaLine.style.display = 'none';
-                over.appendChild(deltaLine);
-
-                deltaLabel = document.createElement('div');
-                deltaLabel.className = 'cursor-delta-label';
-                deltaLabel.style.display = 'none';
-                over.appendChild(deltaLabel);
 
                 // Chemin léger pour le drag des curseurs: repositionne l'overlay
                 // de ce chart sans redraw canvas
@@ -635,7 +518,7 @@ const MAX_CURSOR_TIME_DECIMALS = 9;
 
 // Decimales des temps curseurs et du delta: juste assez pour distinguer deux pixels
 // voisins a l'echelle X courante. Sans chart, repli sur la vue globale (comme nudgeCursor).
-function cursorTimeDecimals(chart) {
+export function cursorTimeDecimals(chart) {
     const perPixel = chart
         ? Math.abs(chart.posToVal(1, 'x') - chart.posToVal(0, 'x'))
         : (ectx.globalView.max - ectx.globalView.min) / 1000;
@@ -788,8 +671,9 @@ function getValueAtTime(timestamps, values, targetTime, stringMap = null) {
 }
 
 // Place un curseur au temps donné selon le cycle: c1 vide -> c1, sinon c2 vide -> c2,
-// sinon réinitialise sur c1. Logique unique partagée par le Ctrl+clic et le bouton.
-function placeCursorAt(time) {
+// sinon réinitialise sur c1. Logique unique partagée par le Ctrl+clic (graphes, règle)
+// et le bouton.
+export function placeCursorAt(time) {
     if (!S.cursor1) { S.cursor1 = time; lastTouchedCursor = 1; }
     else if (!S.cursor2) { S.cursor2 = time; lastTouchedCursor = 2; }
     else { S.cursor1 = time; S.cursor2 = null; lastTouchedCursor = 1; }
@@ -803,6 +687,13 @@ let lastTouchedCursor = 1;
 // Focus de la derniere interaction: 'cursor' apres manipulation d'un curseur, 'legend'
 // apres clic sur un signal de la legende. Arbitre la cible de la touche Suppr.
 let interactionFocus = null;
+
+// Un curseur saisi hors d'un graphe (pastille de la regle) devient, comme au drag de
+// son trait, la cible du clavier.
+export function touchCursor(which) {
+    lastTouchedCursor = which;
+    interactionFocus = 'cursor';
+}
 
 // Curseur effectivement cible par le clavier: le dernier manipule, avec repli sur
 // celui qui existe encore. Retourne 1, 2 ou null si aucun curseur n'est pose.
@@ -845,8 +736,8 @@ function removeLastTouchedCursor() {
 }
 
 // Supprime le curseur 1 ou 2; l'autre devient la cible du clavier (Suppr, fleches).
-// Partage par Suppr et par le Ctrl+clic sur une ligne de curseur.
-function removeCursor(which) {
+// Partage par Suppr et par le Ctrl+clic sur une ligne ou une pastille de curseur.
+export function removeCursor(which) {
     if (which === 1) S.cursor1 = null;
     else S.cursor2 = null;
     lastTouchedCursor = which === 1 ? 2 : 1;
@@ -878,6 +769,7 @@ export function updateCursors() {
         if (chart.updateCursorOverlay) chart.updateCursorOverlay();
         else chart.redraw();
     });
+    updateRulerCursors();
 }
 
 export function syncCursorsAcrossTabs() {

@@ -20,6 +20,67 @@
     min-height: 0;
 }
 
+/* Regle de temps de l'onglet (time-ruler.js): collee en haut de la zone des graphes,
+   qui defilent dessous. Sa piste (axe uPlot + curseurs) est positionnee en JS sur la
+   zone de trace des graphes. Hauteur hors bordure: l'axe seul, plus la ligne des
+   temps de curseurs et du delta des qu'un curseur est pose. */
+.time-ruler {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    flex: none;
+    height: $ruler-axis-height;
+
+    &.has-cursor { height: $ruler-axis-height + $ruler-cursor-lane; }
+    margin-bottom: 4px;
+    background: $bg-card;
+    border: 1px solid $border-color;
+    border-radius: 6px;
+    cursor: grab;
+    user-select: none;
+
+    // L'ecart sous la regle est rempli du fond de page: les graphes qui defilent
+    // passent dessous sans apparaitre entre la regle et le premier graphe visible.
+    &::after {
+        content: '';
+        position: absolute;
+        top: 100%;
+        left: -1px;
+        right: -1px;
+        height: 5px;
+        background: $bg-body;
+    }
+
+    // Pas encore alignee sur un graphe: elle garde sa place sans s'afficher.
+    &:not(.is-ready) { visibility: hidden; }
+
+    &.is-panning { cursor: grabbing; }
+
+    // Ancre absolue des graduations relatives (time-axis.js): posee dans le haut de la
+    // piste, la zone de trace uPlot de la regle n'etant qu'un filet sous l'axe.
+    .x-axis-offset {
+        top: -26px;
+        bottom: auto;
+    }
+}
+
+// Onglet sans graphe: rien a graduer.
+.plots-wrapper:has(> .empty-plot) > .time-ruler { display: none; }
+
+.time-ruler-track {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+}
+
+// Axe en haut de la piste, au-dessus de la ligne des curseurs. Canvas plus large que
+// la piste (marge RULER_SIDE_PAD), decale d'autant en JS.
+.time-ruler-chart {
+    position: absolute;
+    top: 0;
+    height: $ruler-axis-height;
+}
+
 .plot-container {
     background: $bg-card;
     border: 1px solid $border-color;

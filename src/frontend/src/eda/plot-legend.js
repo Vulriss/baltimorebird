@@ -23,10 +23,7 @@ export function deletePlotInTab(tabId, plotId) {
     const plot = S.plots[idx];
     if (plot.chart) plot.chart.destroy();
 
-    // Le panneau supprime etait-il le plus bas ? Si oui, le nouveau dernier
-    // devra afficher l'axe temporel.
-    const deletedWasLast = idx === S.plots.length - 1;
-    // ... et etait-il le premier ? L'en-tete de legende (Name/A/B/Δ/unit + ligne t)
+    // Le panneau supprime etait-il le premier ? L'en-tete de legende (Name/A/B/Δ/unit + ligne t)
     // n'est rendu que sur S.plots[0] au moment ou sa legende est construite: sans
     // reconstruction, le nouveau premier panneau reste sans bandeau.
     const deletedWasFirst = idx === 0;
@@ -61,11 +58,6 @@ export function deletePlotInTab(tabId, plotId) {
     }
 
     rebuildPlotsLayout(tabId);
-
-    // Le dernier panneau a change: il doit desormais porter l'axe temporel.
-    if (deletedWasLast && S.plots.length > 0) {
-        rerenderPlotFromCache(S.plots[S.plots.length - 1]);
-    }
 
     // Le panneau supprime ne doit plus etre la cible du raccourci Shift+Y:
     // mouseleave ne se declenche pas sur un noeud retire du DOM.

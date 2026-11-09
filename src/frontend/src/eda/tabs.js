@@ -2,6 +2,7 @@ import { S } from '../core/state.js';
 import { purgeExtendedZonesForPlots } from './bool-zones.js';
 import { ectx } from './context.js';
 import { updateCursors } from './cursors.js';
+import { destroyTimeRuler, mountTimeRuler } from './time-ruler.js';
 
 // Identifiant de l'onglet en cours de deplacement. Distinct de S.draggedSignal: les zones
 // de drop de signaux et le reordonnancement d'onglets s'ignorent mutuellement.
@@ -102,7 +103,8 @@ function createTab(name = null, activate = true) {
         <div class="drop-zone" id="dropZone-${id}">+ Nouveau graphique</div>
     `;
     plotsArea.appendChild(tabContent);
-    
+    mountTimeRuler(document.getElementById(`plotsWrapper-${id}`));
+
     // Setup drop zones for this tab
     setupTabDropZones(id);
     
@@ -262,7 +264,9 @@ function closeTab(tabId) {
         
         const wrapper = document.getElementById(`plotsWrapper-${tabId}`);
         if (wrapper) {
+            destroyTimeRuler(wrapper);
             wrapper.innerHTML = `<div class="empty-plot" id="emptyPlot-${tabId}">Glissez un signal ici pour créer un graphique</div>`;
+            mountTimeRuler(wrapper);
             setupEmptyPlotDropZone(tabId);
         }
         return;
@@ -278,6 +282,7 @@ function closeTab(tabId) {
     }
     
     // Remove tab content
+    destroyTimeRuler(document.getElementById(`plotsWrapper-${tabId}`));
     const tabContent = document.getElementById(`content-${tabId}`);
     if (tabContent) tabContent.remove();
     

@@ -11,7 +11,7 @@ import { setCommentPlotSignal } from './events-strip.js';
 import { applyLegendWidthTo, startLegendResize } from './legend-width.js';
 import { addOverlaySeries, isSeriesSynth, plotHasSynth } from './overlay.js';
 import { cleanupExtendedZones, deletePlot, deletePlotInTab, updatePlotHeader, updateSignalActiveStates } from './plot-legend.js';
-import { autoScaleY, exitSolo, plotIconSvg, renderPlotFromCache, rerenderPlotFromCache, soloPlot, toggleSoloPlot, toggleYLock } from './plot-ui.js';
+import { autoScaleY, exitSolo, plotIconSvg, renderPlotFromCache, soloPlot, toggleSoloPlot, toggleYLock } from './plot-ui.js';
 import { fetchAndRenderPlot } from './render.js';
 
 // Redimensionne tous les graphes a la taille actuelle de leur conteneur.
@@ -113,6 +113,14 @@ export function createPlotInTab(tabId, signalIndex = null, { isBoolPlot = false,
     const plotLegend = document.createElement('div');
     plotLegend.className = 'plot-legend';
     applyLegendWidthTo(plotLegend);
+    // La legende change de largeur en transition (table de mesure des curseurs): le graphe
+    // ne prend sa largeur definitive qu'a la fin. Redimensionne plus tot, il garderait une
+    // largeur intermediaire et deborderait sous la legende.
+    plotLegend.addEventListener('transitionend', e => {
+        if (e.target !== plotLegend || e.propertyName !== 'width') return;
+        const plot = S.plots.find(p => p.element === container);
+        if (plot && plot.chart) plot.chart.setSize({ width: plotBody.clientWidth, height: plotBody.clientHeight });
+    });
 
     // Splitter vertical entre le graphe et sa legende. Le redimensionnement est
     // lie: il regle la largeur partagee de toutes les legendes.
@@ -242,10 +250,6 @@ export function createPlotInTab(tabId, signalIndex = null, { isBoolPlot = false,
         isCommentPlot
     };
 
-    // Panneau le plus bas avant insertion: s'il cesse de l'etre, son axe
-    // temporel doit disparaitre.
-    const prevLast = S.plots.length ? S.plots[S.plots.length - 1] : null;
-
     // Ordre vertical des panneaux: analogiques, puis le booleen, puis les commentaires
     // (toujours tout en bas). On insere avant l'ancre appropriee.
     if (isCommentPlot) {
@@ -270,10 +274,6 @@ export function createPlotInTab(tabId, signalIndex = null, { isBoolPlot = false,
 
     if (signalIndex !== null) {
         addSignalToPlot(id, signalIndex);
-    }
-
-    if (prevLast && prevLast.id !== S.plots[S.plots.length - 1].id) {
-        rerenderPlotFromCache(prevLast);
     }
     return id;
 }
@@ -448,7 +448,6 @@ function movePlot(draggedId, targetId, before) {
     if (target.isBoolPlot || target.isCommentPlot) return;
 
     const prevFirst = S.plots[0];
-    const prevLast = S.plots[S.plots.length - 1];
 
     S.plots.splice(from, 1);
     let to = S.plots.findIndex(p => p.id === targetId);
@@ -468,12 +467,6 @@ function movePlot(draggedId, targetId, before) {
         updatePlotHeader(prevFirst);
         updatePlotHeader(newFirst);
         updateCursorReadout(newFirst);
-    }
-    // Idem pour l'axe temporel, porte par le dernier panneau uniquement.
-    const newLast = S.plots[S.plots.length - 1];
-    if (prevLast !== newLast) {
-        rerenderPlotFromCache(prevLast);
-        rerenderPlotFromCache(newLast);
     }
 
     setTimeout(resizePlotCharts, 50);

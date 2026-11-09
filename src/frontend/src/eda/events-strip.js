@@ -4,7 +4,8 @@
 import { S } from '../core/state.js';
 import { API, ectx } from './context.js';
 import { cursorPlugin } from './cursors.js';
-import { PLOT_PAD_BOTTOM, PLOT_PAD_RIGHT, PLOT_PAD_TOP, Y_AXIS_SIZE, axisDragPlugin, isLastPlot, themeChartColors, xAxisConfig, zoomToSelection } from './plot-ui.js';
+import { PLOT_PAD_BOTTOM, PLOT_PAD_RIGHT, PLOT_PAD_TOP, Y_AXIS_SIZE, axisDragPlugin, themeChartColors, xAxisConfig, zoomToSelection } from './plot-ui.js';
+import { rulerSyncPlugin } from './time-ruler.js';
 
 // =========================================================================
 // Strip commentaires (events Ctrl+K INCA)
@@ -114,19 +115,19 @@ function commentTooltipPlugin(plot) {
     };
 }
 
-function buildCommentPlotOptions(plot, series, width, height, showTimeAxis) {
+function buildCommentPlotOptions(plot, series, width, height) {
     return {
         width,
         height,
         legend: { show: false },
         series,
-        padding: [PLOT_PAD_TOP, PLOT_PAD_RIGHT, showTimeAxis ? null : PLOT_PAD_BOTTOM, null],
+        padding: [PLOT_PAD_TOP, PLOT_PAD_RIGHT, PLOT_PAD_BOTTOM, null],
         scales: {
             x: { time: false, range: [ectx.globalView.min, ectx.globalView.max] },
             y: { range: [0, 2] },
         },
         axes: [
-            xAxisConfig(showTimeAxis),
+            xAxisConfig(),
             {
                 // Gouttiere Y vide (largeur alignee sur les autres panneaux), sans etiquette.
                 stroke: () => themeChartColors().axis,
@@ -139,7 +140,7 @@ function buildCommentPlotOptions(plot, series, width, height, showTimeAxis) {
         ],
         cursor: { drag: { x: true, y: false, dist: 8 }, points: { show: false } },
         hooks: { setSelect: [zoomToSelection] },
-        plugins: [cursorPlugin(), axisDragPlugin(), commentTooltipPlugin(plot)],
+        plugins: [cursorPlugin(), axisDragPlugin(), commentTooltipPlugin(plot), rulerSyncPlugin()],
     };
 }
 
@@ -174,7 +175,7 @@ export async function renderCommentPlot(plot) {
     const height = bodyDiv.clientHeight || 120;
 
     plot.chart = new uPlot(
-        buildCommentPlotOptions(plot, series, width, height, isLastPlot(plot)),
+        buildCommentPlotOptions(plot, series, width, height),
         [xs, ys], chartDiv
     );
 }

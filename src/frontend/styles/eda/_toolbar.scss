@@ -201,11 +201,12 @@ button {
 
 .toolbar.is-expanded .toolbar-collapse svg { transform: rotate(180deg); }
 
-// Masquage des infos de curseur quand le bouton est inactif: temps en haut, ligne et
-// valeur de delta, valeurs par courbe. Les lignes de curseur restent visibles.
-body.hide-cursor-labels .cursor-time-label,
-body.hide-cursor-labels .cursor-delta-line,
-body.hide-cursor-labels .cursor-delta-label,
+// Masquage des infos de curseur quand le bouton est inactif: plage et valeur de delta
+// sur la regle de temps, valeurs par courbe. Les lignes de curseur restent visibles, et
+// les pastilles de temps de la regle aussi: elles servent de poignee au curseur.
+body.hide-cursor-labels .ruler-delta,
+body.hide-cursor-labels .ruler-delta-line,
+body.hide-cursor-labels .ruler-delta-pill,
 body.hide-cursor-labels .cursor-label {
     display: none !important;
 }

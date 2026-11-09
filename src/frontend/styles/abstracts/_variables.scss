@@ -396,7 +396,7 @@ $file-bar-height: 42px;
 // Une crete du trace (_nav.scss) tombe au quart de la periode: on la cale sur le bas de
 // la barre d'onglets, ou la tangente verticale de la vague prolonge le bord du premier
 // onglet sans decalage.
-$nav-wave-offset: $file-bar-height - $nav-wave-period / 4;
+$nav-wave-offset: $file-bar-height - $nav-wave-period * 0.25;
 
 // ============================================================================
 // SECTION 7: TYPOGRAPHIE
@@ -600,6 +600,11 @@ $settings-sidebar-width: 260px;
 $toolbar-height: 56px;
 $toolbar-height-sm: 48px;
 $tabs-height: 36px;
+
+// --- Regle de temps de l'EDA (time-ruler.js) ---
+// Axe en haut (RULER_AXIS_HEIGHT), puis une ligne pour les temps des curseurs et le delta.
+$ruler-axis-height: 30px;
+$ruler-cursor-lane: 22px;
 
 // --- Breakpoints responsive ---
 $breakpoint-xs:  480px;
@@ -991,13 +996,17 @@ $gradient-accent-warm: $gradient-accent;
 // et valeurs de legende partagent ces tokens). A = vert, B = rose.
 // Dark: couleurs vives d'origine. Light: versions foncees lisibles sur fond clair.
 // ============================================================================
+// --cursor-pill-text: texte pose SUR ces couleurs (pastilles de la regle de temps):
+// fonce sur les teintes vives du theme sombre, blanc sur les teintes foncees du clair.
 :root {
     --cursor-a: #3ddc84;
     --cursor-b: #ff6b9d;
+    --cursor-pill-text: #11111b;
 }
 :root[data-theme="light"] {
     --cursor-a: #2f9e44;
     --cursor-b: #d6336c;
+    --cursor-pill-text: #ffffff;
 }
 
 

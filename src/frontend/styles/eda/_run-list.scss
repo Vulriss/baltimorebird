@@ -33,7 +33,7 @@ $file-tab-flare: 8px;
     /* Le premier onglet est cale sur la crete de la vague de la nav (abscisse 11.25 sur
        12 du trace de _nav.scss), que $nav-wave-offset place au bas de cette barre: son
        bord gauche se prolonge dans la vague, comme un onglet de classeur. */
-    padding: 6px 12px 0 $nav-wave-width * 11.25 / 12;
+    padding: 6px 12px 0 $nav-wave-width * 0.9375;
     background: $bg-nav;
 }
 

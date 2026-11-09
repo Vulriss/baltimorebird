@@ -62,55 +62,94 @@ body.is-cursor-2-hovered .cursor-2::after {
     color: var(--sig-color);
 }
 
-/* Cursor time labels (on each cursor line) */
-.cursor-time-label {
+/* === Curseurs sur la regle de temps (time-ruler.js) ===
+   Sous la graduation, une seule ligne: pastilles de temps pleines a la couleur de leur
+   curseur, et le delta entre les deux, relies par un filet. Le trait de chaque curseur
+   remonte jusqu'aux ticks de l'axe et descend vers les graphes. La position horizontale
+   des pastilles et du delta est calculee en JS. */
+$ruler-pill-height: 18px;
+// Haut des ticks: l'axe uPlot (RULER_AXIS_HEIGHT - RULER_PLOT_HEIGHT) les trace sur
+// ses 5 derniers pixels.
+$ruler-ticks-top: $ruler-axis-height - 2px - 5px;
+$ruler-lane-center: $ruler-axis-height + $ruler-cursor-lane * 0.5;
+$ruler-pill-top: $ruler-lane-center - $ruler-pill-height * 0.5;
+
+.ruler-cursor {
     position: absolute;
-    top: 2px;
-    // $font-size-sm (12px), etait 10px: meme raison que .cursor-label ci-dessus.
-    font-size: $font-size-sm;
-    font-family: monospace;
-    padding: 0px 2px;
-    border-radius: 3px;
-    pointer-events: none;
-    z-index: 70;
-    white-space: nowrap;
-    background: var(--cursor-label-bg);
-    border: 1px solid var(--cursor-color);
-    color: var(--cursor-color);
-    transform: translateX(-50%);
+    top: 0;
+    bottom: 0;
     left: 0;
+    width: 0;
+    z-index: 2;
+    --cursor-color: var(--cursor-a);
+
+    &.ruler-cursor-b { --cursor-color: var(--cursor-b); }
+
+    // Avant la pastille dans l'ordre de peinture: elle passe par-dessus le trait.
+    &::before {
+        content: '';
+        position: absolute;
+        top: $ruler-ticks-top;
+        bottom: 0;
+        left: -1px;
+        width: 2px;
+        background: var(--cursor-color);
+        pointer-events: none;
+    }
 }
 
-/* Delta connection line between cursors */
-.cursor-delta-line {
+.ruler-cursor-pill {
     position: absolute;
+    top: $ruler-pill-top;
     left: 0;
-    top: 6px;
-    height: 2px;
-    background: repeating-linear-gradient(
-        90deg,
-        rgba(255, 170, 68, 0.6) 0px,
-        rgba(255, 170, 68, 0.6) 4px,
-        transparent 4px,
-        transparent 8px
-    );
-    pointer-events: none;
-    z-index: 45;
-}
-
-.cursor-delta-label {
-    position: absolute;
-    top: 2px;
-    // $font-size-sm (12px), etait 10px: meme raison que .cursor-label ci-dessus.
+    height: $ruler-pill-height;
+    padding: 0 6px;
+    border-radius: 4px;
+    background: var(--cursor-color);
+    color: var(--cursor-pill-text);
+    // Meme taille et meme police que les labels de valeurs (.cursor-label).
     font-size: $font-size-sm;
     font-family: monospace;
-    padding: 0px 6px;
-    border-radius: 3px;
-    pointer-events: none;
-    z-index: 70;
+    font-weight: $font-weight-semibold;
+    line-height: $ruler-pill-height;
     white-space: nowrap;
+    cursor: ew-resize;
+}
+
+/* Plage entre les deux curseurs, teintee sur toute la hauteur de la regle. */
+.ruler-delta {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    background: rgba(var(--ctp-text-rgb), 0.06);
+    pointer-events: none;
+}
+
+/* Filet du delta, d'un trait a l'autre, sous les pastilles. */
+.ruler-delta-line {
+    position: absolute;
+    top: $ruler-lane-center;
+    left: 0;
+    z-index: 1;
+    height: 1px;
+    background: var(--cursor-delta-fg);
+    pointer-events: none;
+}
+
+.ruler-delta-pill {
+    position: absolute;
+    top: $ruler-pill-top;
+    left: 0;
+    z-index: 3;
+    height: $ruler-pill-height;
+    padding: 0 6px;
+    border-radius: 4px;
     background: var(--cursor-delta-bg);
     color: var(--cursor-delta-fg);
-    transform: translateX(-50%);
-    left: 0;
+    font-size: $font-size-sm;
+    font-family: monospace;
+    line-height: $ruler-pill-height;
+    white-space: nowrap;
+    pointer-events: none;
 }
