@@ -5,7 +5,6 @@ import { S } from '../core/state.js';
 import { isZoneTooltipEnabled, setZoneTooltipEnabled } from './zone-stats.js';
 import { setupCreateVariableListeners } from './computed-vars.js';
 import { API, ectx } from './context.js';
-import { addCursorFromButton } from './cursors.js';
 import { maybeApplyDeepLink, readDeepLinkFromUrl } from './deeplink.js';
 import { loadLegendWidth } from './legend-width.js';
 import { setFileStats, setupFileInfo } from './file-info.js';
@@ -139,13 +138,6 @@ function setupEventListeners() {
         searchInput._listenerAdded = true;
     }
     
-    // Cursor Button: ajoute un curseur, comportement identique au Ctrl+clic gauche
-    const addCursorBtn = document.getElementById('addCursorBtn');
-    if (addCursorBtn && !addCursorBtn._listenerAdded) {
-        addCursorBtn.addEventListener('click', addCursorFromButton);
-        addCursorBtn._listenerAdded = true;
-    }
-
     // Bouton bascule des infos de curseur (temps, ligne/valeur de delta, valeurs par
     // courbe). Actif par defaut: pas de classe sur body, donc labels visibles.
     const cursorLabelsToggle = document.getElementById('cursorLabelsToggle');
@@ -222,23 +214,6 @@ function setupEventListeners() {
         syncCursorsToggle._listenerAdded = true;
     }
 
-    // Reset Button
-    const resetBtn = document.getElementById('resetBtn');
-    if (resetBtn && !resetBtn._listenerAdded) {
-        resetBtn.addEventListener('click', () => {
-            // Reset complet: bornes Y liberees et fenetre temporelle ramenee a la
-            // plage complete de l'acquisition courante (et non d'une source de demo).
-            S.plots.forEach(p => { p.yRange = null; });
-            ectx.viewHistory = [];
-            ectx.redoStack = [];
-            // En comparaison, ramener a l'union des runs (decalages inclus), sinon a la
-            // plage complete de l'acquisition courante.
-            ectx.globalView = comparedAcquisitionRange() || { ...ectx.acquisitionView };
-            refreshAllPlots();
-        });
-        resetBtn._listenerAdded = true;
-    }
-    
     // Clear Button
     const clearBtn = document.getElementById('clearBtn');
     if (clearBtn && !clearBtn._listenerAdded) {
@@ -253,6 +228,17 @@ function setupEventListeners() {
 
     // EDA-specific event listeners
     setupEdaEventListeners();
+}
+
+// Reset complet du zoom (bouton de la regle de temps): bornes Y liberees et fenetre
+// temporelle ramenee a la plage complete de l'acquisition courante (et non d'une source
+// de demo). En comparaison, ramener a l'union des runs (decalages inclus).
+export function resetView() {
+    S.plots.forEach(p => { p.yRange = null; });
+    ectx.viewHistory = [];
+    ectx.redoStack = [];
+    ectx.globalView = comparedAcquisitionRange() || { ...ectx.acquisitionView };
+    refreshAllPlots();
 }
 
 function setupEdaEventListeners() {

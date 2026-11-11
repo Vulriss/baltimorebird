@@ -13,6 +13,8 @@ export const S = {
     tabs: [],
     cursor1: null,
     cursor2: null,
+    // Verrou de l'ecart entre les deux curseurs (cursors.js): deplacer l'un entraine l'autre.
+    cursorLock: false,
     draggedSignal: null,
     draggedFromPlotId: null,
     // Reorganisation verticale des panneaux: id du panneau en cours de glissement

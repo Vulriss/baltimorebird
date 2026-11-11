@@ -154,15 +154,20 @@ export const TOUR_STEPS = [
         title: 'Mesurez avec les curseurs',
         interactive: true,
         paragraphs: [
-            'Ctrl + clic gauche dans le trace pose un curseur, le bouton de la barre d\'outils fait de meme. Posez-en plusieurs pour lire les ecarts entre instants.',
+            'Ctrl + clic gauche dans le trace pose un curseur, le bouton de la regle de temps fait de meme. Posez-en deux pour lire l\'ecart entre instants, et cliquez sur l\'ecart pour le verrouiller.',
             'Glissez un curseur pour le deplacer. Le bouton des etiquettes affiche ou masque temps, delta et valeurs par courbe. La touche Suppr efface le dernier curseur manipule.',
         ],
         note: 'Les curseurs peuvent etre synchronises entre onglets depuis la barre d\'outils.',
         targets: [
             {
-                selectors: ['#addCursorBtn', '#cursorLabelsToggle'],
-                group: true,
-                label: 'Curseurs et etiquettes',
+                selectors: ['.tab-content.active .ruler-tool[data-action="add-cursor"]', '#addCursorBtn'],
+                label: 'Posez un curseur',
+                padding: 6,
+                radius: 8,
+            },
+            {
+                selectors: ['#cursorLabelsToggle'],
+                label: 'Etiquettes',
                 padding: 6,
                 radius: 8,
             },
@@ -198,7 +203,7 @@ export const TOUR_STEPS = [
     },
     {
         id: 'share',
-        reveal: ['.tab-content.active', '.nav-items'],
+        reveal: ['.tab-content.active', '.tabs-actions', '.nav-items'],
         icon: ICONS.share,
         shortTitle: 'Partagez vos resultats',
         title: 'Partagez vos resultats',
@@ -210,7 +215,7 @@ export const TOUR_STEPS = [
         link: { label: 'Ouvrir la documentation', href: DOCUMENTATION_URL },
         targets: [
             {
-                selectors: ['.tab-content.active #exportPngBtn', '#exportPngBtn'],
+                selectors: ['#exportPngBtn'],
                 label: 'Exportez ici',
                 padding: 6,
                 radius: 8,

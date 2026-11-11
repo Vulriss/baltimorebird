@@ -443,7 +443,7 @@ export function updatePlotHeader(plot) {
     // En-tete (Name/A/B/Δ/unit) et ligne temps (t/A/B/Δ/s): communs a tous les panneaux
     // (axe X partage), donc affiches uniquement sur le premier strip pour gagner de la place.
     // Les valeurs par signal restent sur chaque panneau. La mise a jour du temps ne trouve
-    // simplement pas ces cellules ailleurs (setTextIfChanged ignore un element absent).
+    // simplement pas ces cellules ailleurs (writeCell ignore une cellule absente).
     if (isFirstPlot(plot)) {
         table.appendChild(makeCell('ct-h lt-measure', 'Name'));
         table.appendChild(makeCell('ct-h ct-ha lt-measure', 'A'));

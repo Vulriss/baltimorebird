@@ -71,8 +71,11 @@ indépendante. Les onglets sont réordonnables par glisser-déposer.
 
 - Le curseur suit la position de la souris sur le graphique et affiche la valeur
   interpolée ou exacte de chaque signal visible.
-- Le bouton **Ajouter un curseur** permet de figer un curseur supplémentaire pour
-  comparer deux instants précis.
+- Le bouton **Ajouter un curseur**, à droite de la règle de temps, permet de figer un
+  curseur supplémentaire pour comparer deux instants précis.
+- Avec deux curseurs, un clic sur l'écart affiché entre eux (ou la touche **L**) le
+  verrouille, ce que signale le cadenas à droite de la valeur : déplacer un curseur entraîne l'autre. Glisser l'écart déplace les deux
+  curseurs ensemble.
 - L'affichage des étiquettes de curseur peut être activé ou désactivé
   (`cursorLabelsToggle`).
 - L'affichage d'une info-bulle sur les zones booléennes peut être activé ou désactivé
@@ -84,7 +87,7 @@ indépendante. Les onglets sont réordonnables par glisser-déposer.
 - Cliquer-glisser horizontal : zoom sur une plage temporelle.
 - **Ctrl+Z** / **Ctrl+Y** : annuler ou rétablir un niveau de zoom, sur un historique de
   20 étapes.
-- Le bouton **Réinitialiser** ramène le graphique à l'échelle complète des données
+- Le bouton **Réinitialiser**, à droite de la règle de temps, ramène le graphique à l'échelle complète des données
   chargées.
 
 ## Signaux booléens et catégoriels

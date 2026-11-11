@@ -68,11 +68,14 @@ body.is-cursor-2-hovered .cursor-2::after {
    remonte jusqu'aux ticks de l'axe et descend vers les graphes. La position horizontale
    des pastilles et du delta est calculee en JS. */
 $ruler-pill-height: 18px;
+// Le cadenas de la pastille de delta est a droite du texte (ordre du DOM, time-ruler.js).
 // Haut des ticks: l'axe uPlot (RULER_AXIS_HEIGHT - RULER_PLOT_HEIGHT) les trace sur
 // ses 5 derniers pixels.
 $ruler-ticks-top: $ruler-axis-height - 2px - 5px;
 $ruler-lane-center: $ruler-axis-height + $ruler-cursor-lane * 0.5;
 $ruler-pill-top: $ruler-lane-center - $ruler-pill-height * 0.5;
+// Sortie exponentielle des micro-interactions de la regle (verrou, apparition d'une pastille).
+$ruler-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
 
 .ruler-cursor {
     position: absolute;
@@ -96,6 +99,26 @@ $ruler-pill-top: $ruler-lane-center - $ruler-pill-height * 0.5;
         background: var(--cursor-color);
         pointer-events: none;
     }
+
+    // Curseur hors de la fenetre affichee: la pastille reste, calee contre le bord de la
+    // piste, sans trait (il tomberait sur la gouttiere ou la colonne des legendes). Elle
+    // passe en contour: lisible, mais distincte d'un curseur present a cet endroit.
+    &.is-offscreen {
+        &::before { display: none; }
+
+        .ruler-cursor-pill {
+            background: var(--cursor-label-bg);
+            box-shadow: inset 0 0 0 1px var(--cursor-color);
+            color: var(--cursor-color);
+        }
+    }
+
+    // Saisie en cours: anneau a la couleur du curseur, la pastille passe devant l'autre.
+    &.is-dragging {
+        z-index: 4;
+
+        .ruler-cursor-pill { box-shadow: 0 0 0 3px color-mix(in srgb, var(--cursor-color) 32%, transparent); }
+    }
 }
 
 .ruler-cursor-pill {
@@ -114,36 +137,80 @@ $ruler-pill-top: $ruler-lane-center - $ruler-pill-height * 0.5;
     line-height: $ruler-pill-height;
     white-space: nowrap;
     cursor: ew-resize;
+    // Pas de transition sur transform: la position est ecrite a chaque frame du glissement.
+    transition: box-shadow 0.16s $ruler-ease-out, filter 0.16s $ruler-ease-out, opacity 0.16s;
+    // Rejouee a chaque passage de display: none a block, donc a la pose du curseur.
+    animation: ruler-pill-in 0.22s $ruler-ease-out;
+
+    &:hover { filter: brightness(1.08); }
 }
 
-/* Plage entre les deux curseurs, teintee sur toute la hauteur de la regle. */
+@keyframes ruler-pill-in {
+    from {
+        opacity: 0;
+        clip-path: inset(0 45% round 4px);
+    }
+
+    to {
+        opacity: 1;
+        clip-path: inset(0 0 round 4px);
+    }
+}
+
+/* Plage entre les deux curseurs, teintee sur toute la hauteur de la regle. Large comme
+   la piste et reduite par scaleX en JS (showDeltaSpan): la mise a jour ne coute qu'une
+   composition, la ou une largeur ecrite a chaque frame imposait layout et peinture.
+   La largeur doit rester celle de la piste: un element de 1px etire se desaligne des
+   curseurs des que l'affichage n'est pas a 100 % (voir showDeltaSpan). */
 .ruler-delta {
     position: absolute;
     top: 0;
     bottom: 0;
     left: 0;
+    width: 100%;
+    transform-origin: 0 0;
+    will-change: transform;
     background: rgba(var(--ctp-text-rgb), 0.06);
     pointer-events: none;
+    transition: background-color 0.2s $ruler-ease-out;
 }
 
-/* Filet du delta, d'un trait a l'autre, sous les pastilles. */
+/* Filet du delta, d'un trait a l'autre, sous les pastilles. Meme reduction que la plage. */
 .ruler-delta-line {
     position: absolute;
     top: $ruler-lane-center;
     left: 0;
     z-index: 1;
+    width: 100%;
     height: 1px;
+    transform-origin: 0 0;
+    will-change: transform;
     background: var(--cursor-delta-fg);
     pointer-events: none;
 }
 
+/* Ecart verrouille: la plage prend la teinte du delta et le filet s'epaissit, pour que
+   l'etat se lise sur toute la longueur de l'ecart et pas seulement sur la pastille. */
+.time-ruler.is-locked {
+    .ruler-delta { background: color-mix(in srgb, var(--cursor-delta-fg) 14%, transparent); }
+
+    .ruler-delta-line { height: 2px; }
+}
+
+/* Pastille de delta: bouton. Clic = verrou de l'ecart, glisser = translation des deux
+   curseurs. Les proprietes de button (fond, padding, survol) sont toutes reposees ici:
+   les regles globales de button s'appliqueraient sinon. */
 .ruler-delta-pill {
     position: absolute;
     top: $ruler-pill-top;
     left: 0;
     z-index: 3;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
     height: $ruler-pill-height;
     padding: 0 6px;
+    border: 0;
     border-radius: 4px;
     background: var(--cursor-delta-bg);
     color: var(--cursor-delta-fg);
@@ -151,5 +218,64 @@ $ruler-pill-top: $ruler-lane-center - $ruler-pill-height * 0.5;
     font-family: monospace;
     line-height: $ruler-pill-height;
     white-space: nowrap;
-    pointer-events: none;
+    cursor: pointer;
+    transition: background-color 0.18s $ruler-ease-out, color 0.18s $ruler-ease-out,
+        box-shadow 0.18s $ruler-ease-out;
+
+    svg {
+        flex: none;
+        width: 12px;
+        height: 12px;
+        overflow: visible;
+        opacity: 0.65;
+        pointer-events: none;
+        transition: opacity 0.18s;
+    }
+
+    &:hover {
+        background: var(--cursor-delta-bg);
+        box-shadow: inset 0 0 0 1px var(--cursor-delta-fg);
+
+        svg { opacity: 1; }
+    }
+
+    &:focus-visible {
+        outline: 2px solid $border-focus;
+        outline-offset: 2px;
+    }
+
+    &.is-dragging { cursor: grabbing; }
+
+    &.is-locked {
+        background: var(--cursor-delta-fg);
+        color: var(--cursor-pill-text);
+        font-weight: $font-weight-semibold;
+        // Onde jouee une fois, a la pose du verrou.
+        animation: ruler-lock-pulse 0.5s $ruler-ease-out;
+
+        svg { opacity: 1; }
+    }
+}
+
+/* Anse du cadenas: ouverte (pivotee autour de son pied droit) tant que l'ecart est libre,
+   elle se referme sur le corps a la pose du verrou. */
+.ruler-lock-shackle {
+    transform-box: view-box;
+    transform-origin: 16px 11px;
+    transform: rotate(24deg);
+    transition: transform 0.32s $ruler-ease-out;
+}
+
+.ruler-delta-pill.is-locked .ruler-lock-shackle { transform: none; }
+
+@keyframes ruler-lock-pulse {
+    from { box-shadow: 0 0 0 0 color-mix(in srgb, var(--cursor-delta-fg) 60%, transparent); }
+    to { box-shadow: 0 0 0 7px transparent; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .ruler-cursor-pill,
+    .ruler-delta-pill.is-locked { animation: none; }
+
+    .ruler-lock-shackle { transition: none; }
 }

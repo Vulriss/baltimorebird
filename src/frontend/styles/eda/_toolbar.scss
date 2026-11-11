@@ -112,8 +112,11 @@ button {
     border-radius: 30%;
     background: $bg-card;
     transform: rotate(45deg);
-    transition: background 0.15s, box-shadow 0.15s;
+    transition: background 0.15s, box-shadow 0.15s, transform 0.1s;
 }
+
+/* Appui: le losange se contracte, sur tous les boutons de ce type. */
+.toolbar-btn:active:not(.disabled) .toolbar-btn-icon::before { transform: rotate(45deg) scale(0.9); }
 
 .toolbar-btn-label {
     display: none;
@@ -126,6 +129,33 @@ button {
     font-weight: $font-weight-medium;
     line-height: 1.2;
     text-align: center;
+}
+
+/* Variante en ligne, hors de la toolbar (actions de la rangee des onglets): losange plus
+   petit, libelle a droite et toujours affiche, la rangee n'ayant pas d'etat deplie. */
+.toolbar-btn--inline {
+    flex-direction: row;
+    gap: 0;
+
+    .toolbar-btn-icon {
+        width: 30px;
+        height: 30px;
+
+        &::before { inset: 5px; }
+    }
+
+    svg {
+        width: 15px;
+        height: 15px;
+    }
+
+    .toolbar-btn-label {
+        display: block;
+        width: auto;
+        padding-right: 6px;
+        font-size: $font-size-sm;
+        white-space: nowrap;
+    }
 }
 
 /* Action destructrice (Effacer tout): rouge sur icone et libelle */
@@ -203,10 +233,11 @@ button {
 
 // Masquage des infos de curseur quand le bouton est inactif: plage et valeur de delta
 // sur la regle de temps, valeurs par courbe. Les lignes de curseur restent visibles, et
-// les pastilles de temps de la regle aussi: elles servent de poignee au curseur.
+// les pastilles de temps de la regle aussi: elles servent de poignee au curseur. Un ecart
+// verrouille garde sa pastille: un verrou actif ne doit jamais etre invisible.
 body.hide-cursor-labels .ruler-delta,
 body.hide-cursor-labels .ruler-delta-line,
-body.hide-cursor-labels .ruler-delta-pill,
+body.hide-cursor-labels .ruler-delta-pill:not(.is-locked),
 body.hide-cursor-labels .cursor-label {
     display: none !important;
 }

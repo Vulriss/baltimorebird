@@ -22,16 +22,14 @@
 
 /* Regle de temps de l'onglet (time-ruler.js): collee en haut de la zone des graphes,
    qui defilent dessous. Sa piste (axe uPlot + curseurs) est positionnee en JS sur la
-   zone de trace des graphes. Hauteur hors bordure: l'axe seul, plus la ligne des
-   temps de curseurs et du delta des qu'un curseur est pose. */
+   zone de trace des graphes. Hauteur hors bordure, constante: l'axe, puis la ligne des
+   temps de curseurs et du delta. Poser un curseur ne deplace donc aucun graphe. */
 .time-ruler {
     position: sticky;
     top: 0;
     z-index: 5;
     flex: none;
-    height: $ruler-axis-height;
-
-    &.has-cursor { height: $ruler-axis-height + $ruler-cursor-lane; }
+    height: $ruler-axis-height + $ruler-cursor-lane;
     margin-bottom: 4px;
     background: $bg-card;
     border: 1px solid $border-color;
@@ -79,6 +77,66 @@
     position: absolute;
     top: 0;
     height: $ruler-axis-height;
+}
+
+/* Ligne des curseurs vide: rappel du geste, remplace par les pastilles au premier curseur. */
+.ruler-lane-hint {
+    position: absolute;
+    top: $ruler-axis-height;
+    left: 6px;
+    height: $ruler-cursor-lane;
+    color: $text-muted;
+    font-size: $font-size-xs;
+    line-height: $ruler-cursor-lane;
+    white-space: nowrap;
+    pointer-events: none;
+}
+
+.time-ruler.has-cursor .ruler-lane-hint { display: none; }
+
+/* Actions de l'axe du temps (ajouter un curseur, reinitialiser le zoom): a droite de la
+   graduation, au-dessus de la colonne des legendes, sur les deux lignes de la regle. Plus
+   etroit que la colonne des legendes (LEGEND_MIN_WIDTH, legend-width.js): il ne recouvre
+   jamais la piste. Fond plein fondu a gauche: l'etiquette de la derniere graduation, qui
+   deborde de la piste, passe dessous. */
+.time-ruler-tools {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 4;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    padding: 0 6px 0 16px;
+    background: linear-gradient(to right, transparent, $bg-card 12px);
+    border-radius: 0 6px 6px 0;
+    cursor: default;
+}
+
+/* Boutons de la regle: ceux de la toolbar (.toolbar-btn, _toolbar.scss). Seul le fond du
+   losange change: la regle a deja la teinte $bg-card qu'il porte dans la toolbar. */
+.ruler-tool {
+    .toolbar-btn-icon::before { background: $bg-toolbar; }
+
+    // Retour d'une action sans etat, rejoue a chaque clic (time-ruler.js: toolButton).
+    &.is-fired svg { animation: ruler-tool-pop 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
+
+    &[data-action="reset-zoom"].is-fired svg { animation-name: ruler-tool-rewind; }
+}
+
+@keyframes ruler-tool-pop {
+    from { transform: scale(0.7); }
+    to { transform: scale(1); }
+}
+
+@keyframes ruler-tool-rewind {
+    from { transform: rotate(120deg); }
+    to { transform: rotate(0deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .ruler-tool.is-fired svg { animation: none; }
 }
 
 .plot-container {

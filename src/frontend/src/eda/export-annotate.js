@@ -295,7 +295,9 @@ import { rulerForExport } from './time-ruler.js';
         draw('.ruler-delta', rasterizeOverlayEl);
         draw('.ruler-delta-line', rasterizeOverlayEl);
         draw('.ruler-cursor', drawRulerCursorLine);
-        draw('.ruler-cursor-pill, .ruler-delta-pill, .x-axis-offset', rasterizeOverlayEl);
+        // Pastille de delta: fond porte par le bouton, texte par son span (le cadenas,
+        // un SVG, n'est pas reporte sur l'image).
+        draw('.ruler-cursor-pill, .ruler-delta-pill, .ruler-delta-text, .x-axis-offset', rasterizeOverlayEl);
     }
 
     // Trait d'un curseur de la regle: pseudo ::before, du haut des ticks au bas de la regle.

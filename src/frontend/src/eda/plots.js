@@ -343,8 +343,30 @@ function createPlot(signalIndex) {
     return createPlotInTab(S.activeTabId, signalIndex);
 }
 
+// Hauteur fixe (strip booleen ou commentaires, "0 0 Npx"): hors de la repartition.
+export function isFixedFlex(el) {
+    return /^0 0 /.test(el.style.flex);
+}
+
+// Poids flex d'un panneau de hauteur px parmi des panneaux de hauteur moyenne meanPx.
+// Un poids, jamais une hauteur en pixels: une hauteur fixee ("0 0 Npx") ne suit plus la
+// zone des graphes, et le moindre pixel perdu ensuite (toolbar depliee, fenetre reduite,
+// ou le simple arrondi d'offsetHeight sur un affichage a 125 %) fait deborder la zone et
+// apparaitre un ascenseur. Poids 1 = hauteur moyenne, comme le flex par defaut des
+// panneaux: le ratio s'enregistre tel quel dans un layout (layout-state.js).
+export function flexWeight(px, meanPx) {
+    const weight = meanPx > 0 ? px / meanPx : 1;
+    return `${Number(weight.toFixed(4))} 1 0px`;
+}
+
 function setupSplitter(splitter) {
-    let startY, startHeightAbove, startHeightBelow, aboveEl, belowEl;
+    let startY, startHeightAbove, startHeightBelow, aboveEl, belowEl, meanPx;
+    // Fractionnaires (getBoundingClientRect): offsetHeight arrondit, et deux arrondis au
+    // superieur suffisent a depasser la hauteur disponible.
+    const heightOf = el => el.getBoundingClientRect().height;
+    const applyHeight = (el, px) => {
+        el.style.flex = isFixedFlex(el) ? `0 0 ${px}px` : flexWeight(px, meanPx);
+    };
 
     splitter.addEventListener('mousedown', e => {
         e.preventDefault();
@@ -355,8 +377,19 @@ function setupSplitter(splitter) {
         if (!aboveEl || !belowEl) return;
 
         startY = e.clientY;
-        startHeightAbove = aboveEl.offsetHeight;
-        startHeightBelow = belowEl.offsetHeight;
+        startHeightAbove = heightOf(aboveEl);
+        startHeightBelow = heightOf(belowEl);
+
+        // Tous les panneaux a hauteur libre de l'onglet passent en poids proportionnels a
+        // leur hauteur actuelle: rien ne bouge a l'ecran, et les deux panneaux du splitter
+        // restent comparables aux autres pendant le glissement. Les panneaux masques
+        // (hauteur nulle) gardent leur poids.
+        const flexible = [...aboveEl.parentElement.querySelectorAll(':scope > .plot-container')]
+            .filter(el => !isFixedFlex(el))
+            .map(el => ({ el, px: heightOf(el) }))
+            .filter(item => item.px > 0);
+        meanPx = flexible.length ? flexible.reduce((sum, item) => sum + item.px, 0) / flexible.length : 0;
+        flexible.forEach(item => { item.el.style.flex = flexWeight(item.px, meanPx); });
         
         splitter.classList.add('active');
         document.body.style.cursor = 'row-resize';
@@ -383,8 +416,8 @@ function setupSplitter(splitter) {
         const delta = e.clientY - startY;
         let above = Math.max(minAbove, Math.min(total - minBelow, startHeightAbove + delta));
         const below = total - above;
-        aboveEl.style.flex = `0 0 ${above}px`;
-        belowEl.style.flex = `0 0 ${below}px`;
+        applyHeight(aboveEl, above);
+        applyHeight(belowEl, below);
     }
 
     function onMouseUp() {

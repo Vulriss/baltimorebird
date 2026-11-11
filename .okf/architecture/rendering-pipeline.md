@@ -54,12 +54,59 @@ traits des curseurs remontent jusqu'aux ticks. Les temps A et B sont des pastill
 servent aussi de poignée, le delta est entre les deux, relié aux traits par un filet.
 Les trois sont toujours affichés : `layoutRow` les garde dans l'ordre, au plus près de
 leur position et sans chevauchement (les étiquettes qui se touchent forment un bloc
-centré sur leurs positions), sans sortir de la règle. La règle ne gagne cette ligne
-qu'à la pose d'un curseur, et les graphes sont alors redimensionnés.
+centré sur leurs positions), sans sortir de la règle ni passer sous ses boutons. La
+règle a toujours ses deux lignes : poser un curseur ne redimensionne aucun graphe, et la
+ligne vide rappelle le geste (Ctrl + clic).
 Leurs temps et le delta prennent juste assez de décimales pour distinguer deux pixels
 voisins (3 au minimum, 9 au plus). Le delta s'affiche avec un préfixe SI (`34 ms`, `18 µs`)
 via `formatDuration` de `time-axis.js`, sur la règle comme dans la table de mesure ; les
 temps A et B restent en secondes.
+
+La pastille de delta est un bouton. Un clic (ou la touche L) verrouille l'écart : tout
+déplacement d'un curseur passe par `moveCursorTo` dans `cursors.js`, qui entraîne alors
+l'autre. C'est le seul point de passage des déplacements (trait, pastille, flèches) ; un
+nouveau geste qui écrirait `S.cursor1` directement contournerait le verrou. Glisser la
+pastille translate les deux curseurs. Le verrou (`S.cursorLock`) tombe dès qu'il manque
+un curseur. Un curseur hors de la fenêtre garde sa pastille, calée contre le bord de la
+piste du côté où il est sorti, en contour et sans trait : c'est sa position ramenée dans
+la piste, et non sa position réelle, qui sert au placement de la pastille.
+
+Pendant un glissement de curseur, la règle ne lit rien dans le layout et n'écrit que des
+transformations : la plage et le filet ont la largeur de la piste et sont réduits par
+`scaleX` à la fraction couverte, la largeur des pastilles est mesurée une fois par gabarit
+de texte puis relue en cache. Écrire une largeur ou lire `offsetWidth` dans ce chemin
+réintroduit un layout synchrone par frame.
+
+Ne pas étirer un élément de 1px à la place : sa largeur est calée sur les pixels
+physiques avant l'étirement (1 pixel à 125 %, 2 à 150 %), et la plage ne tombe plus sur
+les curseurs dès que l'affichage Windows n'est pas à 100 %. Toute modification de ce
+rendu se vérifie par capture à 100 %, 125 % et 150 %
+(`chrome --headless --force-device-scale-factor=1.25 --screenshot`), jsdom ne voyant
+aucune géométrie.
+
+Les actions qui portent sur l'axe du temps (ajouter un curseur, réinitialiser le zoom)
+sont des boutons de la règle, à droite de la graduation, sur ses deux lignes. Il y en a
+un jeu par onglet, donc pas d'`id` : on les désigne par `.ruler-tool[data-action]`.
+Ils réutilisent le composant `.toolbar-btn` (losange) de la barre d'outils, comme les
+actions de la rangée des onglets (`.toolbar-btn--inline`) : un bouton d'action de l'EDA
+ne redéfinit pas son propre style.
+
+La table de mesure A / B / Δ des légendes (`updateCursorReadout`) résout ses cellules
+une fois par table (`readoutCellsOf`, un `WeakMap` indexé par l'élément table) et
+tient à jour la longueur du plus long texte de chaque colonne à l'écriture. Ni la mise
+à jour ni la synchronisation des colonnes ne relisent le DOM pendant un glissement. Cela
+repose sur le fait que `plot-legend.js` reconstruit la table entière à chaque rendu ; un
+changement du nombre de lignes en place invalide l'entrée.
+
+## Hauteur des panneaux
+
+Le splitter entre deux panneaux écrit des poids flex (`flexWeight` dans `plots.js`,
+`1.47 1 0px`), jamais une hauteur en pixels, et convertit au début du glissement tous les
+panneaux à hauteur libre de l'onglet. Une hauteur figée (`0 0 Npx`) ne suit plus la zone
+des graphes : dès que celle-ci perd de la hauteur (barre d'outils dépliée, fenêtre
+réduite, arrondi d'`offsetHeight` à 125 %), elle déborde et un ascenseur apparaît. Seuls
+les strips booléen et commentaires gardent une hauteur fixe. Un poids de 1 vaut la hauteur
+moyenne, ce qui en fait le ratio enregistré tel quel dans un layout.
 
 ## Bords de la fenêtre
 

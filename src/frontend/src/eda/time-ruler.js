@@ -14,9 +14,12 @@
 
 import { S } from '../core/state.js';
 import { ectx } from './context.js';
-import { cursorTimeDecimals, placeCursorAt, removeCursor, touchCursor, updateCursors } from './cursors.js';
+import { resetView } from './bootstrap.js';
+import {
+    addCursorFromButton, cursorTimeDecimals, isCursorLockActive, moveCursorTo, placeCursorAt, removeCursor,
+    setCursorPair, toggleCursorLock, touchCursor,
+} from './cursors.js';
 import { themeChartColors } from './plot-ui.js';
-import { resizeAllChartsNow } from './plots.js';
 import { formatDurationWithMinutes, timeAxisSpace, timeAxisValues } from './time-axis.js';
 import { applyGlobalViewLocal, panPlotsScaleOnly, recordViewChange } from './view-nav.js';
 
@@ -33,8 +36,22 @@ const RULER_SIDE_PAD = 28;
 const PILL_GAP = 6;
 const PILL_CHAR_PX = 7.3;
 const PILL_PAD_PX = 14;
+// Largeur du cadenas de la pastille de delta et de son ecart au texte (repli hors layout).
+const LOCK_ICON_PX = 16;
+// Deplacement (px) a partir duquel un appui sur le delta est un glisser, pas un clic.
+const DRAG_THRESHOLD_PX = 3;
 // Marge (px) entre une pastille et le bord interieur de la regle.
 const EDGE_MARGIN = 2;
+
+const SVG_ATTRS = 'viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" '
+    + 'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"';
+const ICON_LOCK = `<svg ${SVG_ATTRS}><path class="ruler-lock-shackle" d="M8 11V7a4 4 0 0 1 8 0v4"/>`
+    + '<rect x="5" y="11" width="14" height="10" rx="2"/></svg>';
+const ICON_ADD_CURSOR = `<svg ${SVG_ATTRS}><line x1="9" y1="4" x2="9" y2="20"/><line x1="6" y1="4" x2="12" y2="4"/>`
+    + '<line x1="6" y1="20" x2="12" y2="20"/><line x1="17" y1="9" x2="17" y2="15"/>'
+    + '<line x1="14" y1="12" x2="20" y2="12"/></svg>';
+const ICON_RESET_ZOOM = `<svg ${SVG_ATTRS}><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16" y2="16"/>`
+    + '<path d="M8.5 12.5a3 3 0 1 0 .4-3.4"/><polyline points="8.5 7.5 8.5 9.5 10.5 9.5"/></svg>';
 
 const CURSOR_KEYS = [
     { which: 1, cls: 'ruler-cursor-a', get: () => S.cursor1 },
@@ -46,25 +63,37 @@ export function mountTimeRuler(wrapper) {
     if (!wrapper || wrapper.querySelector(':scope > .time-ruler')) return;
     const el = document.createElement('div');
     el.className = 'time-ruler';
-    el.setAttribute('aria-hidden', 'true');
+    el.setAttribute('role', 'group');
+    el.setAttribute('aria-label', 'Règle de temps');
 
     const track = document.createElement('div');
     track.className = 'time-ruler-track';
     const chartDiv = document.createElement('div');
     chartDiv.className = 'time-ruler-chart';
+    chartDiv.setAttribute('aria-hidden', 'true');
     track.appendChild(chartDiv);
 
     const delta = document.createElement('div');
     delta.className = 'ruler-delta';
     const deltaLine = document.createElement('div');
     deltaLine.className = 'ruler-delta-line';
-    const deltaPill = document.createElement('div');
+    // Le delta est un controle: clic = verrou de l'ecart, glisser = translation de la paire.
+    const deltaPill = document.createElement('button');
+    deltaPill.type = 'button';
     deltaPill.className = 'ruler-delta-pill';
+    deltaPill.title = 'Verrouiller l\'écart (L) - glisser pour déplacer les deux curseurs';
+    deltaPill.setAttribute('aria-pressed', 'false');
+    const deltaText = document.createElement('span');
+    deltaText.className = 'ruler-delta-text';
+    deltaPill.appendChild(deltaText);
+    // Cadenas a droite de la valeur: elle reste ce qu'on lit en premier.
+    deltaPill.insertAdjacentHTML('beforeend', ICON_LOCK);
     track.append(delta, deltaLine, deltaPill);
 
     const ruler = {
-        el, track, chartDiv, chart: null, left: null, width: 0, min: null, max: null,
-        delta, deltaLine, deltaPill, cursors: [], hasLane: false,
+        el, track, chartDiv, chart: null, left: null, width: 0, innerWidth: 0, toolsWidth: 0, min: null,
+        max: null, tools: null,
+        delta, deltaLine, deltaPill, deltaText, cursors: [], hasLane: false, locked: false,
     };
     CURSOR_KEYS.forEach(key => {
         const cursorEl = document.createElement('div');
@@ -74,13 +103,53 @@ export function mountTimeRuler(wrapper) {
         cursorEl.appendChild(pill);
         track.appendChild(cursorEl);
         ruler.cursors.push({ ...key, el: cursorEl, pill });
-        wireCursorDrag(ruler, key.which, pill);
+        wireCursorDrag(ruler, key.which, cursorEl, pill);
     });
+    wireDeltaPill(ruler);
 
-    el.appendChild(track);
+    // Ligne des curseurs vide: elle dit comment en poser un.
+    const hint = document.createElement('div');
+    hint.className = 'ruler-lane-hint';
+    hint.textContent = 'Ctrl + clic pour poser un curseur';
+    track.appendChild(hint);
+
+    // Actions qui portent sur l'axe du temps, a sa droite au-dessus de la colonne des
+    // legendes, sur les deux lignes de la regle.
+    const tools = document.createElement('div');
+    tools.className = 'time-ruler-tools';
+    tools.append(
+        toolButton('add-cursor', 'Ajouter un curseur (Ctrl + clic gauche)', ICON_ADD_CURSOR, addCursorFromButton),
+        toolButton('reset-zoom', 'Réinitialiser le zoom (plage complète, bornes Y libérées)', ICON_RESET_ZOOM,
+            resetView),
+    );
+
+    ruler.tools = tools;
+    el.append(track, tools);
     el._ruler = ruler;
     wrapper.prepend(el);
     track.addEventListener('mousedown', e => onTrackMouseDown(ruler, e));
+}
+
+// Bouton d'action de la regle: meme losange que les boutons de la toolbar (.toolbar-btn).
+// L'icone rejoue une courte animation a chaque clic (classe retiree en fin d'animation),
+// seul retour visible d'une action sans etat.
+function toolButton(action, title, icon, onClick) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'toolbar-btn ruler-tool';
+    btn.dataset.action = action;
+    btn.title = title;
+    btn.setAttribute('aria-label', title);
+    btn.innerHTML = `<span class="toolbar-btn-icon">${icon}</span>`;
+    btn.addEventListener('click', () => {
+        onClick();
+        btn.classList.remove('is-fired');
+        // Lecture de layout voulue: sans elle, retirer puis remettre la classe ne relance rien.
+        void btn.offsetWidth;
+        btn.classList.add('is-fired');
+    });
+    btn.addEventListener('animationend', () => btn.classList.remove('is-fired'));
+    return btn;
 }
 
 // Detruit l'instance uPlot de la regle d'un onglet dont le contenu va etre retire ou
@@ -167,6 +236,10 @@ function alignTo(ruler, u) {
         ruler.width = width;
         ruler.track.style.width = `${width}px`;
     }
+    // Largeur interieure memorisee ici (chemin de dessin): layoutCursors n'a ainsi aucune
+    // lecture de layout a faire pendant le glissement d'un curseur.
+    ruler.innerWidth = ruler.el.clientWidth;
+    ruler.toolsWidth = ruler.tools ? ruler.tools.offsetWidth : 0;
     syncScale(ruler, u.scales.x);
     const chartWidth = width + 2 * RULER_SIDE_PAD;
     if (!ruler.chart) createChart(ruler, chartWidth);
@@ -211,29 +284,44 @@ export function updateRulerCursors() {
     if (ruler && ruler.chart) layoutCursors(ruler);
 }
 
-// Largeur rendue d'une pastille, estimee hors layout (rendu en arriere-plan, tests).
-function pillWidth(el, text) {
-    return el.offsetWidth || text.length * PILL_CHAR_PX + PILL_PAD_PX;
+// Largeur rendue d'une pastille. Mesuree une fois par gabarit de texte (chiffres
+// neutralises: la police est a chasse fixe) puis relue en cache: mesurer a chaque frame,
+// juste apres avoir ecrit le texte, forcait un layout synchrone de la page pendant le
+// glissement. Estimee hors layout (rendu en arriere-plan, pastille masquee, tests).
+const pillWidths = new Map();
+window.addEventListener('resize', () => pillWidths.clear());
+
+function pillWidth(el, text, extra = 0) {
+    const key = `${extra}:${text.replace(/\d/g, '0')}`;
+    const cached = pillWidths.get(key);
+    if (cached) return cached;
+    const measured = el.offsetWidth;
+    if (measured) pillWidths.set(key, measured);
+    return measured || text.length * PILL_CHAR_PX + PILL_PAD_PX + extra;
 }
 
 function clamp(v, lo, hi) {
     return Math.max(lo, Math.min(v, hi));
 }
 
-// Ligne des curseurs, sous la graduation: elle n'existe qu'avec au moins un curseur.
-// La hauteur ne change donc qu'a la pose du premier ou au retrait du dernier, jamais
-// pendant un glissement; les graphes sont alors redimensionnes.
+// Ligne des curseurs, sous la graduation. Elle est toujours la (la regle garde sa
+// hauteur, les graphes ne sont jamais redimensionnes par la pose d'un curseur): la classe
+// ne fait que remplacer l'indication de la ligne vide par les pastilles.
 function setCursorLane(ruler, on) {
     if (ruler.hasLane === on) return;
     ruler.hasLane = on;
     ruler.el.classList.toggle('has-cursor', on);
-    if (ruler.el.isConnected) requestAnimationFrame(resizeAllChartsNow);
 }
 
 function layoutCursors(ruler) {
     const u = ruler.chart;
     const decimals = cursorTimeDecimals(u);
     const shown = [];
+    // Piste mesuree: un curseur hors de la fenetre garde sa pastille, calee contre le bord
+    // de la piste du cote ou il est sorti, mais perd son trait, qui sinon se dessinerait
+    // sur la gouttiere ou la colonne des legendes.
+    const inTrack = x => !(ruler.width > 0) || (x >= 0 && x <= ruler.width);
+    const toTrack = x => (ruler.width > 0 ? clamp(x, 0, ruler.width) : x);
 
     ruler.cursors.forEach(c => {
         const t = c.get();
@@ -245,10 +333,22 @@ function layoutCursors(ruler) {
         const text = `${t.toFixed(decimals)}s`;
         if (c.pill.textContent !== text) c.pill.textContent = text;
         c.el.style.display = 'block';
+        c.el.classList.toggle('is-offscreen', !inTrack(x));
         c.el.style.transform = `translate3d(${x}px, 0, 0)`;
-        shown.push({ el: c.pill, anchor: x, center: x, w: pillWidth(c.pill, text) });
+        // Hors fenetre, la pastille vise l'interieur du bord de la piste: centree sur la
+        // position reelle du curseur, elle partait flotter au-dessus des legendes.
+        const w = pillWidth(c.pill, text);
+        const center = inTrack(x) ? x : clamp(x, w / 2, Math.max(w / 2, ruler.width - w / 2));
+        shown.push({ el: c.pill, anchor: x, center, w });
     });
     setCursorLane(ruler, shown.length > 0);
+    const locked = isCursorLockActive();
+    if (ruler.locked !== locked) {
+        ruler.locked = locked;
+        ruler.el.classList.toggle('is-locked', locked);
+        ruler.deltaPill.classList.toggle('is-locked', locked);
+        ruler.deltaPill.setAttribute('aria-pressed', locked ? 'true' : 'false');
+    }
 
     // Elements de la ligne, dans l'ordre: pastille de gauche, delta, pastille de droite.
     shown.sort((a, b) => a.anchor - b.anchor);
@@ -257,10 +357,12 @@ function layoutCursors(ruler) {
         const [l, r] = shown;
         const text = `Δ ${formatDurationWithMinutes(Math.abs(S.cursor2 - S.cursor1), decimals)}`;
         const pill = ruler.deltaPill;
-        if (pill.textContent !== text) pill.textContent = text;
-        pill.style.display = 'block';
-        row.splice(1, 0, { el: pill, anchor: 0, center: (l.anchor + r.anchor) / 2, w: pillWidth(pill, text) });
-        showDeltaSpan(ruler, l.anchor, r.anchor);
+        if (ruler.deltaText.textContent !== text) ruler.deltaText.textContent = text;
+        pill.style.display = 'inline-flex';
+        const x1 = toTrack(l.anchor);
+        const x2 = toTrack(r.anchor);
+        row.splice(1, 0, { el: pill, anchor: 0, center: (x1 + x2) / 2, w: pillWidth(pill, text, LOCK_ICON_PX) });
+        showDeltaSpan(ruler, x1, x2);
     } else {
         ruler.delta.style.display = 'none';
         ruler.deltaLine.style.display = 'none';
@@ -268,9 +370,9 @@ function layoutCursors(ruler) {
     }
 
     // Bornes en coordonnees de piste: l'interieur de la regle, qui deborde de la piste
-    // a gauche (gouttiere Y) et a droite (colonne des legendes).
+    // a gauche (gouttiere Y) et a droite (colonne des legendes), jusqu'aux boutons.
     const minX = -ruler.left + EDGE_MARGIN;
-    const maxX = ruler.el.clientWidth - ruler.left - EDGE_MARGIN;
+    const maxX = (ruler.innerWidth || ruler.el.clientWidth) - ruler.toolsWidth - ruler.left - EDGE_MARGIN;
     layoutRow(row, minX, maxX);
     // Les pastilles de curseur sont placees par rapport a leur trait, le delta dans la piste.
     row.forEach(item => { item.el.style.transform = `translateX(${item.start - item.anchor}px)`; });
@@ -311,19 +413,31 @@ export function layoutRow(items, minX, maxX) {
 }
 
 // Plage entre les curseurs, teintee sur toute la hauteur, et filet qui relie les deux
-// traits sous le delta.
+// traits sous le delta. Les deux elements ont la largeur de la piste et sont reduits par
+// scaleX a la fraction couverte: une largeur ecrite a chaque frame imposait layout et
+// peinture, alors qu'une transformation ne coute qu'une composition, dans la meme frame
+// que les traits.
+// Ne jamais etirer un element de 1px a la place: sa largeur est d'abord calee sur les
+// pixels physiques (1px CSS = 1 pixel a 125 %, 2 a 150 %), et l'etirement multiplie cette
+// erreur - plage trop courte de 20 % a 125 %, trop longue de 33 % a 150 %. Reduite depuis
+// la largeur de la piste, l'erreur reste sous le pixel physique a toute echelle.
 function showDeltaSpan(ruler, x1, x2) {
+    // Piste pas encore mesuree: pas de fraction calculable, rien a afficher.
+    if (!(ruler.width > 0)) {
+        ruler.delta.style.display = 'none';
+        ruler.deltaLine.style.display = 'none';
+        return;
+    }
+    const transform = `translate3d(${x1}px, 0, 0) scaleX(${Math.max(x2 - x1, 0) / ruler.width})`;
     ruler.delta.style.display = 'block';
-    ruler.delta.style.transform = `translate3d(${x1}px, 0, 0)`;
-    ruler.delta.style.width = `${x2 - x1}px`;
+    ruler.delta.style.transform = transform;
     ruler.deltaLine.style.display = 'block';
-    ruler.deltaLine.style.transform = `translate3d(${x1}px, 0, 0)`;
-    ruler.deltaLine.style.width = `${x2 - x1}px`;
+    ruler.deltaLine.style.transform = transform;
 }
 
 // Glisser la pastille deplace le curseur; Ctrl+clic le retire, comme sur son trait. Son
 // survol epaissit les traits du curseur dans les graphes, comme le survol d'un trait.
-function wireCursorDrag(ruler, which, pill) {
+function wireCursorDrag(ruler, which, cursorEl, pill) {
     const hoverClass = `is-cursor-${which}-hovered`;
     let dragging = false;
     pill.addEventListener('mouseenter', () => document.body.classList.add(hoverClass));
@@ -344,6 +458,7 @@ function wireCursorDrag(ruler, which, pill) {
         let clientX = e.clientX;
         let raf = null;
         dragging = true;
+        cursorEl.classList.add('is-dragging');
         document.body.style.cursor = 'ew-resize';
         document.body.style.userSelect = 'none';
 
@@ -353,16 +468,74 @@ function wireCursorDrag(ruler, which, pill) {
             raf = requestAnimationFrame(() => {
                 raf = null;
                 const x = Math.max(0, Math.min(clientX - rect.left, rect.width));
-                const time = ruler.chart.posToVal(x, 'x');
-                if (which === 1) S.cursor1 = time;
-                else S.cursor2 = time;
-                updateCursors();
+                moveCursorTo(which, ruler.chart.posToVal(x, 'x'));
             });
         };
         const onUp = ev => {
             if (raf !== null) cancelAnimationFrame(raf);
             dragging = false;
+            cursorEl.classList.remove('is-dragging');
             if (!pill.contains(ev.target)) document.body.classList.remove(hoverClass);
+            document.body.style.cursor = '';
+            document.body.style.userSelect = '';
+            window.removeEventListener('mousemove', onMove);
+            window.removeEventListener('mouseup', onUp);
+        };
+        window.addEventListener('mousemove', onMove);
+        window.addEventListener('mouseup', onUp);
+    });
+}
+
+// Pastille de delta: un clic (ou Entree/Espace au clavier) bascule le verrou de l'ecart,
+// un glisser translate les deux curseurs ensemble, verrou actif ou non. La paire reste
+// dans la fenetre affichee quand elle y tenait au depart.
+function wireDeltaPill(ruler) {
+    const pill = ruler.deltaPill;
+    let dragged = false;
+
+    pill.addEventListener('click', () => {
+        // Le clic qui termine un glisser ne bascule pas le verrou.
+        if (dragged) {
+            dragged = false;
+            return;
+        }
+        toggleCursorLock();
+    });
+
+    pill.addEventListener('mousedown', e => {
+        if (e.button !== 0 || !ruler.chart) return;
+        e.stopPropagation();
+        e.preventDefault();
+        dragged = false;
+        const start = { c1: S.cursor1, c2: S.cursor2 };
+        if (start.c1 === null || start.c2 === null) return;
+        const unitsPerPx = ruler.chart.posToVal(1, 'x') - ruler.chart.posToVal(0, 'x');
+        const view = ectx.globalView;
+        const minShift = view.min - Math.min(start.c1, start.c2);
+        const maxShift = view.max - Math.max(start.c1, start.c2);
+        let clientX = e.clientX;
+        let raf = null;
+
+        const onMove = ev => {
+            clientX = ev.clientX;
+            if (!dragged) {
+                if (Math.abs(clientX - e.clientX) < DRAG_THRESHOLD_PX) return;
+                dragged = true;
+                pill.classList.add('is-dragging');
+                document.body.style.cursor = 'grabbing';
+                document.body.style.userSelect = 'none';
+            }
+            if (raf !== null) return;
+            raf = requestAnimationFrame(() => {
+                raf = null;
+                let shift = (clientX - e.clientX) * unitsPerPx;
+                if (minShift <= maxShift) shift = clamp(shift, minShift, maxShift);
+                setCursorPair(start.c1 + shift, start.c2 + shift);
+            });
+        };
+        const onUp = () => {
+            if (raf !== null) cancelAnimationFrame(raf);
+            pill.classList.remove('is-dragging');
             document.body.style.cursor = '';
             document.body.style.userSelect = '';
             window.removeEventListener('mousemove', onMove);
