@@ -70,7 +70,12 @@ export function timeAxisLayout(min, max, step) {
     // La tolerance absorbe le bruit de max - min (1e-6 lu 1.00000000003e-6 vers t = 1234 s).
     const offsetExp = Math.ceil(Math.log10(span) - 1e-6);
     const offsetStep = 10 ** offsetExp;
-    const offset = Math.floor(min / offsetStep) * offsetStep;
+    const offsetQuotient = min / offsetStep;
+    const nearestOffset = Math.round(offsetQuotient);
+    const offsetTolerance = Number.EPSILON * Math.max(1, Math.abs(offsetQuotient)) * 2;
+    const offsetIndex = Math.abs(offsetQuotient - nearestOffset) <= offsetTolerance
+        ? nearestOffset : Math.floor(offsetQuotient);
+    const offset = offsetIndex * offsetStep;
     const maxRel = max - offset;
     const unitExp = siExponent(maxRel);
     const relDecimals = Math.min(MAX_DECIMALS, Math.max(0, decimals + unitExp));
