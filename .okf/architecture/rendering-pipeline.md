@@ -66,7 +66,9 @@ La pastille de delta est un bouton. Un clic (ou la touche L) verrouille l'écart
 déplacement d'un curseur passe par `moveCursorTo` dans `cursors.js`, qui entraîne alors
 l'autre. C'est le seul point de passage des déplacements (trait, pastille, flèches) ; un
 nouveau geste qui écrirait `S.cursor1` directement contournerait le verrou. Glisser la
-pastille translate les deux curseurs. Le verrou (`S.cursorLock`) tombe dès qu'il manque
+pastille translate les deux curseurs. Un double-clic sur une pastille ouvre un champ de
+saisie (temps du curseur, ou écart), validé par Entrée ; la saisie passe elle aussi par
+`moveCursorTo` ou `setCursorPair`. Le verrou (`S.cursorLock`) tombe dès qu'il manque
 un curseur. Un curseur hors de la fenêtre garde sa pastille, calée contre le bord de la
 piste du côté où il est sorti, en contour et sans trait : c'est sa position ramenée dans
 la piste, et non sa position réelle, qui sert au placement de la pastille.
@@ -107,6 +109,44 @@ des graphes : dès que celle-ci perd de la hauteur (barre d'outils dépliée, fe
 réduite, arrondi d'`offsetHeight` à 125 %), elle déborde et un ascenseur apparaît. Seuls
 les strips booléen et commentaires gardent une hauteur fixe. Un poids de 1 vaut la hauteur
 moyenne, ce qui en fait le ratio enregistré tel quel dans un layout.
+
+## Graphes X/Y
+
+Un graphe X/Y (`src/frontend/src/eda/xy-plots.js`) est une autre vue de la même fenêtre
+temporelle : il trace les échantillons de `globalView`. Ses panneaux vivent dans
+`tab.xyPlots` et dans un dock à droite des graphes temporels, pas dans `S.plots` : tout
+ce qui parcourt `S.plots` suppose un axe X temporel. Les points d'accroche sont
+explicites : `renderXYPlots` dans `view-nav.js`, `updateXYCursors` dans `updateCursors`,
+`exportXYPlots` / `restoreXYPlot` dans `layout-state.js`, `destroyXYPlots` à la fermeture
+d'un onglet et `clearAllXYPlots` au changement de fichier.
+
+L'instance uPlot ne porte que les axes, la grille et la sélection, sur des données
+factices : uPlot exige des abscisses croissantes, donc la trajectoire est dessinée par le
+hook `draw`. Les fonctions pures sont dans `xy-data.js` :
+
+- **Appariement.** Y est rééchantillonné sur les instants de X (`resampleOnto`), linéaire
+  ou tenu pour un signal d'état, sans point hors de la plage mesurée de Y.
+- **Décimation.** La pyramide min-max ne convient pas : elle préserve l'enveloppe contre le
+  temps, pas une forme dans le plan. `decimateXY` garde un point par changement de cellule
+  d'un pixel, plus le dernier point de la cellule quittée ; l'erreur reste sous un pixel.
+  Au-delà de 120 000 points gardés, le pas d'échantillonnage double et le panneau
+  l'affiche (« Tracé allégé »).
+- **Données.** Séries pleine résolution, empruntées au cache d'un graphe temporel quand il
+  est complet et non converti d'unité, sinon demandées par `requestRawSignals`
+  (`render.js`), qui partage les requêtes en vol avec le full-send.
+
+Le bouton de densité remplace la trajectoire par une carte de chaleur (`densityGrid`,
+cellules de 4 px, couleur selon le logarithme du nombre d'échantillons) calculée sur tous
+les échantillons de la fenêtre. Pendant le glissement du séparateur du dock, les panneaux
+sont masqués et ne sont redimensionnés qu'au relâchement : chaque largeur intermédiaire
+les faisait redessiner.
+
+Mesuré dans Chrome sans affichage, à 125 % : 1,2 million d'échantillons, rendu complet
+13 ms, rendu allégé d'un glissement 1 ms, tracé 1 ms.
+
+Dans un layout, un graphe X/Y est une entrée de `plots` avec `kind: "xy"`, `x`, `ys` et
+un `signals` vide : la validation serveur l'accepte telle quelle, et une version antérieure
+du client l'ignore. La capture PNG ne les inclut pas.
 
 ## Bords de la fenêtre
 

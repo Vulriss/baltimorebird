@@ -10,6 +10,7 @@ import { themedSignalColor } from './plot-ui.js';
 import { isBoolSignalIndex } from './plots.js';
 import { ensureSignalPreloaded, isSignalPreloading } from './preload.js';
 import { signalRunCoverage } from './runs.js';
+import { activeXYPlots } from './xy-plots.js';
 import {
     appendHighlighted, buildEntry, matchRanges, parseQuery, rankEntries, syncSearchIndex,
 } from './signal-search.js';
@@ -106,6 +107,13 @@ export function signalActiveColorMap() {
                     map.set(d.realIndex, customColor || themedSignalColor(cachedColor || d.color));
                 }
             }
+        });
+    });
+    // Signaux des graphes X/Y: l'axe X n'a pas de couleur de courbe, il prend celle du signal.
+    activeXYPlots().forEach(plot => {
+        plot.signals.forEach(sigIdx => {
+            if (map.has(sigIdx)) return;
+            map.set(sigIdx, plot.signalStyles[sigIdx]?.color || themedSignalColor(S.signalsInfo[sigIdx]?.color));
         });
     });
     return map;

@@ -10,6 +10,7 @@ import { setFileStats } from './file-info.js';
 import { applyLayout, exportCurrentLayout } from './layout-state.js';
 import { deletePlot } from './plot-legend.js';
 import { exitComparison, registerRun } from './runs.js';
+import { clearAllXYPlots } from './xy-plots.js';
 import { computeFilteredSignals, renderSignalList, renderVirtualList } from './signal-list.js';
 
 // =========================================================================
@@ -271,6 +272,7 @@ export async function activateLazySession(sessionId, filename, ephemeral) {
     S.unresolvedComputedVars = [];
 
     S.plots.slice().forEach(p => deletePlot(p.id));
+    clearAllXYPlots();
     // Purge les zones etendues residuelles d'un fichier precedent (photographiees avec
     // son espace de travail).
     clearBoolZones();
@@ -372,6 +374,7 @@ export async function changeSource() {
     
     // Efface les plots existants
     S.plots.slice().forEach(p => deletePlot(p.id));
+    clearAllXYPlots();
     // Purge les zones etendues residuelles d'une source precedente (photographiees avec
     // son espace de travail).
     clearBoolZones();

@@ -209,3 +209,15 @@ describe('verrou de l\'ecart entre curseurs', () => {
         expect(S.cursor2 - S.cursor1).toBe(30);
     });
 });
+
+describe('saisie d\'un temps de curseur', () => {
+    it('lit un nombre, avec virgule decimale ou suffixe s', async () => {
+        const { parseTimeInput } = await import('../src/eda/time-ruler.js');
+        expect(parseTimeInput('12.5')).toBe(12.5);
+        expect(parseTimeInput(' 12,5 s ')).toBe(12.5);
+        expect(parseTimeInput('-3e-3')).toBe(-0.003);
+        expect(parseTimeInput('abc')).toBe(null);
+        expect(parseTimeInput('')).toBe(null);
+        expect(parseTimeInput('1.2.3')).toBe(null);
+    });
+});

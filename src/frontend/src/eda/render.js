@@ -78,6 +78,25 @@ export async function fetchRawSignals(indices, sessionId = ectx.currentLazySessi
     return header;
 }
 
+// Series pleine resolution pour un consommateur hors du full-send des graphes temporels
+// (graphes X/Y). La requete est inscrite dans fullDataInFlight / fullDataRequests: un
+// signal deja en vol n'est pas redemande, et ensureFullData attend celle-ci au lieu d'en
+// lancer une seconde quand un graphe temporel trace le meme signal.
+export function requestRawSignals(indices) {
+    const requests = new Set(indices.filter(i => fullDataRequests.has(i)).map(i => fullDataRequests.get(i)));
+    const need = indices.filter(i => !fullDataInFlight.has(i));
+    if (need.length > 0) {
+        const request = fetchRawSignals(need);
+        const release = () => need.forEach(i => { fullDataInFlight.delete(i); fullDataRequests.delete(i); });
+        need.forEach(i => { fullDataInFlight.add(i); fullDataRequests.set(i, request); });
+        request.then(release, release);
+        requests.add(request);
+    }
+    return Promise.all(requests).then(responses => ({
+        signals: responses.flatMap(data => (data && data.signals) || []).filter(sig => indices.includes(sig.index)),
+    }));
+}
+
 // Diffère le full send jusqu'à l'inactivité du navigateur: le premier paint (vue décimée) et sa
 // requête /view passent en priorité; le GET pleine résolution démarre une fois l'affichage rendu.
 function scheduleFullData(plot) {

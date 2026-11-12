@@ -2,6 +2,7 @@
 // Module extrait de app.js (refactoring): voir src/eda/ARCHITECTURE.md
 
 import { S } from '../core/state.js';
+import { analysisCursorsChanged } from './analysis.js';
 import { resizePlotCharts } from './bootstrap.js';
 import { ectx } from './context.js';
 import { isSeriesSynth, seriesDescriptor } from './overlay.js';
@@ -11,6 +12,7 @@ import { effectiveRunOffset } from './runs.js';
 import { updateRulerCursors } from './time-ruler.js';
 import { effectiveCache } from './transforms.js';
 import { redoView, undoView } from './view-nav.js';
+import { updateXYCursors } from './xy-plots.js';
 
 // =========================================================================
 // Cursors
@@ -861,6 +863,8 @@ export function updateCursors() {
         else chart.redraw();
     });
     updateRulerCursors();
+    updateXYCursors();
+    analysisCursorsChanged();
 }
 
 export function syncCursorsAcrossTabs() {

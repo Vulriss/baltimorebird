@@ -81,7 +81,8 @@ export function mountTimeRuler(wrapper) {
     const deltaPill = document.createElement('button');
     deltaPill.type = 'button';
     deltaPill.className = 'ruler-delta-pill';
-    deltaPill.title = 'Verrouiller l\'écart (L) - glisser pour déplacer les deux curseurs';
+    deltaPill.title = 'Verrouiller l\'écart (L) - glisser pour déplacer les deux curseurs - '
+        + 'double-clic pour saisir l\'écart';
     deltaPill.setAttribute('aria-pressed', 'false');
     const deltaText = document.createElement('span');
     deltaText.className = 'ruler-delta-text';
@@ -100,6 +101,7 @@ export function mountTimeRuler(wrapper) {
         cursorEl.className = `ruler-cursor ${key.cls}`;
         const pill = document.createElement('div');
         pill.className = 'ruler-cursor-pill';
+        pill.title = 'Glisser pour déplacer - double-clic pour saisir le temps';
         cursorEl.appendChild(pill);
         track.appendChild(cursorEl);
         ruler.cursors.push({ ...key, el: cursorEl, pill });
@@ -435,11 +437,76 @@ function showDeltaSpan(ruler, x1, x2) {
     ruler.deltaLine.style.transform = transform;
 }
 
+// Nombre saisi dans un champ de la regle: virgule decimale et suffixe "s" acceptes.
+// null si le texte n'est pas un nombre.
+export function parseTimeInput(text) {
+    const cleaned = String(text).trim().replace(/s$/i, '').trim().replace(',', '.');
+    if (!/^[+-]?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?$/.test(cleaned)) return null;
+    return Number(cleaned);
+}
+
+// Champ de saisie pose sur une pastille (double-clic): Entree valide, Echap ou la perte du
+// focus annule. onCommit recoit le nombre saisi, en secondes.
+function editPillValue(ruler, anchor, value, label, onCommit) {
+    if (ruler.editor) ruler.editor.remove();
+    const trackRect = ruler.track.getBoundingClientRect();
+    const rect = anchor.getBoundingClientRect();
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.inputMode = 'decimal';
+    input.className = 'ruler-pill-input';
+    input.setAttribute('aria-label', label);
+    input.value = String(Number(value.toFixed(9)));
+    input.style.left = `${rect.left - trackRect.left}px`;
+    input.style.top = `${rect.top - trackRect.top}px`;
+    input.style.width = `${Math.max(rect.width, 96)}px`;
+    let done = false;
+    const close = () => {
+        if (done) return;
+        done = true;
+        ruler.editor = null;
+        input.remove();
+    };
+    // La piste se deplace par glisser: un clic dans le champ ne doit pas l'amorcer.
+    input.addEventListener('mousedown', e => e.stopPropagation());
+    input.addEventListener('dblclick', e => e.stopPropagation());
+    input.addEventListener('keydown', e => {
+        e.stopPropagation();
+        if (e.key === 'Escape') {
+            close();
+        } else if (e.key === 'Enter') {
+            const parsed = parseTimeInput(input.value);
+            if (parsed === null) {
+                input.classList.add('is-invalid');
+                return;
+            }
+            close();
+            onCommit(parsed);
+        }
+    });
+    input.addEventListener('input', () => input.classList.remove('is-invalid'));
+    input.addEventListener('blur', close);
+    ruler.editor = input;
+    ruler.track.appendChild(input);
+    input.focus();
+    input.select();
+}
+
 // Glisser la pastille deplace le curseur; Ctrl+clic le retire, comme sur son trait. Son
 // survol epaissit les traits du curseur dans les graphes, comme le survol d'un trait.
+// Double-clic: saisie du temps au clavier (le verrou de l'ecart entraine l'autre curseur).
 function wireCursorDrag(ruler, which, cursorEl, pill) {
     const hoverClass = `is-cursor-${which}-hovered`;
     let dragging = false;
+    pill.addEventListener('dblclick', e => {
+        e.stopPropagation();
+        const current = which === 1 ? S.cursor1 : S.cursor2;
+        if (current === null) return;
+        editPillValue(ruler, pill, current, `Temps du curseur ${which === 1 ? 'A' : 'B'} en secondes`, time => {
+            touchCursor(which);
+            moveCursorTo(which, time);
+        });
+    });
     pill.addEventListener('mouseenter', () => document.body.classList.add(hoverClass));
     pill.addEventListener('mouseleave', () => {
         if (!dragging) document.body.classList.remove(hoverClass);
@@ -492,6 +559,18 @@ function wireCursorDrag(ruler, which, cursorEl, pill) {
 function wireDeltaPill(ruler) {
     const pill = ruler.deltaPill;
     let dragged = false;
+
+    // Double-clic: saisie de l'ecart. Le curseur le plus tardif se cale sur le plus tot. Les
+    // deux clics qui le precedent basculent le verrou deux fois: il retrouve son etat.
+    pill.addEventListener('dblclick', e => {
+        e.stopPropagation();
+        if (S.cursor1 === null || S.cursor2 === null) return;
+        editPillValue(ruler, pill, Math.abs(S.cursor2 - S.cursor1), 'Écart entre les curseurs en secondes', gap => {
+            const span = Math.abs(gap);
+            if (S.cursor2 >= S.cursor1) setCursorPair(S.cursor1, S.cursor1 + span);
+            else setCursorPair(S.cursor2 + span, S.cursor2);
+        });
+    });
 
     pill.addEventListener('click', () => {
         // Le clic qui termine un glisser ne bascule pas le verrou.

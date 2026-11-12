@@ -49,7 +49,21 @@
                 Comparaisons: <code>&lt;</code> <code>&gt;</code> <code>&lt;=</code> <code>&gt;=</code> <code>==</code> (ou <code>=</code>) <code>!=</code> · Logique: <code>and</code> <code>or</code> <code>not</code><br>
                 Entre booléens: <code>A * B</code> = ET, <code>A + B</code> = OU · Une condition passe l'unité en <code>bool</code><br>
                 Rasters différents (ex. 10 Hz et 100 Hz): alignement automatique sur la voie la plus dense<br>
-                Fonctions: <code>abs()</code> <code>sqrt()</code> <code>sin()</code> <code>cos()</code> <code>log()</code> <code>exp()</code> <code>where(cond, x, y)</code>
+                Fonctions: <code>abs()</code> <code>sqrt()</code> <code>sin()</code> <code>cos()</code> <code>log()</code> <code>exp()</code> <code>where(cond, x, y)</code><br>
+                Table: <code>interp1d(A, [x0, x1, …], [y0, y1, …])</code> interpole A dans la table, bords tenus
+            </div>
+
+            <!-- Editeur de table pour interp1d (interp-table.js): ecrit l'appel dans la formule. -->
+            <div class="interp-helper">
+                <button type="button" class="interp-helper-btn interp-helper-toggle" id="interpHelperToggle" aria-expanded="false" aria-controls="interpHelperBody">Table d'interpolation…</button>
+                <div class="interp-helper-body" id="interpHelperBody" hidden>
+                    <label class="interp-helper-label" for="interpInput">Entrée à interpoler</label>
+                    <input type="text" class="interp-helper-input" id="interpInput" value="A" spellcheck="false">
+                    <label class="interp-helper-label" for="interpTable">Table : une ligne par point, x puis y (collez depuis un tableur)</label>
+                    <textarea class="interp-helper-table" id="interpTable" rows="6" spellcheck="false" placeholder="0&#9;0&#10;1000&#9;12.5&#10;3000&#9;48"></textarea>
+                    <div class="interp-helper-status" id="interpStatus" aria-live="polite"></div>
+                    <button type="button" class="interp-helper-btn interp-helper-apply" id="interpInsert">Insérer dans la formule</button>
+                </div>
             </div>
         </div>
         

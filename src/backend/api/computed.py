@@ -19,6 +19,59 @@ logger = logging.getLogger(__name__)
 
 computed_vars_bp = Blueprint("computed_vars", __name__)
 
+# Une table d'interpolation s'ecrit dans la formule meme: interp1d(A, [x0, x1], [y0, y1]).
+# Elle voyage donc partout ou va la formule (layout exporte, descripteur de session, LXF)
+# sans champ supplementaire a persister.
+FORMULA_MAX_LENGTH = 4000
+INTERP_MAX_POINTS = 500
+
+
+class LookupAxis(tuple):
+    """Axe d'une table d'interpolation: suite de nombres ecrite en litteral dans la formule.
+
+    Type distinct d'un tableau numpy pour que interp1d refuse tout autre argument, et pour
+    qu'une table ne puisse pas etre prise pour le resultat d'une formule.
+    """
+
+
+def interp1d(values: Any, x_points: Any, y_points: Any) -> Any:
+    """Interpolation lineaire de ``values`` dans la table (x_points, y_points).
+
+    Hors de la plage de la table, la valeur du bord le plus proche est tenue.
+
+    Args:
+        values: Signal (ou nombre) a interpoler.
+        x_points: Abscisses de la table, strictement croissantes.
+        y_points: Ordonnees de la table, autant que d'abscisses.
+
+    Returns:
+        Les valeurs interpolees, de meme forme que ``values``.
+
+    Raises:
+        ValueError: Si la table est mal formee.
+    """
+    if not isinstance(x_points, LookupAxis) or not isinstance(y_points, LookupAxis):
+        raise ValueError("interp1d attend une table: interp1d(A, [x0, x1, ...], [y0, y1, ...])")
+    if isinstance(values, LookupAxis):
+        raise ValueError("interp1d attend un signal en premier argument")
+    if len(x_points) != len(y_points):
+        raise ValueError("interp1d: la table doit avoir autant de x que de y")
+    if len(x_points) < 2:
+        raise ValueError("interp1d: la table doit avoir au moins 2 points")
+    if len(x_points) > INTERP_MAX_POINTS:
+        raise ValueError(f"interp1d: table trop longue (max {INTERP_MAX_POINTS} points)")
+    xp = np.asarray(x_points, dtype=np.float64)
+    fp = np.asarray(y_points, dtype=np.float64)
+    if not (np.all(np.isfinite(xp)) and np.all(np.isfinite(fp))):
+        raise ValueError("interp1d: la table ne doit contenir que des nombres finis")
+    if np.any(np.diff(xp) <= 0):
+        raise ValueError("interp1d: les x de la table doivent être strictement croissants")
+    return np.interp(np.asarray(values, dtype=np.float64), xp, fp)
+
+
+# Fonctions dont les arguments peuvent etre des tables litterales.
+TABLE_FUNCTIONS = frozenset({"interp1d"})
+
 ALLOWED_FUNCTIONS: Dict[str, Any] = {
     "abs": np.abs, "sqrt": np.sqrt, "cbrt": np.cbrt, "square": np.square,
     "exp": np.exp, "log": np.log, "log10": np.log10, "log2": np.log2,
@@ -33,6 +86,7 @@ ALLOWED_FUNCTIONS: Dict[str, Any] = {
     "logical_and": np.logical_and, "logical_or": np.logical_or,
     "logical_not": np.logical_not, "logical_xor": np.logical_xor,
     "where": np.where,
+    "interp1d": interp1d,
 }
 
 FORBIDDEN_PATTERNS: List[str] = [
@@ -53,8 +107,8 @@ FORMULA_MAX_EXPONENT = 1000
 def validate_formula(formula: str) -> Tuple[bool, Optional[str]]:
     if not formula or not formula.strip():
         return False, "La formule ne peut pas être vide"
-    if len(formula) > 500:
-        return False, "La formule est trop longue (max 500 caractères)"
+    if len(formula) > FORMULA_MAX_LENGTH:
+        return False, f"La formule est trop longue (max {FORMULA_MAX_LENGTH} caractères)"
     for pattern in FORBIDDEN_PATTERNS:
         if re.search(pattern, formula, re.IGNORECASE):
             return False, "Expression non autorisée dans la formule"
@@ -226,7 +280,21 @@ class SafeExpressionEvaluator:
             return self._eval_compare(node, namespace)
         if isinstance(node, ast.Call):
             return self._eval_call(node, namespace)
+        if isinstance(node, (ast.List, ast.Tuple)):
+            raise UnsafeExpressionError("Une table n'est admise que comme argument de interp1d")
         raise UnsafeExpressionError(f"Expression non autorisee: {type(node).__name__}")
+
+    def _eval_table(self, node: ast.expr, namespace: Dict[str, Any]) -> LookupAxis:
+        """Evalue un litteral de table: une liste de nombres, rien d'autre."""
+        if len(node.elts) > INTERP_MAX_POINTS:
+            raise UnsafeExpressionError(f"Table trop longue (max {INTERP_MAX_POINTS} points)")
+        numbers: List[float] = []
+        for element in node.elts:
+            value = self._eval(element, namespace)
+            if isinstance(value, bool) or not isinstance(value, (int, float)):
+                raise UnsafeExpressionError("Une table ne contient que des nombres")
+            numbers.append(float(value))
+        return LookupAxis(numbers)
 
     def _eval_compare(self, node: ast.Compare, namespace: Dict[str, Any]) -> Any:
         # _LogicalTransformer reduit deja les comparaisons chainees; on traite le cas
@@ -254,7 +322,14 @@ class SafeExpressionEvaluator:
             raise UnsafeExpressionError("Le deballage d'arguments positionnels est interdit")
         if any(keyword.arg is None for keyword in node.keywords):
             raise UnsafeExpressionError("Le deballage de mots-cles est interdit")
-        args = [self._eval(arg, namespace) for arg in node.args]
+        if name in TABLE_FUNCTIONS:
+            args = [
+                self._eval_table(arg, namespace) if isinstance(arg, (ast.List, ast.Tuple))
+                else self._eval(arg, namespace)
+                for arg in node.args
+            ]
+        else:
+            args = [self._eval(arg, namespace) for arg in node.args]
         kwargs = {keyword.arg: self._eval(keyword.value, namespace) for keyword in node.keywords}
         return func(*args, **kwargs)
 
@@ -289,6 +364,8 @@ def compute_formula(
         result = _EVALUATOR.evaluate(tree, namespace)
 
         # bool est un sous-type d'int; np.bool_/np.float64 scalaires passent par np.generic.
+        if isinstance(result, LookupAxis):
+            raise ValueError("Une table seule n'est pas une formule")
         if isinstance(result, (int, float, np.generic)):
             result = np.full(len(reference_timestamps), float(result), dtype=np.float64)
         elif not isinstance(result, np.ndarray):

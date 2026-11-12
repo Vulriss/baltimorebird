@@ -3,6 +3,7 @@ import { purgeExtendedZonesForPlots } from './bool-zones.js';
 import { ectx } from './context.js';
 import { updateCursors } from './cursors.js';
 import { destroyTimeRuler, mountTimeRuler } from './time-ruler.js';
+import { destroyXYPlots, mountXYDock, renderXYPlots } from './xy-plots.js';
 
 // Identifiant de l'onglet en cours de deplacement. Distinct de S.draggedSignal: les zones
 // de drop de signaux et le reordonnancement d'onglets s'ignorent mutuellement.
@@ -96,14 +97,26 @@ function createTab(name = null, activate = true) {
     const tabContent = document.createElement('div');
     tabContent.className = 'tab-content';
     tabContent.id = `content-${id}`;
+    // Graphes temporels a gauche, dock des graphes X/Y a droite (xy-plots.js), masque tant
+    // qu'il est vide. La zone "+ Graphe X/Y" suit la zone de depot: elle s'allume avec elle
+    // (selecteur de voisin, _xy.scss).
     tabContent.innerHTML = `
-        <div class="plots-wrapper" id="plotsWrapper-${id}">
-            <div class="empty-plot" id="emptyPlot-${id}">Glissez un signal ici pour créer un graphique</div>
+        <div class="tab-main">
+            <div class="plots-wrapper" id="plotsWrapper-${id}">
+                <div class="empty-plot" id="emptyPlot-${id}">Glissez un signal ici pour créer un graphique</div>
+            </div>
+            <div class="xy-dock-splitter" hidden></div>
+            <div class="xy-dock" id="xyDock-${id}" hidden></div>
         </div>
-        <div class="drop-zone" id="dropZone-${id}">+ Nouveau graphique</div>
+        <div class="tab-drop-row">
+            <div class="drop-zone" id="dropZone-${id}">+ Nouveau graphique</div>
+            <button type="button" class="drop-zone xy-drop-zone" id="xyDropZone-${id}"
+                title="Déposez deux signaux (le premier porte l'axe X), ou cliquez pour un graphe vide">+ Graphe X/Y</button>
+        </div>
     `;
     plotsArea.appendChild(tabContent);
     mountTimeRuler(document.getElementById(`plotsWrapper-${id}`));
+    mountXYDock(id);
 
     // Setup drop zones for this tab
     setupTabDropZones(id);
@@ -240,6 +253,9 @@ function switchTab(tabId) {
         }
     }
 
+    // Les graphes X/Y de l'onglet suivent la fenetre courante (xy-plots.js).
+    renderXYPlots();
+
     // Update tab buttons
     renderTabs();
     
@@ -261,6 +277,7 @@ function closeTab(tabId) {
         });
         tab.plots = [];
         S.plots = [];
+        destroyXYPlots(tab);
         
         const wrapper = document.getElementById(`plotsWrapper-${tabId}`);
         if (wrapper) {
@@ -281,6 +298,8 @@ function closeTab(tabId) {
         });
     }
     
+    destroyXYPlots(tab);
+
     // Remove tab content
     destroyTimeRuler(document.getElementById(`plotsWrapper-${tabId}`));
     const tabContent = document.getElementById(`content-${tabId}`);

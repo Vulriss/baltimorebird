@@ -8,6 +8,7 @@ import { canRenderFromCache } from './data-views.js';
 import { renderCommentPlot } from './events-strip.js';
 import { fetchAndRenderPlot, renderBoolPlot } from './render.js';
 import { renderPlotFromCacheFiltered } from './transforms.js';
+import { renderXYPlots } from './xy-plots.js';
 
 // Historique des niveaux de zoom/vue. recordViewChange() memorise l'etat courant
 // avant un changement (zoom ou pan) et invalide le redo. undoView()/redoView()
@@ -43,6 +44,7 @@ export function redoView() {
 
 export function refreshAllPlots() {
     S.plots.forEach(plot => fetchAndRenderPlot(plot));
+    renderXYPlots();
     scheduleAnalysisRefresh();
 }
 
@@ -56,6 +58,8 @@ export function panPlotsScaleOnly() {
     for (const plot of S.plots) {
         if (plot.chart) plot.chart.setScale('x', { min: ectx.globalView.min, max: ectx.globalView.max });
     }
+    // Les graphes X/Y n'ont pas d'axe du temps a translater: rendu allege par frame.
+    renderXYPlots({ fast: true });
 }
 
 // Un panneau n'est rendu que s'il appartient a l'onglet affiche. Les chemins
@@ -87,6 +91,7 @@ export function applyGlobalViewLocal() {
             fetchAndRenderPlot(plot);
         }
     });
+    renderXYPlots();
     scheduleAnalysisRefresh();
 }
 

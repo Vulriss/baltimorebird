@@ -8,13 +8,14 @@ import { API, ectx } from './context.js';
 import { maybeApplyDeepLink, readDeepLinkFromUrl } from './deeplink.js';
 import { loadLegendWidth } from './legend-width.js';
 import { setFileStats, setupFileInfo } from './file-info.js';
-import { deletePlot } from './plot-legend.js';
+import { deletePlot, updateSignalActiveStates } from './plot-legend.js';
 import { comparedAcquisitionRange } from './runs.js';
 import { changeSource, loadSources, restoreEphemeralSession, updateSourceSelector } from './sessions.js';
 import { setupSidebarSplitter } from './sidebar.js';
 import { computeFilteredSignals, renderSignalList, renderVirtualList } from './signal-list.js';
 import { setupToolbar } from './toolbar.js';
 import { refreshAllPlots } from './view-nav.js';
+import { activeXYPlots, destroyXYPlots, resetXYRanges } from './xy-plots.js';
 
 // =========================================================================
 // Init
@@ -219,6 +220,10 @@ function setupEventListeners() {
     if (clearBtn && !clearBtn._listenerAdded) {
         clearBtn.addEventListener('click', () => {
             S.plots.slice().forEach(p => deletePlot(p.id));
+            if (activeXYPlots().length) {
+                destroyXYPlots(S.tabs.find(t => t.id === S.activeTabId));
+                updateSignalActiveStates();
+            }
             // Plus rien a l'ecran: le layout charge n'a plus de sens comme cible de
             // mise a jour (le prochain enregistrement creera une nouvelle entree).
             if (typeof window.clearCurrentLayout === 'function') window.clearCurrentLayout();
@@ -235,6 +240,7 @@ function setupEventListeners() {
 // de demo). En comparaison, ramener a l'union des runs (decalages inclus).
 export function resetView() {
     S.plots.forEach(p => { p.yRange = null; });
+    resetXYRanges();
     ectx.viewHistory = [];
     ectx.redoStack = [];
     ectx.globalView = comparedAcquisitionRange() || { ...ectx.acquisitionView };

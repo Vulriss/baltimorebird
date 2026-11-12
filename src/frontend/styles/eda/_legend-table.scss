@@ -338,6 +338,55 @@ $lt-cell-pad: calc(#{$spacing-2} + 2px);
     font-family: 'JetBrains Mono', monospace;
 }
 
+/* Corps du graphe: a la taille demandee des le glissement, le graphe deja dessine y est
+   etire par une transformation jusqu'a son redessin (analysis.js). */
+.analysis-popover-body {
+    overflow: hidden;
+
+    .uplot { transform-origin: 0 0; }
+}
+
+.analysis-popover.is-resizing .analysis-popover-body .uplot { will-change: transform; }
+
+/* Portee de l'analyse: tout, visible, entre curseurs. */
+.analysis-popover-scopes {
+    display: inline-flex;
+    border: 1px solid $border-color;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.analysis-popover-scope {
+    height: 20px;
+    padding: 0 8px;
+    background: transparent;
+    border: none;
+    border-left: 1px solid $border-color;
+    color: $text-secondary;
+    font-size: 11px;
+    cursor: pointer;
+
+    &:first-child { border-left: none; }
+
+    &:hover:not(:disabled):not(.is-active) { color: $text-primary; }
+
+    &:focus-visible {
+        outline: 1px solid $color-accent;
+        outline-offset: -1px;
+    }
+
+    &.is-active {
+        background: $color-accent-subtle;
+        color: $color-accent;
+    }
+
+    &:disabled {
+        background: transparent;
+        opacity: 0.4;
+        cursor: default;
+    }
+}
+
 .analysis-popover-btn {
     height: 22px;
     padding: 0 8px;

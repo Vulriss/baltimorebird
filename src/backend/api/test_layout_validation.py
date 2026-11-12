@@ -62,7 +62,7 @@ def test_rejects_malformed_source_signals() -> None:
 
 def test_rejects_oversized_entries() -> None:
     assert not _validate_computed_variables([_cv(name="x" * 101)])[0]
-    assert not _validate_computed_variables([_cv(formula="A + " * 200)])[0]
+    assert not _validate_computed_variables([_cv(formula="A + " * 2000)])[0]
     assert not _validate_computed_variables([_cv(description="d" * 5000)])[0]
     assert not _validate_computed_variables([_cv(source_signals=["s"] * 27)])[0]
     assert not _validate_computed_variables([_cv(name=f"v{i}") for i in range(LAYOUT_MAX_COMPUTED_VARIABLES + 1)])[0]

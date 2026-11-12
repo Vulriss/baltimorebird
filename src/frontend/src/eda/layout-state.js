@@ -16,6 +16,7 @@ import { renderSignalList } from './signal-list.js';
 import { destroyTimeRuler } from './time-ruler.js';
 import { SIGNAL_TRANSFORMS, renderPlotFromCacheFiltered } from './transforms.js';
 import { applyGlobalViewLocal, refreshAllPlots } from './view-nav.js';
+import { destroyXYPlots, exportXYPlots, restoreXYPlot } from './xy-plots.js';
 
 // =========================================================================
 // Layout Save/Load System
@@ -93,7 +94,7 @@ export function exportCurrentLayout() {
         
         return {
             name: tab.name,
-            plots: tabPlots
+            plots: tabPlots.concat(exportXYPlots(tab))
         };
     });
     
@@ -130,6 +131,11 @@ function buildTabPlots(tabId, plotsSpec) {
     S.signalsInfo.forEach(sig => { nameToIndex[sig.name] = sig.index; });
 
     for (const layoutPlot of plotsSpec) {
+        // Graphe X/Y: panneau du dock lateral, hors de la pile des graphes temporels.
+        if (layoutPlot.kind === 'xy') {
+            restoreXYPlot(tabId, layoutPlot);
+            continue;
+        }
         const normalSigs = [];
         const boolSigs = [];
         const eventSigs = [];
@@ -325,6 +331,7 @@ export async function applyLayout(layout, activeIndex = 0) {
                 if (p.chart) p.chart.destroy();
             });
         }
+        destroyXYPlots(tab);
         // Supprimer le contenu DOM de ce tab
         destroyTimeRuler(document.getElementById(`plotsWrapper-${id}`));
         const tabContent = document.getElementById(`content-${id}`);

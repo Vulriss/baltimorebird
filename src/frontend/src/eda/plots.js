@@ -13,6 +13,7 @@ import { addOverlaySeries, isSeriesSynth, plotHasSynth } from './overlay.js';
 import { cleanupExtendedZones, deletePlot, deletePlotInTab, updatePlotHeader, updateSignalActiveStates } from './plot-legend.js';
 import { autoScaleY, exitSolo, plotIconSvg, renderPlotFromCache, soloPlot, toggleSoloPlot, toggleYLock } from './plot-ui.js';
 import { fetchAndRenderPlot } from './render.js';
+import { activeXYPlots } from './xy-plots.js';
 
 // Redimensionne tous les graphes a la taille actuelle de leur conteneur.
 export function resizeAllChartsNow() {
@@ -646,7 +647,10 @@ function adaptSignalUnit(plot, signalIndex) {
 function assignPresetColor(plot, idx) {
     if (isSeriesSynth(idx) || plot.signalStyles?.[idx]) return;
     if (!plot.signalStyles) plot.signalStyles = {};
-    plot.signalStyles[idx] = { color: presetColorForSignal(S.plots, plot, idx), width: 1.5, dash: '' };
+    // Les graphes X/Y de l'onglet comptent aussi: un signal garde sa couleur d'une vue a
+    // l'autre, et une case deja prise par une trajectoire n'est pas redonnee.
+    const tabPlots = [...S.plots, ...activeXYPlots()];
+    plot.signalStyles[idx] = { color: presetColorForSignal(tabPlots, plot, idx), width: 1.5, dash: '' };
 }
 
 export function addSignalToPlot(plotId, signalIndex) {

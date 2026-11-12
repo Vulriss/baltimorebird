@@ -121,6 +121,27 @@ $ruler-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
     }
 }
 
+// Champ de saisie d'un temps de curseur ou de l'ecart (double-clic sur une pastille),
+// pose par-dessus elle (time-ruler.js: editPillValue).
+.ruler-pill-input {
+    position: absolute;
+    z-index: 6;
+    height: $ruler-pill-height;
+    padding: 0 5px;
+    border: 1px solid $color-accent;
+    border-radius: 4px;
+    background: var(--cursor-label-bg);
+    color: $text-primary;
+    font-size: $font-size-sm;
+    font-family: monospace;
+    line-height: $ruler-pill-height - 2px;
+    cursor: text;
+
+    &:focus { outline: none; }
+
+    &.is-invalid { border-color: $ctp-red; }
+}
+
 .ruler-cursor-pill {
     position: absolute;
     top: $ruler-pill-top;
