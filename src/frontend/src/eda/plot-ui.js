@@ -12,13 +12,14 @@ import { plotHasSynth, renderOverlayFromCache } from './overlay.js';
 import { autoEnableExtendedZones, updatePlotHeader } from './plot-legend.js';
 import { colorWithOpacity } from './plots.js';
 import { assembleAlignedData, renderBoolPlot } from './render.js';
-import { timeAxisSpace, timeAxisValues } from './time-axis.js';
+import { timeAxisSpace } from './time-axis.js';
+import { rulerSyncPlugin } from './time-ruler.js';
 import { traceEnvelope } from './trace-envelope.js';
 import {
     SIGNAL_TRANSFORMS, commitPendingRender, effectiveCache, groupedWindowedViews, renderPlotFromCacheFiltered,
     signalTransform,
 } from './transforms.js';
-import { applyGlobalViewLocal, panPlotsScaleOnly, recordViewChange, refreshAllPlots } from './view-nav.js';
+import { recordViewChange, refreshAllPlots } from './view-nav.js';
 
 // =========================================================================
 // uPlot Options Factory
@@ -253,39 +254,30 @@ export function buildBands(series, data) {
 // et donc que les axes X restent alignes verticalement entre panneaux.
 export const Y_AXIS_SIZE = 50;
 
-// Padding droit fixe et identique sur TOUS les panneaux. Sans cela, le panneau
-// du bas (axe temporel visible) reserve a droite la place de la derniere
-// etiquette, tandis que ceux du haut (axe X masque) n'en reservent pas: leurs
-// zones de trace n'auraient pas la meme longueur.
-// Padding interne uPlot [haut, droite, bas, gauche]. Valeurs serrees pour maximiser la
-// zone de trace (u-under): haut, droite et bas reduits a 4px (le bas garde l'auto sur le
-// dernier panneau, qui porte l'axe temps). Gauche laisse en auto (gouttiere Y_AXIS_SIZE).
+// Padding interne uPlot [haut, droite, bas, gauche], fixe et identique sur TOUS les
+// panneaux pour que leurs zones de trace aient la meme longueur. Valeurs serrees pour
+// maximiser la zone de trace (u-under): haut, droite et bas reduits a 4px (la graduation
+// du temps est portee par la regle de l'onglet, time-ruler.js). Gauche laisse en auto
+// (gouttiere Y_AXIS_SIZE).
 export const PLOT_PAD_TOP = 4;
 
 export const PLOT_PAD_RIGHT = 4;
 
 export const PLOT_PAD_BOTTOM = 4;
 
-// Vrai si le panneau est le dernier (le plus bas) de l'onglet courant.
-// Axe temporel et bandeau de legende sont portes par le dernier / le premier
-// panneau. En mode solo, un seul panneau est visible: c'est lui qui doit porter
-// les deux, sinon un panneau du milieu se retrouverait sans axe des temps.
-export function isLastPlot(plot) {
-    const solo = soloPlot();
-    if (solo) return solo.id === plot.id;
-    return S.plots.length > 0 && S.plots[S.plots.length - 1].id === plot.id;
-}
-
+// Vrai si le panneau est le premier (le plus haut) de l'onglet courant, qui porte le
+// bandeau de legende. En mode solo, un seul panneau est visible: c'est lui qui doit le
+// porter.
 export function isFirstPlot(plot) {
     const solo = soloPlot();
     if (solo) return solo.id === plot.id;
     return S.plots.length > 0 && S.plots[0].id === plot.id;
 }
 
-// Re-rendu d'un panneau depuis le cache courant (sans appel serveur) pour
-// reappliquer la visibilite de l'axe temporel quand il devient (ou cesse d'etre)
-// le dernier. La vue ne change pas, donc le cache courant suffit, meme si les
-// signaux sont incomplets (on ne passe pas par canRenderFromCache).
+// Re-rendu d'un panneau depuis le cache courant (sans appel serveur), apres un
+// changement de structure (ordre des signaux, sortie du mode solo). La vue ne change
+// pas, donc le cache courant suffit, meme si les signaux sont incomplets (on ne passe
+// pas par canRenderFromCache).
 export function rerenderPlotFromCache(plot) {
     if (!plot || plot.signals.length === 0) return;
     if (plot.isCommentPlot) { renderCommentPlot(plot); return; }
@@ -304,21 +296,11 @@ export function themeChartColors() {
     };
 }
 
-// Configuration de l'axe X. L'axe temporel n'est affiche que sur le panneau du
-// bas: les autres ne gardent que la grille verticale (sans graduations ni
-// gouttiere) pour ne pas dupliquer les etiquettes et gagner de la hauteur.
-// Libelles et espacement adaptatifs: voir time-axis.js. space est commun aux deux
-// variantes pour que les grilles restent alignees entre panneaux.
-export function xAxisConfig(showTimeAxis) {
-    if (showTimeAxis) {
-        return {
-            stroke: () => themeChartColors().axis,
-            grid: { stroke: () => themeChartColors().grid, width: 1 },
-            size: 40,
-            space: timeAxisSpace,
-            values: timeAxisValues,
-        };
-    }
+// Configuration de l'axe X des panneaux: grille verticale seule, sans graduations ni
+// gouttiere. La graduation est portee une seule fois par la regle de temps de l'onglet
+// (time-ruler.js), avec le meme espacement (time-axis.js): memes graduations, donc
+// grilles alignees sur la regle et entre panneaux.
+export function xAxisConfig() {
     return {
         space: timeAxisSpace,
         grid: { stroke: () => themeChartColors().grid, width: 1 },
@@ -346,7 +328,7 @@ function renderSignature(plot, series) {
     // un simple setData, pas une reconstruction. Seule la structure visuelle compte.
     // spanGaps fait partie de la structure: une serie alignee par union-X (trous null a
     // combler) ne peut pas etre rejouee via setData sur un chart construit sans spanGaps.
-    return `${isLastPlot(plot)}#${plot.signals.join(',')}#${cols.join('|')}`;
+    return `${plot.signals.join(',')}#${cols.join('|')}`;
 }
 
 // Applique series/donnees au graphe. Tant que la structure visuelle est inchangee
@@ -370,7 +352,7 @@ export function commitPlotRender(plot, series, uplotData, bands) {
     const width = bodyDiv.clientWidth || 800;
     const height = bodyDiv.clientHeight || 180;
     plot.chart = new uPlot(
-        buildPlotOptions(series, width, height, plot, bands && bands.length ? bands : null, isLastPlot(plot)),
+        buildPlotOptions(series, width, height, plot, bands && bands.length ? bands : null),
         uplotData, chartDiv
     );
     plot._renderSig = sig;
@@ -464,7 +446,6 @@ export function toggleSoloPlot(plot) {
     const wrapper = document.getElementById(`plotsWrapper-${plot.tabId}`);
     const entering = !plot._solo;
     const prevFirst = S.plots[0];
-    const prevLast = S.plots[S.plots.length - 1];
 
     S.plots.forEach(p => {
         p._solo = false;
@@ -478,11 +459,11 @@ export function toggleSoloPlot(plot) {
     }
     if (wrapper) wrapper.classList.toggle('has-solo', entering);
 
-    // Le bandeau de legende (premier panneau) et l'axe temporel (dernier) suivent
-    // le panneau seul affiche: isFirstPlot/isLastPlot tiennent compte du solo, il
-    // suffit de reconstruire les panneaux dont le statut a pu changer.
+    // Le bandeau de legende (premier panneau) suit le panneau seul affiche:
+    // isFirstPlot tient compte du solo, il suffit de reconstruire les panneaux dont le
+    // statut a pu changer.
     S.plots.forEach(p => updateSoloButton(p));
-    const touched = new Set([plot, prevFirst, prevLast].filter(Boolean));
+    const touched = new Set([plot, prevFirst].filter(Boolean));
     touched.forEach(p => updatePlotHeader(p));
     touched.forEach(p => { if (!p.element.classList.contains('plot-hidden-by-solo')) rerenderPlotFromCache(p); });
 
@@ -534,10 +515,9 @@ function autoYRangeForTrace(u, dataMin, dataMax) {
     return envelope ? autoYRange(envelope.min, envelope.max) : autoYRange(dataMin, dataMax);
 }
 
-// Pan des axes facon demo uPlot "Draggable y scales": glisser sur la gouttiere de
-// l'axe X (sous la zone de trace) translate la fenetre temporelle globale (partagee
-// par tous les panneaux); glisser sur la gouttiere de l'axe Y (a gauche) translate
-// l'echelle Y du panneau. La zone de trace conserve le zoom par selection.
+// Pan de l'axe Y facon demo uPlot "Draggable y scales": glisser sur la gouttiere de
+// l'axe Y (a gauche) translate l'echelle Y du panneau. La zone de trace conserve le
+// zoom par selection; le pan de la fenetre temporelle se fait sur la regle de temps.
 export function axisDragPlugin() {
     return {
         hooks: {
@@ -545,54 +525,32 @@ export function axisDragPlugin() {
                 const plot = S.plots.find(p => p.chart === u);
                 if (!plot) return;
                 let drag = null;
-                let rafPending = false;
 
                 const onMove = e => {
                     if (!drag) return;
-                    if (drag.axis === 'x') {
-                        const shift = -(e.clientX - drag.startX) * drag.uppX;
-                        if (!drag.moved && shift !== 0) {
-                            recordViewChange();
-                            drag.moved = true;
-                        }
-                        ectx.globalView = { min: drag.xMin + shift, max: drag.xMax + shift };
-                        if (!rafPending) {
-                            rafPending = true;
-                            requestAnimationFrame(() => { rafPending = false; panPlotsScaleOnly(); });
-                        }
-                    } else {
-                        const shift = (e.clientY - drag.startY) * drag.uppY;
-                        plot.yRange = { min: drag.yMin + shift, max: drag.yMax + shift };
-                        u.setScale('y', { min: plot.yRange.min, max: plot.yRange.max });
-                    }
+                    const shift = (e.clientY - drag.startY) * drag.uppY;
+                    plot.yRange = { min: drag.yMin + shift, max: drag.yMax + shift };
+                    u.setScale('y', { min: plot.yRange.min, max: plot.yRange.max });
                 };
 
                 const onUp = () => {
-                    const needsResolve = !!(drag && drag.axis === 'x' && drag.moved);
                     drag = null;
                     document.body.style.cursor = '';
                     window.removeEventListener('mousemove', onMove);
                     window.removeEventListener('mouseup', onUp);
-                    // Fin du pan X: rendu propre (re-decimation pleine qualite, cadrage Y,
-                    // strips) a la vue finale, apres les setScale legers du glissement.
-                    if (needsResolve) applyGlobalViewLocal();
                 };
 
                 u.root.addEventListener('mousedown', e => {
                     if (e.button !== 0) return;
                     const r = u.over.getBoundingClientRect();
-                    const onX = e.clientY > r.bottom && e.clientX >= r.left && e.clientX <= r.right;
                     const onY = e.clientX < r.left && e.clientY >= r.top && e.clientY <= r.bottom;
-                    if (!onX && !onY) return;            // zone de trace: zoom-selection inchange
-                    if (onY && plot.isBoolPlot) return;  // Y fixe (lanes) sur les panneaux booleens
+                    if (!onY) return;              // zone de trace: zoom-selection inchange
+                    if (plot.isBoolPlot) return;   // Y fixe (lanes) sur les panneaux booleens
 
                     e.preventDefault();
                     drag = {
-                        axis: onX ? 'x' : 'y', moved: false,
-                        startX: e.clientX, startY: e.clientY,
-                        xMin: ectx.globalView.min, xMax: ectx.globalView.max,
+                        startY: e.clientY,
                         yMin: u.scales.y.min, yMax: u.scales.y.max,
-                        uppX: (ectx.globalView.max - ectx.globalView.min) / r.width,
                         uppY: (u.scales.y.max - u.scales.y.min) / r.height,
                     };
                     document.body.style.cursor = 'grabbing';
@@ -639,14 +597,14 @@ export function wheelZoomYPlugin() {
     };
 }
 
-function buildPlotOptions(series, width, height, plot, bands = null, showTimeAxis = true) {
+function buildPlotOptions(series, width, height, plot, bands = null) {
     return {
         width,
         height,
         legend: { show: false },
         series,
         bands: bands && bands.length ? bands : undefined,
-        padding: [PLOT_PAD_TOP, PLOT_PAD_RIGHT, showTimeAxis ? null : PLOT_PAD_BOTTOM, null],
+        padding: [PLOT_PAD_TOP, PLOT_PAD_RIGHT, PLOT_PAD_BOTTOM, null],
         scales: {
             x: { time: false, range: () => [ectx.globalView.min, ectx.globalView.max] },
             // Borne Y lue en direct sur plot.yRange: bornee si zoom Y, auto sinon.
@@ -655,12 +613,12 @@ function buildPlotOptions(series, width, height, plot, bands = null, showTimeAxi
                 : autoYRangeForTrace(u, dataMin, dataMax)) },
         },
         axes: [
-            xAxisConfig(showTimeAxis),
+            xAxisConfig(),
             { stroke: () => themeChartColors().axis, grid: { stroke: () => themeChartColors().grid, width: 1 }, size: Y_AXIS_SIZE },
         ],
         cursor: { drag: { ...PLOT_CURSOR_DRAG }, points: { show: false } },
         hooks: { setSelect: [zoomToSelection] },
-        plugins: [boolZonesPlugin(), cursorPlugin(), axisDragPlugin(), wheelZoomYPlugin()],
+        plugins: [boolZonesPlugin(), cursorPlugin(), axisDragPlugin(), wheelZoomYPlugin(), rulerSyncPlugin()],
     };
 }
 

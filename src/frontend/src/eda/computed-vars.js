@@ -5,9 +5,12 @@ import { S } from '../core/state.js';
 import { activateDialog, deactivateDialog } from '../core/dialog-a11y.js';
 import { API, ectx } from './context.js';
 import { invalidateSignalCaches } from './data-views.js';
+import { setFileStats } from './file-info.js';
+import { findInterpCall, formatInterpCall, parseInterpTable, tableToText } from './interp-table.js';
 import { fetchAndRenderPlot } from './render.js';
 import { escapeHtml } from './shared-dom.js';
 import { renderSignalList } from './signal-list.js';
+import { invalidateXYSignal } from './xy-plots.js';
 
 // =========================================================================
 // Create Computed Variable (Drawer)
@@ -177,6 +180,7 @@ function resetCreateVariableForm() {
     }
     if (descInput) descInput.value = '';
     if (formulaInput) formulaInput.value = '';
+    closeInterpHelper();
     
     // Reset mappings
     variableMappings = {};
@@ -328,6 +332,106 @@ document.addEventListener('input', (e) => {
     const id = e.target && e.target.id;
     if (id === 'newVarFormula') maybeAutoSetBoolUnit();
     else if (id === 'newVarUnit') delete e.target.dataset.autoBool;
+});
+
+// =========================================================================
+// Editeur de table d'interpolation (interp1d)
+// =========================================================================
+// Appel interp1d charge dans l'editeur: remplace a l'insertion s'il est toujours dans la
+// formule, sinon l'appel est insere a la position du curseur.
+let loadedInterpCall = null;
+
+function interpElements() {
+    return {
+        toggle: document.getElementById('interpHelperToggle'),
+        body: document.getElementById('interpHelperBody'),
+        input: document.getElementById('interpInput'),
+        table: document.getElementById('interpTable'),
+        status: document.getElementById('interpStatus'),
+        formula: document.getElementById('newVarFormula'),
+    };
+}
+
+function closeInterpHelper() {
+    const el = interpElements();
+    loadedInterpCall = null;
+    if (!el.body) return;
+    el.body.hidden = true;
+    if (el.toggle) el.toggle.setAttribute('aria-expanded', 'false');
+    if (el.table) el.table.value = '';
+    if (el.input) el.input.value = 'A';
+    if (el.status) el.status.textContent = '';
+}
+
+function updateInterpStatus() {
+    const el = interpElements();
+    if (!el.status || !el.table) return null;
+    if (!el.table.value.trim()) {
+        el.status.textContent = '';
+        el.status.classList.remove('is-error');
+        return null;
+    }
+    const parsed = parseInterpTable(el.table.value);
+    el.status.classList.toggle('is-error', !!parsed.error);
+    el.status.textContent = parsed.error
+        || `${parsed.x.length} points, x de ${parsed.x[0]} à ${parsed.x[parsed.x.length - 1]}`;
+    return parsed;
+}
+
+function toggleInterpHelper() {
+    const el = interpElements();
+    if (!el.body) return;
+    if (!el.body.hidden) {
+        closeInterpHelper();
+        return;
+    }
+    el.body.hidden = false;
+    el.toggle.setAttribute('aria-expanded', 'true');
+    // Une table deja presente dans la formule se rouvre pour etre corrigee.
+    const existing = findInterpCall(el.formula ? el.formula.value : '');
+    loadedInterpCall = existing ? existing.text : null;
+    if (existing) {
+        el.input.value = existing.input;
+        el.table.value = tableToText(existing.x, existing.y);
+    }
+    updateInterpStatus();
+    el.table.focus();
+}
+
+function insertInterpCall() {
+    const el = interpElements();
+    if (!el.formula || !el.table) return;
+    const parsed = parseInterpTable(el.table.value);
+    const input = el.input.value.trim();
+    if (parsed.error || !input) {
+        el.status.classList.add('is-error');
+        el.status.textContent = parsed.error || 'Indiquez l\'entrée à interpoler (ex. A)';
+        return;
+    }
+    const call = formatInterpCall(input, parsed.x, parsed.y);
+    const formula = el.formula.value;
+    if (loadedInterpCall && formula.includes(loadedInterpCall)) {
+        el.formula.value = formula.replace(loadedInterpCall, () => call);
+    } else {
+        const at = typeof el.formula.selectionStart === 'number' ? el.formula.selectionStart : formula.length;
+        el.formula.value = formula.slice(0, at) + call + formula.slice(el.formula.selectionEnd ?? at);
+    }
+    // Resolveur d'unite et autres ecouteurs de la formule.
+    el.formula.dispatchEvent(new Event('input', { bubbles: true }));
+    closeInterpHelper();
+    el.formula.focus();
+}
+
+// Delegation au document, comme le resolveur d'unite: le drawer est injecte apres initEDA.
+document.addEventListener('click', (e) => {
+    const target = e.target && e.target.closest ? e.target.closest('#interpHelperToggle, #interpInsert') : null;
+    if (!target) return;
+    if (target.id === 'interpHelperToggle') toggleInterpHelper();
+    else insertInterpCall();
+});
+
+document.addEventListener('input', (e) => {
+    if (e.target && e.target.id === 'interpTable') updateInterpStatus();
 });
 
 export function addMappingSlot() {
@@ -510,13 +614,13 @@ export async function submitCreateVariable() {
                 activeRun.nameToIndex = new Map(listing.signals.map(s => [s.name, s.index]));
                 activeRun.signals = listing.signals;
             }
-            document.getElementById('statSignals').textContent = listing.n_signals;
+            setFileStats({ signals: listing.n_signals });
         } else {
             const infoRes = await fetch(`${API}/info`);
             const info = await infoRes.json();
             S.signalsInfo = info.signals;
             window.signalsInfo = S.signalsInfo;
-            document.getElementById('statSignals').textContent = info.n_signals;
+            setFileStats({ signals: info.n_signals });
         }
 
         renderSignalList();
@@ -525,6 +629,7 @@ export async function submitCreateVariable() {
         // des onglets masques sont rejoues au retour, via plotIsVisible).
         if (isUpdateMode) {
             invalidateSignalCaches(editedIndex).forEach(plot => fetchAndRenderPlot(plot));
+            invalidateXYSignal(editedIndex);
         }
         // En comparaison, creer aussi la variable sur les autres runs compares qui disposent
         // des signaux sources, pour qu'elle soit presente partout (couverture N/N, overlay).

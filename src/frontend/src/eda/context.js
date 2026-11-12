@@ -37,6 +37,8 @@ export const ectx = {
     currentLazySessionId: null,
     extendedBoolZones: new Map(),
     disabledBoolZones: new Set(),
+    // Zones demandees par un layout charge, activees a l'arrivee des donnees du signal.
+    pendingBoolZones: new Set(),
     edaInitialized: false,
     hoveredPlotId: null,
 };

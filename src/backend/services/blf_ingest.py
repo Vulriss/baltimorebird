@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import hashlib
 import logging
+from array import array
 from collections.abc import Iterable, Iterator, Mapping
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -27,6 +28,7 @@ from can.io.blf import BLFReader
 from cantools.database import load_file as load_can_database
 from cantools.database.can.database import Database
 from cantools.database.can.message import Message
+from cantools.database.errors import DecodeError
 
 logger = logging.getLogger(__name__)
 
@@ -50,6 +52,7 @@ class IngestionReport:
     total_frames: int = 0
     decoded_frames: int = 0
     unknown_frames: int = 0
+    undecodable_frames: int = 0
     container_payloads: int = 0
     signal_count: int = 0
     group_count: int = 0
@@ -57,6 +60,7 @@ class IngestionReport:
     start_time: datetime | None = None
     dropped_secured_pdus: list[str] = field(default_factory=list)
     unknown_ids: dict[str, int] = field(default_factory=dict)
+    undecodable_ids: dict[str, int] = field(default_factory=dict)
     output_path: str | None = None
 
     @property
@@ -299,33 +303,43 @@ class CanDatabase:
 
 class SignalAccumulator:
     """Agrège les enregistrements décodés en séries temporelles, regroupées par signaux
-    co-occurrents partageant un même horodatage (un groupe MF4 par ensemble co-occurrent)."""
+    co-occurrents partageant un même horodatage (un groupe MF4 par ensemble co-occurrent).
+
+    Les échantillons sont stockés en tableaux typés (8 octets par valeur) et non en listes de
+    flottants Python (environ 50 octets par valeur mesurés) : sur un worker unique qui porte toutes
+    les sessions EDA, c'est ce qui borne la mémoire d'un gros BLF.
+    """
 
     def __init__(self) -> None:
-        self._timestamps: dict[tuple[int, str, int], list[float]] = {}
-        self._values: dict[tuple[int, str, int], dict[str, list[float]]] = {}
+        self._timestamps: dict[tuple[int, str, int], array] = {}
+        self._values: dict[tuple[int, str, int], dict[str, array]] = {}
         self._labels: dict[tuple[int, str, int], str] = {}
 
     def add(self, record: _Decoded) -> None:
         key = record.group_key
         timestamps = self._timestamps.get(key)
         if timestamps is None:
-            timestamps = []
+            timestamps = array("d")
             self._timestamps[key] = timestamps
-            self._values[key] = {name: [] for name in record.values}
+            self._values[key] = {name: array("d") for name in record.values}
             self._labels[key] = record.label
         timestamps.append(record.timestamp)
         columns = self._values[key]
         for name, value in record.values.items():
             columns[name].append(value)
 
-    def groups(self) -> Iterator[tuple[str, np.ndarray, dict[str, np.ndarray]]]:
-        """Produit, pour chaque groupe, son libellé, le master temporel et les colonnes de signaux."""
-        for key, timestamps in self._timestamps.items():
-            master = np.asarray(timestamps, dtype=_FLOAT)
-            columns = {name: np.asarray(samples, dtype=_FLOAT)
-                       for name, samples in self._values[key].items()}
-            yield self._labels[key], master, columns
+    def drain_groups(self) -> Iterator[tuple[str, np.ndarray, dict[str, np.ndarray]]]:
+        """Produit, par libellé croissant, chaque groupe : son libellé, le master temporel et les colonnes.
+
+        Les tableaux numpy partagent la mémoire des tableaux typés, sans copie. Chaque groupe est
+        retiré de l'accumulateur à sa production, pour être libéré dès que l'appelant l'a consommé.
+        """
+        for key in sorted(self._labels, key=self._labels.__getitem__):
+            label = self._labels.pop(key)
+            master = np.frombuffer(self._timestamps.pop(key), dtype=_FLOAT)
+            columns = {name: np.frombuffer(samples, dtype=_FLOAT)
+                       for name, samples in self._values.pop(key).items()}
+            yield label, master, columns
 
 
 class BlfToMf4Converter:
@@ -339,6 +353,7 @@ class BlfToMf4Converter:
         report = IngestionReport(dropped_secured_pdus=self._dropped)
         accumulator = SignalAccumulator()
         unknown: dict[tuple[int, bool], int] = {}
+        undecodable: dict[tuple[int, bool], int] = {}
         first_timestamp: float | None = None
 
         for frame in self._read_frames(blf_path):
@@ -355,22 +370,36 @@ class BlfToMf4Converter:
                 continue
 
             decoded_any = False
-            for record in self._database.decode_frame(frame_id, is_extended, data, channel, relative):
-                accumulator.add(record)
-                decoded_any = True
-                if record.is_container_payload:
-                    report.container_payloads += 1
+            try:
+                # cantools decodes the whole frame before yielding, so a failure adds no partial record.
+                for record in self._database.decode_frame(frame_id, is_extended, data, channel, relative):
+                    accumulator.add(record)
+                    decoded_any = True
+                    if record.is_container_payload:
+                        report.container_payloads += 1
+            except DecodeError:
+                report.undecodable_frames += 1
+                key = (frame_id, is_extended)
+                undecodable[key] = undecodable.get(key, 0) + 1
+                continue
             if decoded_any:
                 report.decoded_frames += 1
 
         report.start_time = (datetime.fromtimestamp(first_timestamp, tz=timezone.utc)
                              if first_timestamp is not None else None)
-        report.unknown_ids = {f"0x{fid:x}{'x' if ext else ''}": count
-                              for (fid, ext), count in sorted(unknown.items(),
-                              key=lambda item: item[1], reverse=True)}
+        report.unknown_ids = self._format_id_counts(unknown)
+        report.undecodable_ids = self._format_id_counts(undecodable)
+        if undecodable:
+            logger.warning("BLF: %d trames indecodables par la base, ignorees: %s",
+                           report.undecodable_frames, report.undecodable_ids)
         self._write_mf4(accumulator, output_path, report)
         report.output_path = str(output_path)
         return report
+
+    @staticmethod
+    def _format_id_counts(counts: dict[tuple[int, bool], int]) -> dict[str, int]:
+        return {f"0x{fid:x}{'x' if ext else ''}": count
+                for (fid, ext), count in sorted(counts.items(), key=lambda item: item[1], reverse=True)}
 
     def _read_frames(self, blf_path: Path) -> Iterator[tuple[int, bool, bytes, int, float]]:
         with BLFReader(str(blf_path)) as reader:
@@ -386,7 +415,7 @@ class BlfToMf4Converter:
         mdf = MDF()
         allocated: set[str] = set()
         signal_total = 0
-        for label, master, columns in sorted(accumulator.groups(), key=lambda group: group[0]):
+        for label, master, columns in accumulator.drain_groups():
             if master.size == 0:
                 continue
             bus_prefix = label.split(":", 1)[0]

@@ -71,8 +71,13 @@ indépendante. Les onglets sont réordonnables par glisser-déposer.
 
 - Le curseur suit la position de la souris sur le graphique et affiche la valeur
   interpolée ou exacte de chaque signal visible.
-- Le bouton **Ajouter un curseur** permet de figer un curseur supplémentaire pour
-  comparer deux instants précis.
+- Le bouton **Ajouter un curseur**, à droite de la règle de temps, permet de figer un
+  curseur supplémentaire pour comparer deux instants précis.
+- Avec deux curseurs, un clic sur l'écart affiché entre eux (ou la touche **L**) le
+  verrouille, ce que signale le cadenas à droite de la valeur : déplacer un curseur entraîne l'autre. Glisser l'écart déplace les deux
+  curseurs ensemble.
+- Un double-clic sur le temps d'un curseur, ou sur l'écart, ouvre un champ pour saisir la
+  valeur en secondes ; Entrée valide, Échap annule.
 - L'affichage des étiquettes de curseur peut être activé ou désactivé
   (`cursorLabelsToggle`).
 - L'affichage d'une info-bulle sur les zones booléennes peut être activé ou désactivé
@@ -84,8 +89,36 @@ indépendante. Les onglets sont réordonnables par glisser-déposer.
 - Cliquer-glisser horizontal : zoom sur une plage temporelle.
 - **Ctrl+Z** / **Ctrl+Y** : annuler ou rétablir un niveau de zoom, sur un historique de
   20 étapes.
-- Le bouton **Réinitialiser** ramène le graphique à l'échelle complète des données
+- Le bouton **Réinitialiser**, à droite de la règle de temps, ramène le graphique à l'échelle complète des données
   chargées.
+
+## Graphes X/Y
+
+Un graphe X/Y trace un signal en fonction d'un autre (couple en fonction du régime,
+accélération latérale en fonction de la longitudinale). Il vit à côté des graphes
+temporels du même onglet, dans un volet à droite, et montre toujours la même fenêtre de
+temps qu'eux : zoomer ou déplacer la règle de temps filtre la trajectoire.
+
+- **Créer.** Glisser deux signaux ou plus sur « + Graphe X/Y » : le premier porte l'axe X,
+  les suivants sont tracés en Y. Un clic sur cette zone crée un panneau vide.
+- **Compléter.** Glisser un signal sur un panneau : le haut l'ajoute en Y, le bas en fait
+  l'axe X. Le bouton d'échange inverse X et Y quand il n'y a qu'une courbe.
+- **Lire.** Le survol d'un point affiche son instant et ses valeurs, et marque cet instant
+  sur les graphes temporels ; le survol d'un graphe temporel marque le point sur la
+  trajectoire.
+- **Curseurs.** A et B apparaissent comme des pastilles sur la trajectoire, la portion
+  entre les deux est mise en avant, et une table donne X et Y à chaque curseur.
+  Ctrl + clic sur la trajectoire pose un curseur ; une pastille se glisse le long de la
+  courbe.
+- **Densité.** Le bouton en grille remplace la courbe par une carte de chaleur : plus une
+  zone est claire (foncée en thème clair), plus le signal y passe de temps.
+- **Zoomer.** Glisser dans le graphe pour zoomer sur une bande ou une boîte, molette pour
+  zoomer autour du pointeur, glisser une gouttière pour translater un axe, double-clic pour
+  recadrer. « 1:1 » donne la même échelle aux deux axes.
+
+Les signaux booléens et les commentaires ne se tracent pas en X/Y. Deux signaux de
+cadences différentes sont appariés sur les instants du signal X. Les graphes X/Y sont
+enregistrés avec la disposition ; ils ne figurent pas encore dans la capture PNG.
 
 ## Signaux booléens et catégoriels
 
@@ -103,6 +136,12 @@ comparée entre fichiers et exportée.
 
 Pour modifier une variable calculée existante, effectuer un double-clic sur son
 entrée dans la liste des signaux.
+
+La fonction `interp1d(A, [x0, x1, …], [y0, y1, …])` interpole un signal dans une table
+(cartographie, courbe de calibration) ; hors de la table, la valeur du bord est tenue.
+« Table d'interpolation… », sous la formule, permet de coller deux colonnes depuis un
+tableur et écrit l'appel dans la formule. La table fait partie de la formule : elle est
+enregistrée et exportée avec la disposition. Elle est limitée à 500 points.
 
 ## Import de dispositions MDA
 
@@ -130,6 +169,11 @@ Depuis le menu contextuel d'un signal dans la légende :
   non uniformes.
 - **Analyse KDE** : estimation de densité par noyau de la distribution des valeurs.
 - **Analyse FFT** : transformée de Fourier rapide pour l'analyse fréquentielle.
+
+Le panneau KDE ou FFT porte la couleur du signal. Les boutons **Tout**, **Visible** et
+**Curseurs** de son en-tête choisissent la plage analysée : tout le signal, la fenêtre
+affichée, ou l'intervalle entre les deux curseurs (disponible quand ils sont posés tous
+les deux). L'analyse se recalcule quand la fenêtre ou les curseurs bougent.
 
 Ces popovers se rafraîchissent automatiquement lorsque la vue (zoom, plage
 temporelle) change.

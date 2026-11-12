@@ -1,15 +1,20 @@
 /**
- * Run List - Zone fichiers de la vue EDA (roster de comparaison multi-fichiers)
+ * Run List - Onglets fichiers de la vue EDA (barre du haut + roster de comparaison)
  *
- * Mono-fichier (0 ou 1 run): le slot avec son <select id="sourceSelector"> est le
- * controle natif de selection de source (demo + uploads). Le swatch prend la couleur
- * du fichier courant.
+ * Mono-fichier: un onglet par fichier ouvert (demo ou upload), l'onglet actif est la
+ * source courante. Chaque onglet est une instance distincte de l'EDA: ses onglets de
+ * layout, graphes, fenetre et curseurs lui sont propres (espaces de travail par
+ * fichier, sessions.js). Le <select id="sourceSelector">, cache, reste le pont de selection:
+ * les onglets et le menu "Ajouter un fichier" le pilotent, les autres modules le lisent.
+ * La croix d'un onglet ferme le fichier (session supprimee pour un upload, simple
+ * fermeture pour une demo). Le dernier onglet ne se ferme pas.
  *
- * Comparaison (>= 2 runs): le slot se masque et le roster affiche un chip par run
- * uploade. Cliquer un chip l'active, son bouton - ferme la session. Le tracé reste
- * mono-actif (overlay branche en tranche suivante). Le bloc offset / resync du popover
- * reste inactif (tranche offset a venir).
+ * Comparaison (opt-in, >= 2 runs): les onglets deviennent le roster des runs compares
+ * (pastille, numero, reference, details, retrait de la comparaison), avec la bascule
+ * Comparaison / Sequentiel au bout de la barre.
  */
+
+import { renderFileInfo } from './file-info.js';
 
 (function () {
     'use strict';
@@ -18,6 +23,14 @@
     const RUN_COLORS_LIGHT = ['#179299', '#fe640b', '#40a02b', '#1e66f5', '#ea76cb', '#df8e1d', '#8839ef', '#e64553'];
 
     let activePopover = null;
+    let addMenu = null;
+
+    // Fichiers ouverts, dans l'ordre d'ouverture (valeurs du <select>: id de source demo
+    // ou "session_<id>"). Les runs y entrent d'office; une demo y entre quand elle devient
+    // la source courante et en sort a la fermeture de son onglet.
+    let openValues = [];
+
+    const SOURCE_SUFFIXES = [' (exemple)', ' (temporaire)', ' (non disponible)'];
 
     function escapeHtml(str) {
         const div = document.createElement('div');
@@ -88,12 +101,6 @@
         window.addEventListener('resize', closePopover);
     }
 
-    // Cle de couleur stable: l'identifiant nu de session, sans le prefixe "session_"
-    // du <select>, pour que mono et comparaison donnent la meme couleur a un fichier.
-    function colorKey(value) {
-        return value && value.startsWith('session_') ? value.slice('session_'.length) : value;
-    }
-
     function getSelector() {
         return document.getElementById('sourceSelector');
     }
@@ -106,35 +113,31 @@
         return window.S ? window.S.activeRunId : null;
     }
 
-    function activeSelectFile() {
-        const sel = getSelector();
-        if (!sel || !sel.value) return null;
-        const opt = sel.options[sel.selectedIndex];
-        return { id: sel.value, name: opt ? opt.textContent.trim() : sel.value };
+    // Libelle d'option sans les suffixes d'etat, qui passent en classes / tooltip.
+    function plainLabel(text) {
+        let label = String(text || '').trim();
+        SOURCE_SUFFIXES.forEach(suffix => { label = label.replace(suffix, ''); });
+        return label;
     }
 
-    function syncSwatch() {
-        const swatch = document.querySelector('.run-slot .run-swatch');
-        if (!swatch) return;
-        const file = activeSelectFile();
-        swatch.style.background = file ? colorForId(colorKey(file.id)) : 'transparent';
+    function optionFor(value) {
+        const sel = getSelector();
+        if (!sel) return null;
+        return Array.from(sel.options).find(o => o.value === value) || null;
+    }
 
-        // Meme geste qu'en comparaison: la pastille du selecteur ouvre le choix de
-        // couleur, tant que le fichier correspond a un run enregistre.
-        const sid = file && file.id.startsWith('session_')
-            ? file.id.slice('session_'.length) : null;
-        swatch.classList.toggle('is-clickable', Boolean(sid));
-        swatch.title = sid ? 'Changer la couleur de ce fichier' : '';
-        if (!swatch._colorWired) {
-            swatch.addEventListener('click', (e) => {
-                e.stopPropagation();
-                const f = activeSelectFile();
-                const id = f && f.id.startsWith('session_')
-                    ? f.id.slice('session_'.length) : null;
-                if (id) openColorPicker(swatch, id);
-            });
-            swatch._colorWired = true;
-        }
+    function closeSvg() {
+        return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">'
+            + '<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+    }
+    function uploadSvg() {
+        return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
+            + '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/>'
+            + '<line x1="12" y1="3" x2="12" y2="15"/></svg>';
+    }
+    function compareSvg() {
+        return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
+            + '<rect x="3" y="4" width="8" height="16" rx="1"/><rect x="13" y="4" width="8" height="16" rx="1"/></svg>';
     }
 
     function detailsSvg() {
@@ -148,12 +151,6 @@
     function pinSvg() {
         return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
             + '<path d="M12 21s-6-5.3-6-10a6 6 0 0 1 12 0c0 4.7-6 10-6 10z"/><circle cx="12" cy="11" r="2"/></svg>';
-    }
-    function trashSvg() {
-        return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
-            + '<polyline points="3 6 5 6 21 6"/>'
-            + '<path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>'
-            + '<line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>';
     }
 
     // =====================================================================
@@ -252,68 +249,18 @@
             });
         }
 
-        // Mode mono: le popover du slot est le seul acces aux autres fichiers charges
-        // (le roster n'existe qu'en comparaison). On les liste ici avec chacun leur
-        // bouton de suppression, pour fermer une session SANS basculer dessus - la
-        // suppression d'un run non actif ne touche ni la liste de signaux ni les
-        // graphes du fichier courant (deleteRun ne rebascule que si wasActive).
-        if (run.slot) {
-            const others = getRuns().filter(r => r.sessionId && r.sessionId !== sid);
-            if (others.length) {
-                const section = document.createElement('div');
-                section.className = 'run-popover-files';
-
-                const title = document.createElement('div');
-                title.className = 'run-popover-files-title';
-                title.textContent = 'Autres fichiers chargés';
-                section.appendChild(title);
-
-                others.forEach(r => {
-                    const row = document.createElement('div');
-                    row.className = 'run-file-row';
-
-                    const sw = document.createElement('span');
-                    sw.className = 'run-swatch';
-                    sw.style.background = colorForId(r.sessionId);
-
-                    const name = document.createElement('span');
-                    name.className = 'run-file-name';
-                    name.textContent = r.filename;
-                    name.title = r.filename;
-
-                    const del = document.createElement('button');
-                    del.type = 'button';
-                    del.className = 'run-file-del';
-                    del.title = 'Supprimer ce fichier (sans basculer dessus)';
-                    del.setAttribute('aria-label', del.title);
-                    del.innerHTML = trashSvg();
-                    del.addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        row.remove();
-                        if (!section.querySelector('.run-file-row')) section.remove();
-                        if (typeof window.deleteRun === 'function') window.deleteRun(r.sessionId);
-                    });
-
-                    row.appendChild(sw);
-                    row.appendChild(name);
-                    row.appendChild(del);
-                    section.appendChild(row);
-                });
-
-                pop.appendChild(section);
-            }
-        }
-
         return pop;
     }
 
-    function positionPopover(pop, anchor) {        const r = anchor.getBoundingClientRect();
+    // Sous l'ancre, aligne a gauche: les ancres sont des onglets de la barre du haut.
+    function positionPopover(pop, anchor) {
+        const r = anchor.getBoundingClientRect();
         const margin = 8;
         const width = pop.offsetWidth;
         const height = pop.offsetHeight;
-        let left = r.right + margin;
-        if (left + width > window.innerWidth - margin) left = Math.max(margin, r.left - width - margin);
-        let top = r.top;
+        let left = r.left;
+        if (left + width > window.innerWidth - margin) left = Math.max(margin, window.innerWidth - width - margin);
+        let top = r.bottom + 6;
         if (top + height > window.innerHeight - margin) top = Math.max(margin, window.innerHeight - height - margin);
         pop.style.left = Math.round(left) + 'px';
         pop.style.top = Math.round(top) + 'px';
@@ -353,6 +300,201 @@
     }
 
     // =====================================================================
+    // Onglets fichiers (mode mono)
+    // =====================================================================
+    // Met a jour la liste des fichiers ouverts: chaque run y figure, la source courante
+    // aussi; une valeur dont l'option a disparu du <select> (run supprime) en sort.
+    function syncOpenValues() {
+        const sel = getSelector();
+        if (!sel) return;
+        const known = new Set(Array.from(sel.options).map(o => o.value).filter(Boolean));
+        openValues = openValues.filter(v => known.has(v));
+        getRuns().forEach(r => {
+            const v = 'session_' + r.sessionId;
+            if (known.has(v) && !openValues.includes(v)) openValues.push(v);
+        });
+        if (sel.value && known.has(sel.value) && !openValues.includes(sel.value)) openValues.push(sel.value);
+    }
+
+    // Bascule de fichier: chaque onglet est une instance distincte de l'EDA. Le passage
+    // par le <select> (evenement change -> changeSource) photographie l'espace de
+    // travail du fichier quitte et restaure celui du fichier ouvert (sessions.js), et
+    // notifie l'onboarding. activateRun, qui garde les graphes et ne change que la
+    // liste de signaux, reste reserve aux onglets de comparaison (buildChip).
+    function activateValue(value) {
+        const sel = getSelector();
+        if (!sel || !value || value === sel.value) return;
+        sel.value = value;
+        sel.dispatchEvent(new Event('change'));
+    }
+
+    // Fermeture d'un onglet. Un upload est supprime (deleteRun rebascule si besoin et
+    // oublie son espace de travail); une demo quitte la liste avec son espace de
+    // travail, et l'onglet voisin prend le relais si elle etait active.
+    function closeValue(value) {
+        if (openValues.length <= 1) return;
+        if (value.startsWith('session_')) {
+            if (typeof window.deleteRun === 'function') window.deleteRun(value.slice('session_'.length));
+            return;
+        }
+        const idx = openValues.indexOf(value);
+        const sel = getSelector();
+        const wasActive = sel && sel.value === value;
+        openValues = openValues.filter(v => v !== value);
+        // La bascule photographie l'onglet ferme de facon synchrone (avant tout await
+        // de changeSource): on peut donc l'oublier juste apres.
+        if (wasActive) activateValue(openValues[Math.min(idx, openValues.length - 1)]);
+        if (typeof window.discardWorkspace === 'function') window.discardWorkspace(value);
+        if (!wasActive) refresh();
+    }
+
+    function buildFileTab(value) {
+        const sel = getSelector();
+        const opt = optionFor(value);
+        const run = value.startsWith('session_')
+            ? getRuns().find(r => 'session_' + r.sessionId === value) : null;
+        const label = run ? run.filename : plainLabel(opt ? opt.textContent : value);
+        const active = sel && sel.value === value;
+
+        const el = document.createElement('div');
+        el.className = 'file-tab' + (active ? ' active' : '')
+            + (run && run.ephemeral ? ' is-ephemeral' : '');
+        el.setAttribute('role', 'tab');
+        el.setAttribute('aria-selected', active ? 'true' : 'false');
+        el.tabIndex = active ? 0 : -1;
+        el.title = opt ? opt.textContent.trim() : label;
+
+        if (run) {
+            const swatch = document.createElement('span');
+            swatch.className = 'run-swatch is-clickable';
+            swatch.style.background = run.color || colorForId(run.sessionId);
+            swatch.title = 'Changer la couleur de ce fichier';
+            swatch.addEventListener('click', (e) => {
+                e.stopPropagation();
+                openColorPicker(swatch, run.sessionId);
+            });
+            el.appendChild(swatch);
+        }
+
+        const name = document.createElement('span');
+        name.className = 'file-tab-name';
+        name.textContent = label;
+        el.appendChild(name);
+
+        if (openValues.length > 1) {
+            const close = document.createElement('button');
+            close.type = 'button';
+            close.className = 'file-tab-close';
+            close.title = run ? 'Fermer ce fichier' : 'Fermer cet onglet';
+            close.setAttribute('aria-label', close.title);
+            close.innerHTML = closeSvg();
+            close.addEventListener('click', (e) => {
+                e.stopPropagation();
+                closeValue(value);
+            });
+            el.appendChild(close);
+        }
+
+        el.addEventListener('click', () => activateValue(value));
+        el.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                activateValue(value);
+            }
+        });
+        return el;
+    }
+
+    // =====================================================================
+    // Menu "Ajouter un fichier": upload, puis exemples et fichiers recents non ouverts
+    // =====================================================================
+    function closeAddMenu() {
+        if (!addMenu) return;
+        document.removeEventListener('mousedown', onAddMenuMouseDown, true);
+        document.removeEventListener('keydown', onAddMenuKeyDown, true);
+        addMenu.remove();
+        addMenu = null;
+        document.getElementById('fileAddBtn')?.setAttribute('aria-expanded', 'false');
+    }
+
+    function onAddMenuMouseDown(e) {
+        if (addMenu && !addMenu.contains(e.target) && !e.target.closest('#fileAddBtn')) closeAddMenu();
+    }
+
+    function onAddMenuKeyDown(e) {
+        if (e.key === 'Escape') closeAddMenu();
+    }
+
+    function menuItem(text, onSelect, opts = {}) {
+        const item = document.createElement('button');
+        item.type = 'button';
+        item.className = 'file-add-item' + (opts.primary ? ' is-primary' : '');
+        item.setAttribute('role', 'menuitem');
+        item.disabled = !!opts.disabled;
+        if (opts.icon) item.insertAdjacentHTML('beforeend', opts.icon);
+        const span = document.createElement('span');
+        span.textContent = text;
+        item.appendChild(span);
+        if (opts.title) item.title = opts.title;
+        item.addEventListener('click', () => {
+            closeAddMenu();
+            onSelect();
+        });
+        return item;
+    }
+
+    function toggleAddMenu() {
+        if (addMenu) {
+            closeAddMenu();
+            return;
+        }
+        closePopover();
+        const btn = document.getElementById('fileAddBtn');
+        const sel = getSelector();
+        if (!btn || !sel) return;
+
+        const menu = document.createElement('div');
+        menu.className = 'file-add-menu';
+        menu.setAttribute('role', 'menu');
+        menu.appendChild(menuItem("Charger depuis l'ordinateur...", () => {
+            if (typeof window.requestUpload === 'function') window.requestUpload();
+        }, { primary: true, icon: uploadSvg() }));
+
+        const title = document.createElement('div');
+        title.className = 'file-add-menu-title';
+        title.textContent = 'Exemples et fichiers récents';
+        menu.appendChild(title);
+
+        const candidates = Array.from(sel.options).filter(o => o.value && !openValues.includes(o.value));
+        if (candidates.length) {
+            candidates.forEach(o => {
+                menu.appendChild(menuItem(plainLabel(o.textContent), () => {
+                    sel.value = o.value;
+                    sel.dispatchEvent(new Event('change'));
+                }, { disabled: o.disabled, title: o.textContent.trim() }));
+            });
+        } else {
+            const empty = document.createElement('div');
+            empty.className = 'file-add-menu-empty';
+            empty.textContent = 'Tous les fichiers sont déjà ouverts';
+            menu.appendChild(empty);
+        }
+
+        btn.parentElement.appendChild(menu);
+        btn.setAttribute('aria-expanded', 'true');
+        addMenu = menu;
+        document.addEventListener('mousedown', onAddMenuMouseDown, true);
+        document.addEventListener('keydown', onAddMenuKeyDown, true);
+    }
+
+    function wireAddButton() {
+        const btn = document.getElementById('fileAddBtn');
+        if (!btn || btn._wired) return;
+        btn.addEventListener('click', toggleAddMenu);
+        btn._wired = true;
+    }
+
+    // =====================================================================
     // Roster (mode comparaison)
     // =====================================================================
     // Bascule du mode multi-fichiers: superposition (comparaison) ou mise bout a bout
@@ -378,16 +520,19 @@
         return row;
     }
 
+    // Onglet de run compare: memes gestes que l'ancien chip du roster, au format onglet.
     function buildChip(run) {
         const active = run.sessionId === activeRunId();
         const el = document.createElement('div');
-        el.className = 'run-chip' + (active ? ' active' : '');
+        el.className = 'file-tab run-chip' + (active ? ' active' : '');
         el.dataset.id = run.sessionId;
+        el.setAttribute('role', 'tab');
+        el.setAttribute('aria-selected', active ? 'true' : 'false');
         el.innerHTML = ''
             + `<span class="run-swatch" style="background:${run.color || colorForId(run.sessionId)}"></span>`
             // Numero repris dans la legende des graphes, a la place du nom de fichier.
             + (run.number ? `<span class="run-num" title="Fichier n°${Number(run.number)}">${Number(run.number)}</span>` : '')
-            + `<span class="run-name" title="${escapeHtml(run.filename)}">${escapeHtml(run.filename)}</span>`
+            + `<span class="file-tab-name" title="${escapeHtml(run.filename)}">${escapeHtml(run.filename)}</span>`
             + (run.ref ? `<span class="run-ref" title="Reference temporelle">${pinSvg()}</span>` : '')
             + `<button class="run-details-btn" type="button" title="Details du run" aria-label="Details du run">${detailsSvg()}</button>`
             + `<button class="run-chip-remove" type="button" title="Retirer de la comparaison" aria-label="Retirer de la comparaison">${minusSvg()}</button>`;
@@ -419,74 +564,76 @@
         return el;
     }
 
-    function wireSlotDetails() {
-        const btn = document.querySelector('.run-slot .run-details-btn');
-        if (btn && !btn._wired) {
-            btn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                const file = activeSelectFile();
-                if (file) {
-                    const sid = file.id.startsWith('session_') ? file.id.slice('session_'.length) : null;
-                    togglePopover(btn.closest('.run-slot'), { colorId: colorKey(file.id), name: file.name, active: true, sessionId: sid, slot: true });
-                }
-            });
-            btn._wired = true;
-        }
-    }
+    // Entree / sortie de la comparaison, au bout de la barre. Visible des deux fichiers
+    // uploades, la comparaison reste opt-in et ne s'active jamais automatiquement.
+    function buildCompareControls(runs, comparing) {
+        const frag = document.createDocumentFragment();
+        if (!comparing && runs.length < 2) return frag;
 
-    // Bouton d'entree / sortie de la comparaison. Visible des deux fichiers uploades,
-    // il bascule vers le roster (comparaison opt-in) et jamais automatiquement.
-    function updateCompareButton(runs, comparing) {
-        const btn = document.getElementById('runCompareBtn');
-        if (!btn) return;
-        const label = btn.querySelector('span');
-        if (comparing) {
-            btn.style.display = '';
-            if (label) label.textContent = 'Quitter la comparaison';
-            btn.title = 'Revenir au mode mono-fichier';
-        } else if (runs.length >= 2) {
-            btn.style.display = '';
-            if (label) label.textContent = 'Comparer les fichiers';
-            btn.title = 'Superposer les fichiers uploades';
-        } else {
-            btn.style.display = 'none';
-        }
-        if (!btn._wired) {
-            btn.addEventListener('click', () => {
-                const on = !!(window.S && window.S.comparing);
-                if (on && typeof window.exitComparison === 'function') window.exitComparison();
-                else if (!on && typeof window.enterComparison === 'function') window.enterComparison();
-            });
-            btn._wired = true;
-        }
+        if (comparing) frag.appendChild(buildModeToggle());
+
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'file-compare-btn' + (comparing ? ' active' : '');
+        btn.innerHTML = compareSvg();
+        const label = document.createElement('span');
+        label.textContent = comparing ? 'Quitter la comparaison' : 'Comparer';
+        btn.appendChild(label);
+        btn.title = comparing ? 'Revenir au mode mono-fichier' : 'Superposer les fichiers uploades';
+        btn.addEventListener('click', () => {
+            if (comparing && typeof window.exitComparison === 'function') window.exitComparison();
+            else if (!comparing && typeof window.enterComparison === 'function') window.enterComparison();
+        });
+        frag.appendChild(btn);
+        return frag;
     }
 
     function refresh() {
         closePopover();
+        closeAddMenu();
+        const tabs = document.getElementById('fileTabs');
+        if (!tabs) return;
         const runs = getRuns();
         const comparing = !!(window.S && window.S.comparing);
-        const compared = runs.filter(r => r.compared);
-        const slots = document.getElementById('runSlots');
-        const roster = document.getElementById('runRoster');
 
-        if (slots) slots.style.display = comparing ? 'none' : '';
-        if (roster) {
-            roster.style.display = comparing ? '' : 'none';
-            if (comparing) {
-                const frag = document.createDocumentFragment();
-                frag.appendChild(buildModeToggle());
-                compared.forEach(r => frag.appendChild(buildChip(r)));
-                roster.replaceChildren(frag);
-            } else {
-                roster.replaceChildren();
-            }
+        syncOpenValues();
+        const frag = document.createDocumentFragment();
+        if (comparing) {
+            runs.filter(r => r.compared).forEach(r => frag.appendChild(buildChip(r)));
+        } else {
+            openValues.forEach(v => frag.appendChild(buildFileTab(v)));
         }
+        tabs.replaceChildren(frag);
+        tabs.querySelector('.file-tab.active')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
 
-        if (!comparing) {
-            syncSwatch();
-            wireSlotDetails();
+        document.getElementById('fileBarCompare')?.replaceChildren(buildCompareControls(runs, comparing));
+        wireAddButton();
+        renderActiveFileInfo(runs, comparing);
+    }
+
+    // Fiche sous l'onglet actif (file-info.js): format, nom complet, statut temporaire.
+    // En comparaison, la fiche couvre l'ensemble des runs compares.
+    function renderActiveFileInfo(runs, comparing) {
+        if (comparing) {
+            renderFileInfo({ name: `Comparaison de ${runs.filter(r => r.compared).length} fichiers` });
+            return;
         }
-        updateCompareButton(runs, comparing);
+        const value = getSelector()?.value || '';
+        const run = value.startsWith('session_') ? runs.find(r => 'session_' + r.sessionId === value) : null;
+        if (run) {
+            // L'extension passe dans le badge; le nom complet reste en infobulle.
+            const filename = run.filename || '';
+            const ext = /\.([a-z0-9]+)$/i.exec(filename);
+            renderFileInfo({
+                name: ext ? filename.slice(0, ext.index) : filename,
+                title: filename,
+                format: ext ? ext[1].toUpperCase() : '',
+                ephemeral: !!run.ephemeral,
+            });
+            return;
+        }
+        const opt = optionFor(value);
+        renderFileInfo({ name: opt ? plainLabel(opt.textContent) : '', format: opt ? 'DÉMO' : '' });
     }
 
     window.refreshRunList = refresh;

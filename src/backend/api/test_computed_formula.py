@@ -273,6 +273,62 @@ def test_align_identical_rasters_no_resample():
 
 
 # ---------------------------------------------------------------------------
+# interp1d : table d'interpolation écrite dans la formule
+# ---------------------------------------------------------------------------
+def _fails(formula: str) -> str:
+    t, sig = _base_signals()
+    try:
+        compute_formula(formula, sig, t)
+    except ValueError as exc:
+        return str(exc)
+    raise AssertionError(f"{formula!r} aurait dû être refusée")
+
+
+def test_interp1d_linear_and_held_edges():
+    # A = [1, 5, 0, 10] ; table 0->0, 4->40, 8->0. Hors table : bord tenu.
+    assert np.allclose(_run("interp1d(A, [0, 4, 8], [0, 40, 0])"), [10, 30, 0, 0])
+    assert np.allclose(_run("interp1d(A, [2, 6], [100, 200])"), [100, 175, 100, 200])
+    print("test_interp1d_linear_and_held_edges OK")
+
+
+def test_interp1d_composes_with_the_formula():
+    # Table à valeurs négatives et décimales, tuple accepté, résultat réutilisé.
+    assert np.allclose(_run("interp1d(A * 2, (-10, 0, 20), (-1.5, 0, 3)) + B"), [0.3, 2.5, 1.0, 4.0])
+    assert np.allclose(_run("interp1d(5, [0, 10], [0, 1])"), [0.5, 0.5, 0.5, 0.5])
+    print("test_interp1d_composes_with_the_formula OK")
+
+
+def test_interp1d_rejects_malformed_tables():
+    assert "autant de x que de y" in _fails("interp1d(A, [0, 1, 2], [0, 1])")
+    assert "au moins 2 points" in _fails("interp1d(A, [0], [1])")
+    assert "strictement croissants" in _fails("interp1d(A, [0, 2, 2], [0, 1, 2])")
+    assert "attend une table" in _fails("interp1d(A, B, C)")
+    assert "que des nombres" in _fails("interp1d(A, [0, B], [0, 1])")
+    assert "trop longue" in _fails(f"interp1d(A, {list(range(501))}, {list(range(501))})")
+    print("test_interp1d_rejects_malformed_tables OK")
+
+
+def test_tables_only_inside_interp1d():
+    # Une liste n'est pas une valeur de formule : elle n'existe que comme axe de table.
+    assert "interp1d" in _fails("[1, 2, 3]")
+    assert "interp1d" in _fails("A + [1, 2, 3, 4]")
+    assert "interp1d" in _fails("where(A > 1, [1, 2, 3, 4], 0)")
+    assert "interp1d" in _fails("interp1d(A, [[0, 1], [2, 3]], [0, 1])")
+    assert "premier argument" in _fails("interp1d([0, 1], [0, 1], [0, 1])")
+    print("test_tables_only_inside_interp1d OK")
+
+
+def test_formula_length_allows_a_table():
+    xs = [i * 0.5 for i in range(200)]
+    formula = f"interp1d(A, {xs}, {[x * 2 for x in xs]})"
+    assert len(formula) > 500
+    assert validate_formula(formula) == (True, None)
+    assert np.allclose(_run(formula), [2, 10, 0, 20])
+    assert not validate_formula("A" + " + 1" * 2000)[0]
+    print("test_formula_length_allows_a_table OK")
+
+
+# ---------------------------------------------------------------------------
 # Runner (style smoke_test_*)
 # ---------------------------------------------------------------------------
 def main() -> None:

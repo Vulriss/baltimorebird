@@ -23,10 +23,7 @@ export function deletePlotInTab(tabId, plotId) {
     const plot = S.plots[idx];
     if (plot.chart) plot.chart.destroy();
 
-    // Le panneau supprime etait-il le plus bas ? Si oui, le nouveau dernier
-    // devra afficher l'axe temporel.
-    const deletedWasLast = idx === S.plots.length - 1;
-    // ... et etait-il le premier ? L'en-tete de legende (Name/A/B/Δ/unit + ligne t)
+    // Le panneau supprime etait-il le premier ? L'en-tete de legende (Name/A/B/Δ/unit + ligne t)
     // n'est rendu que sur S.plots[0] au moment ou sa legende est construite: sans
     // reconstruction, le nouveau premier panneau reste sans bandeau.
     const deletedWasFirst = idx === 0;
@@ -36,6 +33,7 @@ export function deletePlotInTab(tabId, plotId) {
     plot.signals.forEach(sigIdx => {
         ectx.extendedBoolZones.delete(sigIdx);
         ectx.disabledBoolZones.delete(sigIdx);
+        ectx.pendingBoolZones.delete(sigIdx);
     });
 
     plot.element.remove();
@@ -60,11 +58,6 @@ export function deletePlotInTab(tabId, plotId) {
     }
 
     rebuildPlotsLayout(tabId);
-
-    // Le dernier panneau a change: il doit desormais porter l'axe temporel.
-    if (deletedWasLast && S.plots.length > 0) {
-        rerenderPlotFromCache(S.plots[S.plots.length - 1]);
-    }
 
     // Le panneau supprime ne doit plus etre la cible du raccourci Shift+Y:
     // mouseleave ne se declenche pas sur un noeud retire du DOM.
@@ -450,7 +443,7 @@ export function updatePlotHeader(plot) {
     // En-tete (Name/A/B/Δ/unit) et ligne temps (t/A/B/Δ/s): communs a tous les panneaux
     // (axe X partage), donc affiches uniquement sur le premier strip pour gagner de la place.
     // Les valeurs par signal restent sur chaque panneau. La mise a jour du temps ne trouve
-    // simplement pas ces cellules ailleurs (setTextIfChanged ignore un element absent).
+    // simplement pas ces cellules ailleurs (writeCell ignore une cellule absente).
     if (isFirstPlot(plot)) {
         table.appendChild(makeCell('ct-h lt-measure', 'Name'));
         table.appendChild(makeCell('ct-h ct-ha lt-measure', 'A'));
@@ -977,6 +970,23 @@ window.clearAllMissingSignals = clearAllMissingSignals;
 
 export function autoEnableExtendedZones(plot) {
     if (!plot || !plot.cachedData) return;
+
+    // Zones demandees par un layout charge (applyBoolZoneLayoutState): activees des que
+    // les donnees du signal sont la, quel que soit son rang parmi les booleens.
+    let restored = false;
+    for (const sigIdx of plot.signals) {
+        if (!ectx.pendingBoolZones.has(sigIdx)) continue;
+        const cached = plot.cachedData[sigIdx];
+        if (!cached || cached.unit !== 'bool') continue;
+        ectx.pendingBoolZones.delete(sigIdx);
+        if (ectx.extendedBoolZones.has(sigIdx)) continue;
+        const ranges = extractBoolHighRanges(cached.timestamps, cached.values);
+        const color = plot.signalStyles?.[sigIdx]?.color || cached.color;
+        ectx.extendedBoolZones.set(sigIdx, { color, ranges, plotId: plot.id });
+        restored = true;
+    }
+    // Les autres graphes affiches doivent dessiner la nouvelle zone en fond.
+    if (restored) refreshAllPlots();
 
     // Premier signal booleen du graphe (dans l'ordre d'ajout): seul candidat a
     // l'activation automatique des zones etendues. Activer tous les booleens

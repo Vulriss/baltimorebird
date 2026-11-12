@@ -1,0 +1,454 @@
+// Baltimore Bird - Graphes X/Y: dock lateral, panneaux, curseurs sur la trajectoire
+// Voir src/eda/xy-plots.js.
+@use '../abstracts/variables' as *;
+
+/* Contenu d'un onglet: graphes temporels a gauche, dock X/Y a droite. */
+.tab-main {
+    flex: 1;
+    display: flex;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.tab-main > .plots-wrapper { min-width: 0; }
+
+.tab-drop-row {
+    display: flex;
+    flex-shrink: 0;
+    gap: 4px;
+}
+
+.tab-drop-row > .drop-zone:first-child { flex: 1; }
+
+/* Zone "+ Graphe X/Y": un bouton (clic: panneau vide) qui est aussi une cible de depot.
+   Elle s'allume avec la zone voisine, activee par le glisser d'un signal. */
+.xy-drop-zone {
+    font: inherit;
+    font-size: 12px;
+    padding: 8px 18px;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: border-color 0.15s, color 0.15s, background 0.15s;
+
+    &:hover,
+    &:focus-visible {
+        border-color: $color-accent;
+        color: $color-accent;
+        outline: none;
+    }
+}
+
+.drop-zone.active + .xy-drop-zone,
+.xy-drop-zone.drop-target {
+    border-color: $color-accent;
+    color: $color-accent;
+    background: $color-accent-subtle;
+}
+
+.xy-drop-zone.drop-target { border-style: solid; }
+
+/* === Dock === */
+.xy-dock {
+    flex: 0 0 var(--xy-dock-width, 38%);
+    min-width: 260px;
+    max-width: 70%;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    overflow-y: auto;
+
+    &[hidden] { display: none; }
+
+    // Separateur en cours de glissement (xy-plots.js): les panneaux gardent leur cadre,
+    // leur contenu revient au relachement.
+    &.is-resizing .xy-body { visibility: hidden; }
+}
+
+.xy-dock-splitter {
+    flex: 0 0 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: col-resize;
+    transition: background 0.15s;
+
+    &[hidden] { display: none; }
+
+    &::after {
+        content: '';
+        width: 3px;
+        height: 40px;
+        background: $border-light;
+        border-radius: 2px;
+    }
+
+    &:hover,
+    &.active { background: rgba(85, 85, 204, 0.2); }
+}
+
+/* === Panneau === */
+.xy-panel {
+    position: relative;
+    flex: 1 1 0;
+    min-height: 200px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: $bg-card;
+    border: 1px solid $border-color;
+    border-radius: 6px;
+}
+
+.xy-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    padding: 4px 6px;
+    border-bottom: 1px solid $border-color;
+}
+
+.xy-series {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    font-size: $font-size-xs;
+}
+
+.xy-axis-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+}
+
+.xy-axis-tag {
+    padding: 0 4px;
+    border: 1px solid $border-light;
+    border-radius: 3px;
+    color: $text-muted;
+    font-family: $font-mono;
+    font-size: $font-size-2xs;
+    font-weight: 700;
+    line-height: 16px;
+}
+
+.xy-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    max-width: 100%;
+    padding: 0 2px 0 6px;
+    border-radius: 9px;
+    background: rgba(var(--ctp-overlay0-rgb), 0.16);
+    color: $text-primary;
+    line-height: 18px;
+
+    &.is-missing {
+        color: $text-muted;
+        font-style: italic;
+    }
+}
+
+.xy-chip-dot {
+    flex: none;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+}
+
+.xy-chip-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.xy-chip-remove {
+    flex: none;
+    width: 16px;
+    height: 16px;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background: transparent;
+    color: $text-muted;
+    font-size: 13px;
+    line-height: 14px;
+    cursor: pointer;
+
+    &:hover {
+        background: rgba(255, 100, 100, 0.15);
+        color: $ctp-red;
+    }
+}
+
+.xy-chip-empty {
+    color: $text-muted;
+    font-style: italic;
+}
+
+/* Outils du panneau: meme langage que la barre overlay des graphes temporels
+   (.plot-stats, _legend-table.scss), mais toujours visibles: le panneau n'a pas d'autre
+   acces a ces reglages. */
+.xy-tools {
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+}
+
+.xy-tool {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 22px;
+    height: 20px;
+    padding: 0 5px;
+    border: none;
+    border-radius: 3px;
+    background: transparent;
+    color: $text-muted;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+
+    svg { display: block; pointer-events: none; }
+
+    &:hover:not(:disabled) {
+        background: rgba(var(--ctp-overlay0-rgb), 0.22);
+        color: $text-primary;
+    }
+
+    &:active:not(:disabled) { background: rgba(var(--ctp-overlay0-rgb), 0.34); }
+
+    &:focus-visible {
+        outline: 1px solid $color-accent;
+        outline-offset: 1px;
+    }
+
+    // Fond explicite: la regle globale des boutons desactives pose le sien.
+    &:disabled {
+        background: transparent;
+        opacity: 0.35;
+        cursor: default;
+    }
+
+    &.is-on { color: $color-accent; }
+
+    &.xy-delete:hover {
+        background: rgba(255, 100, 100, 0.15);
+        color: $ctp-red;
+    }
+}
+
+/* Table de mesure aux curseurs: une ligne pour X, une par serie Y. */
+.xy-readout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto auto;
+    gap: 0 12px;
+    padding: 3px 8px;
+    border-bottom: 1px solid $border-color;
+    font-family: $font-mono;
+    font-size: $font-size-xs;
+    line-height: 16px;
+
+    &[hidden] { display: none; }
+}
+
+.xy-ro-head {
+    color: $text-muted;
+    text-align: right;
+
+    &.xy-ro-a { color: var(--cursor-a); }
+
+    &.xy-ro-b { color: var(--cursor-b); }
+}
+
+.xy-ro-name {
+    overflow: hidden;
+    color: $text-secondary;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.xy-ro-val {
+    color: $text-primary;
+    text-align: right;
+}
+
+.xy-body {
+    position: relative;
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.xy-chart {
+    width: 100%;
+    height: 100%;
+}
+
+/* Etat sans trace (signal a deposer, chargement): le message remplace le graphe. */
+.xy-message {
+    position: absolute;
+    inset: 0;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    color: $text-secondary;
+    font-size: 12px;
+    text-align: center;
+}
+
+.xy-panel.has-message {
+    .xy-chart { visibility: hidden; }
+
+    .xy-message { display: flex; }
+
+    .xy-status { display: none; }
+}
+
+.xy-status {
+    position: absolute;
+    top: 4px;
+    right: 8px;
+    color: $text-muted;
+    font-size: $font-size-2xs;
+    pointer-events: none;
+
+    &:empty { display: none; }
+}
+
+.xy-tooltip {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 60;
+    padding: 3px 6px;
+    border: 1px solid $border-light;
+    border-radius: 4px;
+    background: var(--cursor-label-bg);
+    color: $text-primary;
+    font-family: $font-mono;
+    font-size: $font-size-xs;
+    line-height: 1.35;
+    white-space: pre;
+    pointer-events: none;
+
+    &[hidden] { display: none; }
+}
+
+/* Plage entre curseurs, dessinee au-dessus de la trajectoire attenuee. */
+.xy-overlay {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+}
+
+/* Curseurs A/B sur la trajectoire: pastilles saisissables, a la couleur du curseur
+   (--cursor-color vient de .cursor-1 / .cursor-2, _cursors.scss). */
+.xy-cursor-dot {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 50;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--cursor-color);
+    box-shadow: 0 0 0 2px $bg-card;
+    color: var(--cursor-pill-text);
+    font-family: $font-mono;
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 16px;
+    text-align: center;
+    cursor: grab;
+    pointer-events: auto;
+    user-select: none;
+
+    &.is-dragging {
+        box-shadow: 0 0 0 2px $bg-card, 0 0 0 4px var(--cursor-color);
+        cursor: grabbing;
+    }
+}
+
+/* Point de survol: l'instant pointe ailleurs (graphe temporel ou autre graphe X/Y). */
+.xy-hover-dot {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 45;
+    width: 10px;
+    height: 10px;
+    border: 2px solid var(--sig-color);
+    border-radius: 50%;
+    background: $bg-card;
+    pointer-events: none;
+}
+
+/* Rappel, sur les graphes temporels, de l'instant du point survole dans un graphe X/Y. */
+.xy-probe-line {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 40;
+    display: none;
+    width: 0;
+    border-left: 1px dashed $text-secondary;
+    pointer-events: none;
+}
+
+/* Depot d'un signal sur un panneau: le haut le trace en Y, le bas en fait l'axe X. */
+.xy-drop-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 70;
+    display: none;
+    flex-direction: column;
+    gap: 4px;
+    padding: 4px;
+    background: rgba(var(--ctp-overlay0-rgb), 0.12);
+    pointer-events: none;
+}
+
+.xy-panel.drop-x .xy-drop-overlay,
+.xy-panel.drop-y .xy-drop-overlay { display: flex; }
+
+// Les deux cibles disent deja quoi faire: le message du panneau ne transparait pas dessous.
+.xy-panel.drop-x .xy-message,
+.xy-panel.drop-y .xy-message { visibility: hidden; }
+
+.xy-drop-y,
+.xy-drop-x {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px dashed $border-light;
+    border-radius: 6px;
+    background: $bg-card;
+    color: $text-secondary;
+    font-size: 12px;
+}
+
+.xy-drop-y { flex: 0 0 72%; }
+
+.xy-drop-x { flex: 1; }
+
+.xy-panel.drop-y .xy-drop-y,
+.xy-panel.drop-x .xy-drop-x {
+    border-color: $color-accent;
+    background: $color-accent-subtle;
+    color: $color-accent;
+}

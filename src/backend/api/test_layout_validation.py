@@ -62,7 +62,7 @@ def test_rejects_malformed_source_signals() -> None:
 
 def test_rejects_oversized_entries() -> None:
     assert not _validate_computed_variables([_cv(name="x" * 101)])[0]
-    assert not _validate_computed_variables([_cv(formula="A + " * 200)])[0]
+    assert not _validate_computed_variables([_cv(formula="A + " * 2000)])[0]
     assert not _validate_computed_variables([_cv(description="d" * 5000)])[0]
     assert not _validate_computed_variables([_cv(source_signals=["s"] * 27)])[0]
     assert not _validate_computed_variables([_cv(name=f"v{i}") for i in range(LAYOUT_MAX_COMPUTED_VARIABLES + 1)])[0]
@@ -92,6 +92,17 @@ def test_rejects_malformed_transforms() -> None:
                       {"mode": "savgol", "window": 0}, {"mode": "savgol", "window": True}):
         ok, error = _validate_layout(_layout({"name": "EngineRPM", "transform": transform}))
         assert not ok and error and "EngineRPM" in error, transform
+
+
+def test_accepts_extended_zone_state() -> None:
+    for state in (None, True, False):
+        assert _validate_layout(_layout({"name": "BrakeActive", "extend_zones": state})) == (True, None)
+
+
+def test_rejects_non_boolean_extended_zone_state() -> None:
+    for state in ("true", 1, {"on": True}):
+        ok, error = _validate_layout(_layout({"name": "BrakeActive", "extend_zones": state}))
+        assert not ok and error and "BrakeActive" in error, state
 
 
 def test_layout_rejects_malformed_signal_and_computed() -> None:

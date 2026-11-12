@@ -334,6 +334,7 @@ def upload_eda_file():
             "decoded_ratio": round(blf_report.decoded_ratio, 3),
             "signal_count": blf_report.signal_count,
             "unknown_frame_ids": len(blf_report.unknown_ids),
+            "undecodable_frames": blf_report.undecodable_frames,
             "dropped_secured_pdus": blf_report.dropped_secured_pdus,
         }
     if mat_report is not None:

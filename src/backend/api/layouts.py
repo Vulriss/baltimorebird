@@ -123,6 +123,9 @@ def _validate_plot_signals(signals: List[Any], where: str) -> Optional[str]:
         error = _validate_signal_transform(signal.get("transform"))
         if error:
             return f"Signal '{signal['name']}' {where}: {error}"
+        extend_zones = signal.get("extend_zones")
+        if extend_zones is not None and not isinstance(extend_zones, bool):
+            return f"Signal '{signal['name']}' {where}: 'extend_zones' doit être un booléen"
     return None
 
 

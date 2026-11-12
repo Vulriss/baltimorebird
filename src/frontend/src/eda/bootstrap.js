@@ -5,15 +5,17 @@ import { S } from '../core/state.js';
 import { isZoneTooltipEnabled, setZoneTooltipEnabled } from './zone-stats.js';
 import { setupCreateVariableListeners } from './computed-vars.js';
 import { API, ectx } from './context.js';
-import { addCursorFromButton } from './cursors.js';
 import { maybeApplyDeepLink, readDeepLinkFromUrl } from './deeplink.js';
 import { loadLegendWidth } from './legend-width.js';
-import { deletePlot } from './plot-legend.js';
-import { comparedAcquisitionRange, requestUpload } from './runs.js';
+import { setFileStats, setupFileInfo } from './file-info.js';
+import { deletePlot, updateSignalActiveStates } from './plot-legend.js';
+import { comparedAcquisitionRange } from './runs.js';
 import { changeSource, loadSources, restoreEphemeralSession, updateSourceSelector } from './sessions.js';
-import { setupSidebarSplitter, setupSidebarVSplitter } from './sidebar.js';
+import { setupSidebarSplitter } from './sidebar.js';
 import { computeFilteredSignals, renderSignalList, renderVirtualList } from './signal-list.js';
+import { setupToolbar } from './toolbar.js';
 import { refreshAllPlots } from './view-nav.js';
+import { activeXYPlots, destroyXYPlots, resetXYRanges } from './xy-plots.js';
 
 // =========================================================================
 // Init
@@ -53,8 +55,7 @@ export async function init() {
         ectx.acquisitionView = { ...ectx.globalView };
         ectx.currentSource = info.source;
         
-        document.getElementById('statSignals').textContent = info.n_signals;
-        document.getElementById('statDuration').textContent = info.duration.toFixed(0) + 's';
+        setFileStats({ signals: info.n_signals, duration: info.duration });
         document.getElementById('app-footer-info').textContent = __APP_VERSION__;
         
         renderSignalList();
@@ -119,8 +120,9 @@ function setupEventListeners() {
 
     // Splitter de redimensionnement de la sidebar
     setupSidebarSplitter();
-    // Splitter interne fichiers / signaux
-    setupSidebarVSplitter();
+    // Repli de la toolbar et hauteur partagee avec la zone infos de la sidebar
+    setupToolbar();
+    setupFileInfo();
 
     // Largeur partagee des legendes (persistee)
     loadLegendWidth();
@@ -137,13 +139,6 @@ function setupEventListeners() {
         searchInput._listenerAdded = true;
     }
     
-    // Cursor Button: ajoute un curseur, comportement identique au Ctrl+clic gauche
-    const addCursorBtn = document.getElementById('addCursorBtn');
-    if (addCursorBtn && !addCursorBtn._listenerAdded) {
-        addCursorBtn.addEventListener('click', addCursorFromButton);
-        addCursorBtn._listenerAdded = true;
-    }
-
     // Bouton bascule des infos de curseur (temps, ligne/valeur de delta, valeurs par
     // courbe). Actif par defaut: pas de classe sur body, donc labels visibles.
     const cursorLabelsToggle = document.getElementById('cursorLabelsToggle');
@@ -220,28 +215,15 @@ function setupEventListeners() {
         syncCursorsToggle._listenerAdded = true;
     }
 
-    // Reset Button
-    const resetBtn = document.getElementById('resetBtn');
-    if (resetBtn && !resetBtn._listenerAdded) {
-        resetBtn.addEventListener('click', () => {
-            // Reset complet: bornes Y liberees et fenetre temporelle ramenee a la
-            // plage complete de l'acquisition courante (et non d'une source de demo).
-            S.plots.forEach(p => { p.yRange = null; });
-            ectx.viewHistory = [];
-            ectx.redoStack = [];
-            // En comparaison, ramener a l'union des runs (decalages inclus), sinon a la
-            // plage complete de l'acquisition courante.
-            ectx.globalView = comparedAcquisitionRange() || { ...ectx.acquisitionView };
-            refreshAllPlots();
-        });
-        resetBtn._listenerAdded = true;
-    }
-    
     // Clear Button
     const clearBtn = document.getElementById('clearBtn');
     if (clearBtn && !clearBtn._listenerAdded) {
         clearBtn.addEventListener('click', () => {
             S.plots.slice().forEach(p => deletePlot(p.id));
+            if (activeXYPlots().length) {
+                destroyXYPlots(S.tabs.find(t => t.id === S.activeTabId));
+                updateSignalActiveStates();
+            }
             // Plus rien a l'ecran: le layout charge n'a plus de sens comme cible de
             // mise a jour (le prochain enregistrement creera une nouvelle entree).
             if (typeof window.clearCurrentLayout === 'function') window.clearCurrentLayout();
@@ -253,6 +235,18 @@ function setupEventListeners() {
     setupEdaEventListeners();
 }
 
+// Reset complet du zoom (bouton de la regle de temps): bornes Y liberees et fenetre
+// temporelle ramenee a la plage complete de l'acquisition courante (et non d'une source
+// de demo). En comparaison, ramener a l'union des runs (decalages inclus).
+export function resetView() {
+    S.plots.forEach(p => { p.yRange = null; });
+    resetXYRanges();
+    ectx.viewHistory = [];
+    ectx.redoStack = [];
+    ectx.globalView = comparedAcquisitionRange() || { ...ectx.acquisitionView };
+    refreshAllPlots();
+}
+
 function setupEdaEventListeners() {
     // Source selector
     const sourceSelector = document.getElementById('sourceSelector');
@@ -261,23 +255,6 @@ function setupEdaEventListeners() {
             if (typeof changeSource === 'function') changeSource();
         });
         sourceSelector._listenerAdded = true;
-    }
-
-    // Upload buttons
-    const uploadBtnAuth = document.getElementById('uploadBtnAuth');
-    if (uploadBtnAuth && !uploadBtnAuth._listenerAdded) {
-        uploadBtnAuth.addEventListener('click', function() {
-            requestUpload();
-        });
-        uploadBtnAuth._listenerAdded = true;
-    }
-
-    const uploadBtnGuest = document.getElementById('uploadBtnGuest');
-    if (uploadBtnGuest && !uploadBtnGuest._listenerAdded) {
-        uploadBtnGuest.addEventListener('click', function() {
-            requestUpload();
-        });
-        uploadBtnGuest._listenerAdded = true;
     }
 
     // Tab add button

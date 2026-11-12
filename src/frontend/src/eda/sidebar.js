@@ -1,9 +1,8 @@
-// Baltimore Bird - Splitters de la sidebar (largeur, zone fichiers/signaux)
+// Baltimore Bird - Splitter de largeur de la sidebar
 // Module extrait de app.js (refactoring): voir src/eda/ARCHITECTURE.md
 
 import { resizeAllChartsNow } from './plots.js';
-import { beginGhostResize, beginGhostResizeY } from './shared-dom.js';
-import { renderVirtualList } from './signal-list.js';
+import { beginGhostResize } from './shared-dom.js';
 
 // =========================================================================
 // Sidebar Resize Splitter
@@ -13,16 +12,6 @@ const SIDEBAR_WIDTH_KEY = 'bb_sidebar_width';
 const SIDEBAR_MIN_WIDTH = 180;
 
 const SIDEBAR_MAX_WIDTH = 600;
-
-// Splitter horizontal interne a la sidebar (hauteur de la zone fichiers). Le reste
-// revient a la zone signaux, dont la liste virtualisee est re-rendue apres resize.
-const SIDEBAR_FILES_HEIGHT_KEY = 'bb_sidebar_files_height';
-
-const SIDEBAR_FILES_MIN_HEIGHT = 60;
-
-const SIDEBAR_FILES_MAX_HEIGHT = 400;
-
-const SIDEBAR_SIGNALS_MIN_HEIGHT = 160;
 
 // Ajoute un splitter vertical apres la sidebar pour la redimensionner (utile
 // pour les noms de signaux longs). La largeur est persistee dans localStorage.
@@ -58,36 +47,5 @@ export function setupSidebarSplitter() {
             requestAnimationFrame(resizeAllChartsNow);
         });
     });
-}
-
-// Splitter interne a la sidebar: ajuste la hauteur de la zone fichiers, la zone
-// signaux occupant le reste. La hauteur est persistee et la liste virtualisee est
-// re-rendue (force) apres resize, sa hauteur visible ayant change.
-export function setupSidebarVSplitter() {
-    const files = document.getElementById('sidebarFiles');
-    const splitter = document.getElementById('sidebarVSplitter');
-    const sidebar = document.querySelector('.sidebar');
-    if (!files || !splitter || !sidebar || splitter._listenerAdded) return;
-
-    const clampHeight = (h) => Math.min(SIDEBAR_FILES_MAX_HEIGHT, Math.max(SIDEBAR_FILES_MIN_HEIGHT, h));
-    const saved = parseInt(localStorage.getItem(SIDEBAR_FILES_HEIGHT_KEY), 10);
-    if (Number.isFinite(saved)) files.style.height = clampHeight(saved) + 'px';
-
-    splitter.addEventListener('mousedown', (e) => {
-        e.preventDefault();
-        const top = files.getBoundingClientRect().top;
-        const sidebarBottom = sidebar.getBoundingClientRect().bottom;
-        const maxByLayout = Math.min(top + SIDEBAR_FILES_MAX_HEIGHT, sidebarBottom - SIDEBAR_SIGNALS_MIN_HEIGHT);
-        const clampY = (y) => Math.min(maxByLayout, Math.max(top + SIDEBAR_FILES_MIN_HEIGHT, y));
-        beginGhostResizeY(e.clientY, clampY, (ghostY) => {
-            const height = Math.round(ghostY - top);
-            files.style.height = height + 'px';
-            try {
-                localStorage.setItem(SIDEBAR_FILES_HEIGHT_KEY, String(height));
-            } catch (err) { /* stockage indisponible */ }
-            renderVirtualList(true);
-        });
-    });
-    splitter._listenerAdded = true;
 }
 

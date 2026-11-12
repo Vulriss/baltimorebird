@@ -14,6 +14,7 @@
 import { presetColors } from './color-presets.js';
 import { hexToRgb, rgbToHsv, hsvToHex } from './color-utils.js';
 import { resizeAllChartsNow } from './plots.js';
+import { rulerForExport } from './time-ruler.js';
 
 
 
@@ -24,6 +25,8 @@ import { resizeAllChartsNow } from './plots.js';
     const TITLE_H = 30;
     const LEGEND_ROW_H = 20;
     const PLOT_GAP = 14;
+    // Ecart entre la regle de temps, dessinee en tete, et le premier graphe.
+    const RULER_GAP = 6;
     const TARGET_WIDTH = 1134;
     const TARGET_HEIGHT = 700;
     const DEFAULT_COLORS = ['#f38ba8', '#94e2d5', '#fab387', '#89b4fa', '#a6e3a1', '#f9e2af', '#cba6f7'];
@@ -270,33 +273,42 @@ import { resizeAllChartsNow } from './plots.js';
         ctx.fillRect(cx - w / 2, y, w, r.height);
     }
 
-    // Ligne delta horizontale (degrade pointille entre les deux curseurs).
-    function drawDeltaLine(ctx, el, canvasRect, ox, oy) {
-        const r = el.getBoundingClientRect();
-        if (r.width < 1) return;
-        const cs = getComputedStyle(el);
-        if (cs.display === 'none' || cs.visibility === 'hidden') return;
-        const x = ox + (r.left - canvasRect.left);
-        const y = oy + (r.top - canvasRect.top) + r.height / 2;
-        ctx.strokeStyle = 'rgba(255, 170, 68, 0.7)';
-        ctx.lineWidth = Math.max(1.5, r.height);
-        ctx.setLineDash([4, 4]);
-        ctx.beginPath();
-        ctx.moveTo(x, y);
-        ctx.lineTo(x + r.width, y);
-        ctx.stroke();
-        ctx.setLineDash([]);
-    }
-
-    // Capture les curseurs et leurs labels d'un graphe (ceux actuellement visibles).
+    // Capture les curseurs et leurs labels de valeurs d'un graphe (ceux actuellement visibles).
     function drawCursors(ctx, container, cnv, originX, originY) {
         const canvasRect = cnv.getBoundingClientRect();
         container.querySelectorAll('.cursor-line').forEach(el => drawVCursor(ctx, el, canvasRect, originX, originY));
-        container.querySelectorAll('.cursor-delta-line').forEach(el => drawDeltaLine(ctx, el, canvasRect, originX, originY));
-        const labels = '.cursor-time-label, .cursor-delta-label, .cursor-label, .x-axis-offset';
-        container.querySelectorAll(labels).forEach(el => {
+        container.querySelectorAll('.cursor-label').forEach(el => {
             rasterizeOverlayEl(ctx, el, canvasRect, originX, originY);
         });
+    }
+
+    // Regle de temps: graduation, plage entre curseurs, traits, cote et pastilles de
+    // temps/delta. (originX, originY) est le coin haut-gauche de la piste.
+    function drawRuler(ctx, ruler, originX, originY) {
+        const trackRect = ruler.track.getBoundingClientRect();
+        const canvasRect = ruler.canvas.getBoundingClientRect();
+        ctx.drawImage(ruler.canvas,
+            originX + (canvasRect.left - trackRect.left), originY + (canvasRect.top - trackRect.top),
+            canvasRect.width, canvasRect.height);
+        const draw = (sel, fn) => ruler.track.querySelectorAll(sel)
+            .forEach(el => fn(ctx, el, trackRect, originX, originY));
+        draw('.ruler-delta', rasterizeOverlayEl);
+        draw('.ruler-delta-line', rasterizeOverlayEl);
+        draw('.ruler-cursor', drawRulerCursorLine);
+        // Pastille de delta: fond porte par le bouton, texte par son span (le cadenas,
+        // un SVG, n'est pas reporte sur l'image).
+        draw('.ruler-cursor-pill, .ruler-delta-pill, .ruler-delta-text, .x-axis-offset', rasterizeOverlayEl);
+    }
+
+    // Trait d'un curseur de la regle: pseudo ::before, du haut des ticks au bas de la regle.
+    function drawRulerCursorLine(ctx, el, refRect, ox, oy) {
+        if (getComputedStyle(el).display === 'none') return;
+        const line = getComputedStyle(el, '::before');
+        const r = el.getBoundingClientRect();
+        const top = parseFloat(line.top) || 0;
+        const w = parseFloat(line.width) || 2;
+        ctx.fillStyle = line.backgroundColor;
+        ctx.fillRect(ox + (r.left - refRect.left) - w / 2, oy + (r.top - refRect.top) + top, w, r.height - top);
     }
 
     let originalLayoutState = null;
@@ -406,7 +418,9 @@ import { resizeAllChartsNow } from './plots.js';
         });
 
         const titleAndPadding = PAD * 2 + TITLE_H;
-        const availableHeight = TARGET_HEIGHT - totalGapHeight - totalLegendHeight - titleAndPadding;
+        const exportRuler = rulerForExport(plotsWrapper);
+        const rulerHeight = exportRuler ? exportRuler.height + RULER_GAP : 0;
+        const availableHeight = TARGET_HEIGHT - totalGapHeight - totalLegendHeight - titleAndPadding - rulerHeight;
 
         // Calculer la hauteur actuelle totale des corps de graphe pour determiner les proportions
         let totalCurrentHeight = 0;
@@ -629,9 +643,19 @@ import { resizeAllChartsNow } from './plots.js';
         ctx.fillStyle = colors.muted;
         ctx.fillText(stamp, contentW - PAD - sw, PAD + TITLE_H / 2 - 2);
 
-        // Plots
+        // Regle de temps en tete, alignee sur la zone de trace du premier graphe: son
+        // canvas est place par rapport a celui du graphe comme a l'ecran.
         let currentY = PAD + TITLE_H;
-        
+        const ruler = rulerForExport(document.getElementById(`plotsWrapper-${window.S.activeTabId}`));
+        if (ruler) {
+            const firstCanvas = plotLayouts[0].cnv.getBoundingClientRect();
+            const rulerX = PAD + (ruler.track.getBoundingClientRect().left - firstCanvas.left);
+            drawRuler(ctx, ruler, rulerX, currentY);
+            currentY += ruler.height + RULER_GAP;
+        }
+
+        // Plots
+
         plotLayouts.forEach((layout, index) => {
             // Legend
             if (layout.entries.length) {
@@ -1371,6 +1395,10 @@ ${body}
                 forceResizeCharts();
                 const { plots } = activeTabPlots();
                 await ensureChartsMatchContainers(plots);
+                // La regle de temps se realigne au rAF qui suit le redimensionnement
+                // des graphes (time-ruler.js), puis son canvas au rAF suivant.
+                await nextFrame();
+                await nextFrame();
                 if (!buildComposite()) {
                     restoreLayout();
                     if (typeof window.showNotification === 'function') {

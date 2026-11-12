@@ -164,6 +164,26 @@
     background: rgba(var(--ctp-teal-rgb), 0.1);
 }
 
+/* Actions sur la vue (capture, partage) puis sur le layout (exporter / importer),
+   poussees au bout de la rangee: elles portent sur les onglets de layout affiches a cote. */
+.tabs-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-left: auto;
+    flex-shrink: 0;
+}
+
+/* Les boutons eux-memes sont ceux de la toolbar (.toolbar-btn--inline, _toolbar.scss). */
+
+/* Separe les actions sur la vue (capture, partage) de celles sur le layout. */
+.tabs-actions-divider {
+    width: 1px;
+    height: 16px;
+    margin: 0 2px;
+    background: $ctp-surface2;
+}
+
 /* Tab content areas */
 .tab-content {
     display: none;

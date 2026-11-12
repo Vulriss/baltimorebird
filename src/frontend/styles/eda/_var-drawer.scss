@@ -3,12 +3,11 @@
 @use '../abstracts/variables' as *;
 
 /* === CREATE VARIABLE BUTTON === */
-/* Plus d'inset ni de marge propres: .sidebar-signals fournit desormais le
-   meme padding/gap que .sidebar-files (cf. _sidebar.scss), ce bouton s'y
-   insere comme n'importe quel autre enfant de la section.
-   Meme traitement accent que .upload-btn (zone fichiers, _run-list.scss):
-   les deux sont le meme type d'action ("ajouter/creer" en tete de liste) et
-   doivent porter le meme signal visuel. Auparavant transparent/gris au repos,
+/* Plus d'inset ni de marge propres: .sidebar-signals fournit le padding/gap
+   (cf. _sidebar.scss), ce bouton s'y insere comme n'importe quel autre enfant
+   de la section.
+   Traitement accent d'une action "ajouter/creer", qui doit porter un signal
+   visuel des le repos. Auparavant transparent/gris au repos,
    il ne se coloriait qu'au survol - invisible tant qu'on ne l'avait pas
    trouve par hasard, alors que creer une variable est une action importante
    de cette liste, pas une option secondaire. */
@@ -395,6 +394,79 @@
     border-radius: 4px;
     color: $text-muted;
     font-family: $font-mono;
+}
+
+/* Editeur de table pour interp1d (interp-table.js) */
+.interp-helper { margin-top: 12px; }
+
+.interp-helper-body {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 8px;
+    padding: 10px;
+    background: $bg-darkest;
+    border: 1px solid $border-color;
+    border-radius: 8px;
+
+    &[hidden] { display: none; }
+}
+
+.interp-helper-label {
+    font-size: 11px;
+    color: $text-muted;
+}
+
+.interp-helper-input,
+.interp-helper-table {
+    width: 100%;
+    padding: 8px 10px;
+    background: $bg-card;
+    border: 1px solid $border-color;
+    border-radius: 6px;
+    color: $text-primary;
+    font-family: $font-mono;
+    font-size: 12px;
+
+    &:focus {
+        outline: none;
+        border-color: $color-primary;
+    }
+}
+
+.interp-helper-table {
+    min-height: 96px;
+    resize: vertical;
+    tab-size: 12;
+}
+
+.interp-helper-status {
+    min-height: 16px;
+    font-size: 11px;
+    color: $text-muted;
+
+    &.is-error { color: $ctp-red; }
+}
+
+.interp-helper-apply { align-self: flex-start; }
+
+.interp-helper-btn {
+    padding: 6px 12px;
+    background: transparent;
+    border: 1px solid $border-light;
+    border-radius: 6px;
+    color: $text-secondary;
+    font-size: 12px;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: border-color 0.15s, color 0.15s;
+
+    &:hover,
+    &:focus-visible {
+        border-color: $color-primary;
+        color: $color-primary;
+        outline: none;
+    }
 }
 
 /* Error state */

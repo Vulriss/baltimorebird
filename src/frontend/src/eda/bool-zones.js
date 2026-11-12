@@ -39,14 +39,40 @@ export function extractBoolHighRanges(timestamps, values, threshold = 0.5) {
 // La vivacite se mesure sur tous les onglets, pas sur le seul onglet actif: les zones
 // debordent volontairement sur les autres vues, c'est ce qui permet de basculer d'un onglet
 // a l'autre en gardant le highlight.
+// Un onglet de layout restaure mais pas encore affiche (hydratation differee) compte aussi:
+// ses signaux n'ont pas encore de panneau, mais leurs zones restaurees doivent deja
+// deborder sur les vues affichees, comme avant le changement de fichier.
 function collectLiveSignals() {
     const live = new Set();
     const addFrom = plots => (plots || []).forEach(plot => {
         (plot?.signals || []).forEach(sigIdx => live.add(sigIdx));
     });
     addFrom(S.plots);
-    (S.tabs || []).forEach(tab => addFrom(tab?.plots));
+    (S.tabs || []).forEach(tab => {
+        addFrom(tab?.plots);
+        if (tab?._pendingLayout && !tab._hydrated) {
+            const index = signalIndexByName();
+            tab._pendingLayout.forEach(spec => (spec?.signals || []).forEach(sig => {
+                const sigIdx = index.get(sig?.name);
+                if (sigIdx !== undefined) live.add(sigIdx);
+            }));
+        }
+    });
     return live;
+}
+
+// Index nom -> indice du fichier courant, reconstruit seulement quand la liste de signaux
+// change (collectLiveSignals tourne a chaque dessin de chaque graphe).
+let nameIndexCache = { signals: null, index: new Map() };
+
+function signalIndexByName() {
+    if (nameIndexCache.signals !== S.signalsInfo) {
+        nameIndexCache = {
+            signals: S.signalsInfo,
+            index: new Map((S.signalsInfo || []).map(sig => [sig.name, sig.index])),
+        };
+    }
+    return nameIndexCache.index;
 }
 
 export function purgeExtendedZonesForPlots(plots) {
@@ -54,7 +80,67 @@ export function purgeExtendedZonesForPlots(plots) {
         (plot?.signals || []).forEach(sigIdx => {
             ectx.extendedBoolZones.delete(sigIdx);
             ectx.disabledBoolZones.delete(sigIdx);
+            ectx.pendingBoolZones.delete(sigIdx);
         });
+    });
+}
+
+// Oublie toutes les zones (changement de fichier: les indices ne designent plus les
+// memes signaux).
+export function clearBoolZones() {
+    ectx.extendedBoolZones.clear();
+    ectx.disabledBoolZones.clear();
+    ectx.pendingBoolZones.clear();
+}
+
+// Etat explicite des zones d'un signal pour l'export de layout: true (etendues), false
+// (desactivees par l'utilisateur), null (defaut: activation automatique du premier
+// booleen d'un graphe).
+export function boolZoneLayoutState(sigIdx) {
+    if (ectx.extendedBoolZones.has(sigIdx)) return true;
+    if (ectx.disabledBoolZones.has(sigIdx)) return false;
+    return null;
+}
+
+// Applique l'etat d'un layout charge a un signal. Les plages derivent des donnees, qui
+// ne sont pas encore la: une zone demandee est mise en attente et activee par
+// autoEnableExtendedZones a l'arrivee du cache du signal.
+export function applyBoolZoneLayoutState(sigIdx, state) {
+    if (state === true) {
+        ectx.disabledBoolZones.delete(sigIdx);
+        if (!ectx.extendedBoolZones.has(sigIdx)) ectx.pendingBoolZones.add(sigIdx);
+    } else if (state === false) {
+        ectx.extendedBoolZones.delete(sigIdx);
+        ectx.pendingBoolZones.delete(sigIdx);
+        ectx.disabledBoolZones.add(sigIdx);
+    }
+}
+
+// Photographie des zones etendues pour l'espace de travail d'un fichier: par nom (les
+// indices sont propres au fichier) et avec leurs plages, pour qu'au retour elles
+// reapparaissent sur toutes les vues avant meme le rechargement des donnees.
+export function snapshotBoolZones(signals) {
+    const names = new Map((signals || []).map(sig => [sig.index, sig.name]));
+    const zones = [];
+    ectx.extendedBoolZones.forEach((zone, sigIdx) => {
+        const name = names.get(sigIdx);
+        if (name === undefined) return;
+        zones.push({ name, color: zone.color, ranges: (zone.ranges || []).map(r => [r[0], r[1]]) });
+    });
+    return zones;
+}
+
+export function restoreBoolZones(zones, signals) {
+    const index = new Map((signals || []).map(sig => [sig.name, sig.index]));
+    (zones || []).forEach(zone => {
+        const sigIdx = index.get(zone?.name);
+        if (sigIdx === undefined || ectx.disabledBoolZones.has(sigIdx)) return;
+        ectx.extendedBoolZones.set(sigIdx, {
+            color: zone.color,
+            ranges: Array.isArray(zone.ranges) ? zone.ranges : [],
+            plotId: null,
+        });
+        ectx.pendingBoolZones.delete(sigIdx);
     });
 }
 

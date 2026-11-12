@@ -311,7 +311,7 @@ export async function uploadEdaFile() {
                 if (edaUploadPercent) edaUploadPercent.textContent = '100%';
 
                 await loadSources();
-                await activateLazySession(data.session_id, data.filename, data.ephemeral === true, true);
+                await activateLazySession(data.session_id, data.filename, data.ephemeral === true);
                 
                 if (typeof showNotification === 'function') {
                     const note = data.ephemeral ? ' (fichier temporaire, non sauvegardé)' : '';
@@ -325,10 +325,14 @@ export async function uploadEdaFile() {
                     if (r.unknown_frame_ids > 0) {
                         msg += ` - ${r.unknown_frame_ids} identifiant(s) non couvert(s) par la base`;
                     }
+                    if (r.undecodable_frames > 0) {
+                        msg += ` - ${r.undecodable_frames} trame(s) incohérente(s) avec la base ignorée(s)`;
+                    }
                     if (r.dropped_secured_pdus && r.dropped_secured_pdus.length > 0) {
                         msg += ` - ${r.dropped_secured_pdus.length} PDU sécurisé(s) sans payload ignoré(s)`;
                     }
-                    showNotification(msg, r.unknown_frame_ids > 0 ? 'info' : 'success');
+                    const partial = r.unknown_frame_ids > 0 || r.undecodable_frames > 0;
+                    showNotification(msg, partial ? 'info' : 'success');
                 }
 
                 if (data.mat && typeof showNotification === 'function') {

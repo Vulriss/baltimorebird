@@ -21,6 +21,16 @@ expression, y compris une suggestion générée par un modèle, doit la faire pa
 par cet évaluateur et l'afficher à l'utilisateur avant application. Le générateur
 propose du texte ; il n'est jamais un chemin d'exécution.
 
+## Tables d'interpolation
+
+`interp1d(A, [x0, x1, …], [y0, y1, …])` interpole un signal dans une table, bords tenus
+(`np.interp`). La table s'écrit en littéral dans la formule : elle suit donc la formule
+partout où elle est persistée (layout, descripteur de session, LXF) sans champ à part, et
+c'est pour elle que `FORMULA_MAX_LENGTH` vaut 4000. Un littéral de liste n'est évalué que
+comme argument direct d'une fonction de `TABLE_FUNCTIONS` ; partout ailleurs
+l'interpréteur le refuse, et il n'admet que des nombres (500 au plus). Côté client,
+`interp-table.js` lit un tableau collé et écrit ou relit l'appel dans la formule.
+
 ## Modification d'une variable déjà tracée
 
 Le serveur remplace les données sous le même index. Côté client,

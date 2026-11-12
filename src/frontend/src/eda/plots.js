@@ -11,8 +11,9 @@ import { setCommentPlotSignal } from './events-strip.js';
 import { applyLegendWidthTo, startLegendResize } from './legend-width.js';
 import { addOverlaySeries, isSeriesSynth, plotHasSynth } from './overlay.js';
 import { cleanupExtendedZones, deletePlot, deletePlotInTab, updatePlotHeader, updateSignalActiveStates } from './plot-legend.js';
-import { autoScaleY, exitSolo, plotIconSvg, renderPlotFromCache, rerenderPlotFromCache, soloPlot, toggleSoloPlot, toggleYLock } from './plot-ui.js';
+import { autoScaleY, exitSolo, plotIconSvg, renderPlotFromCache, soloPlot, toggleSoloPlot, toggleYLock } from './plot-ui.js';
 import { fetchAndRenderPlot } from './render.js';
+import { activeXYPlots } from './xy-plots.js';
 
 // Redimensionne tous les graphes a la taille actuelle de leur conteneur.
 export function resizeAllChartsNow() {
@@ -113,6 +114,14 @@ export function createPlotInTab(tabId, signalIndex = null, { isBoolPlot = false,
     const plotLegend = document.createElement('div');
     plotLegend.className = 'plot-legend';
     applyLegendWidthTo(plotLegend);
+    // La legende change de largeur en transition (table de mesure des curseurs): le graphe
+    // ne prend sa largeur definitive qu'a la fin. Redimensionne plus tot, il garderait une
+    // largeur intermediaire et deborderait sous la legende.
+    plotLegend.addEventListener('transitionend', e => {
+        if (e.target !== plotLegend || e.propertyName !== 'width') return;
+        const plot = S.plots.find(p => p.element === container);
+        if (plot && plot.chart) plot.chart.setSize({ width: plotBody.clientWidth, height: plotBody.clientHeight });
+    });
 
     // Splitter vertical entre le graphe et sa legende. Le redimensionnement est
     // lie: il regle la largeur partagee de toutes les legendes.
@@ -242,10 +251,6 @@ export function createPlotInTab(tabId, signalIndex = null, { isBoolPlot = false,
         isCommentPlot
     };
 
-    // Panneau le plus bas avant insertion: s'il cesse de l'etre, son axe
-    // temporel doit disparaitre.
-    const prevLast = S.plots.length ? S.plots[S.plots.length - 1] : null;
-
     // Ordre vertical des panneaux: analogiques, puis le booleen, puis les commentaires
     // (toujours tout en bas). On insere avant l'ancre appropriee.
     if (isCommentPlot) {
@@ -270,10 +275,6 @@ export function createPlotInTab(tabId, signalIndex = null, { isBoolPlot = false,
 
     if (signalIndex !== null) {
         addSignalToPlot(id, signalIndex);
-    }
-
-    if (prevLast && prevLast.id !== S.plots[S.plots.length - 1].id) {
-        rerenderPlotFromCache(prevLast);
     }
     return id;
 }
@@ -343,8 +344,30 @@ function createPlot(signalIndex) {
     return createPlotInTab(S.activeTabId, signalIndex);
 }
 
+// Hauteur fixe (strip booleen ou commentaires, "0 0 Npx"): hors de la repartition.
+export function isFixedFlex(el) {
+    return /^0 0 /.test(el.style.flex);
+}
+
+// Poids flex d'un panneau de hauteur px parmi des panneaux de hauteur moyenne meanPx.
+// Un poids, jamais une hauteur en pixels: une hauteur fixee ("0 0 Npx") ne suit plus la
+// zone des graphes, et le moindre pixel perdu ensuite (toolbar depliee, fenetre reduite,
+// ou le simple arrondi d'offsetHeight sur un affichage a 125 %) fait deborder la zone et
+// apparaitre un ascenseur. Poids 1 = hauteur moyenne, comme le flex par defaut des
+// panneaux: le ratio s'enregistre tel quel dans un layout (layout-state.js).
+export function flexWeight(px, meanPx) {
+    const weight = meanPx > 0 ? px / meanPx : 1;
+    return `${Number(weight.toFixed(4))} 1 0px`;
+}
+
 function setupSplitter(splitter) {
-    let startY, startHeightAbove, startHeightBelow, aboveEl, belowEl;
+    let startY, startHeightAbove, startHeightBelow, aboveEl, belowEl, meanPx;
+    // Fractionnaires (getBoundingClientRect): offsetHeight arrondit, et deux arrondis au
+    // superieur suffisent a depasser la hauteur disponible.
+    const heightOf = el => el.getBoundingClientRect().height;
+    const applyHeight = (el, px) => {
+        el.style.flex = isFixedFlex(el) ? `0 0 ${px}px` : flexWeight(px, meanPx);
+    };
 
     splitter.addEventListener('mousedown', e => {
         e.preventDefault();
@@ -355,8 +378,19 @@ function setupSplitter(splitter) {
         if (!aboveEl || !belowEl) return;
 
         startY = e.clientY;
-        startHeightAbove = aboveEl.offsetHeight;
-        startHeightBelow = belowEl.offsetHeight;
+        startHeightAbove = heightOf(aboveEl);
+        startHeightBelow = heightOf(belowEl);
+
+        // Tous les panneaux a hauteur libre de l'onglet passent en poids proportionnels a
+        // leur hauteur actuelle: rien ne bouge a l'ecran, et les deux panneaux du splitter
+        // restent comparables aux autres pendant le glissement. Les panneaux masques
+        // (hauteur nulle) gardent leur poids.
+        const flexible = [...aboveEl.parentElement.querySelectorAll(':scope > .plot-container')]
+            .filter(el => !isFixedFlex(el))
+            .map(el => ({ el, px: heightOf(el) }))
+            .filter(item => item.px > 0);
+        meanPx = flexible.length ? flexible.reduce((sum, item) => sum + item.px, 0) / flexible.length : 0;
+        flexible.forEach(item => { item.el.style.flex = flexWeight(item.px, meanPx); });
         
         splitter.classList.add('active');
         document.body.style.cursor = 'row-resize';
@@ -383,8 +417,8 @@ function setupSplitter(splitter) {
         const delta = e.clientY - startY;
         let above = Math.max(minAbove, Math.min(total - minBelow, startHeightAbove + delta));
         const below = total - above;
-        aboveEl.style.flex = `0 0 ${above}px`;
-        belowEl.style.flex = `0 0 ${below}px`;
+        applyHeight(aboveEl, above);
+        applyHeight(belowEl, below);
     }
 
     function onMouseUp() {
@@ -448,7 +482,6 @@ function movePlot(draggedId, targetId, before) {
     if (target.isBoolPlot || target.isCommentPlot) return;
 
     const prevFirst = S.plots[0];
-    const prevLast = S.plots[S.plots.length - 1];
 
     S.plots.splice(from, 1);
     let to = S.plots.findIndex(p => p.id === targetId);
@@ -468,12 +501,6 @@ function movePlot(draggedId, targetId, before) {
         updatePlotHeader(prevFirst);
         updatePlotHeader(newFirst);
         updateCursorReadout(newFirst);
-    }
-    // Idem pour l'axe temporel, porte par le dernier panneau uniquement.
-    const newLast = S.plots[S.plots.length - 1];
-    if (prevLast !== newLast) {
-        rerenderPlotFromCache(prevLast);
-        rerenderPlotFromCache(newLast);
     }
 
     setTimeout(resizePlotCharts, 50);
@@ -620,7 +647,10 @@ function adaptSignalUnit(plot, signalIndex) {
 function assignPresetColor(plot, idx) {
     if (isSeriesSynth(idx) || plot.signalStyles?.[idx]) return;
     if (!plot.signalStyles) plot.signalStyles = {};
-    plot.signalStyles[idx] = { color: presetColorForSignal(S.plots, plot, idx), width: 1.5, dash: '' };
+    // Les graphes X/Y de l'onglet comptent aussi: un signal garde sa couleur d'une vue a
+    // l'autre, et une case deja prise par une trajectoire n'est pas redonnee.
+    const tabPlots = [...S.plots, ...activeXYPlots()];
+    plot.signalStyles[idx] = { color: presetColorForSignal(tabPlots, plot, idx), width: 1.5, dash: '' };
 }
 
 export function addSignalToPlot(plotId, signalIndex) {

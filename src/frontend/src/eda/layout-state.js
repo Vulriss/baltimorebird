@@ -2,7 +2,7 @@
 // Module extrait de app.js (refactoring): voir src/eda/ARCHITECTURE.md
 
 import { S } from '../core/state.js';
-import { purgeExtendedZonesForPlots } from './bool-zones.js';
+import { applyBoolZoneLayoutState, boolZoneLayoutState, purgeExtendedZonesForPlots } from './bool-zones.js';
 import { themedPresetColor } from './color-presets.js';
 import { API, ectx } from './context.js';
 import { canRenderFromCache } from './data-views.js';
@@ -13,8 +13,10 @@ import { updatePlotHeader } from './plot-legend.js';
 import { addSignalToPlot, createPlotInTab, ensureBoolPlot, ensureCommentPlot, isBoolSignalIndex, isEventSignalIndex } from './plots.js';
 import { renderBoolPlot } from './render.js';
 import { renderSignalList } from './signal-list.js';
+import { destroyTimeRuler } from './time-ruler.js';
 import { SIGNAL_TRANSFORMS, renderPlotFromCacheFiltered } from './transforms.js';
 import { applyGlobalViewLocal, refreshAllPlots } from './view-nav.js';
+import { destroyXYPlots, exportXYPlots, restoreXYPlot } from './xy-plots.js';
 
 // =========================================================================
 // Layout Save/Load System
@@ -56,6 +58,10 @@ export function exportCurrentLayout() {
                 };
                 const transform = layoutTransform(plot.signalTransforms?.[sigIdx]);
                 if (transform) entry.transform = transform;
+                // Zones booleennes etendues: seul l'etat est exporte, les plages derivent
+                // des donnees du fichier sur lequel le layout sera recharge.
+                const zones = boolZoneLayoutState(sigIdx);
+                if (zones !== null) entry.extend_zones = zones;
                 return entry;
             });
             
@@ -88,7 +94,7 @@ export function exportCurrentLayout() {
         
         return {
             name: tab.name,
-            plots: tabPlots
+            plots: tabPlots.concat(exportXYPlots(tab))
         };
     });
     
@@ -125,6 +131,11 @@ function buildTabPlots(tabId, plotsSpec) {
     S.signalsInfo.forEach(sig => { nameToIndex[sig.name] = sig.index; });
 
     for (const layoutPlot of plotsSpec) {
+        // Graphe X/Y: panneau du dock lateral, hors de la pile des graphes temporels.
+        if (layoutPlot.kind === 'xy') {
+            restoreXYPlot(tabId, layoutPlot);
+            continue;
+        }
         const normalSigs = [];
         const boolSigs = [];
         const eventSigs = [];
@@ -138,6 +149,9 @@ function buildTabPlots(tabId, plotsSpec) {
                 missingSigs.push({ name: sig.name, style: sig.style, transform: sig.transform });
                 continue;
             }
+            // Avant l'ajout au graphe: une zone desactivee ne doit pas etre reactivee par
+            // l'activation automatique si les donnees sont deja en cache.
+            applyBoolZoneLayoutState(sigIdx, sig.extend_zones);
             if (isEventSignalIndex(sigIdx)) eventSigs.push(sigIdx);
             else if (isBoolSignalIndex(sigIdx)) boolSigs.push({ idx: sigIdx, style: sig.style });
             else normalSigs.push({ idx: sigIdx, style: sig.style, transform: layoutTransform(sig.transform) });
@@ -280,7 +294,10 @@ async function reloadSignalsInfo() {
     renderSignalList();
 }
 
-export async function applyLayout(layout) {
+// activeIndex: onglet active (et seul hydrate) a la fin, le premier par defaut. Un
+// espace de travail restaure (sessions.js) rouvre ainsi directement son onglet actif:
+// hydrater le premier puis basculer aussitot laissait ses graphes jamais rendus.
+export async function applyLayout(layout, activeIndex = 0) {
     if (!layout || !layout.tabs) {
         console.error('Layout invalide');
         return false;
@@ -314,7 +331,9 @@ export async function applyLayout(layout) {
                 if (p.chart) p.chart.destroy();
             });
         }
+        destroyXYPlots(tab);
         // Supprimer le contenu DOM de ce tab
+        destroyTimeRuler(document.getElementById(`plotsWrapper-${id}`));
         const tabContent = document.getElementById(`content-${id}`);
         if (tabContent) tabContent.remove();
     });
@@ -328,7 +347,7 @@ export async function applyLayout(layout) {
     // 3. Creer tous les onglets, mais ne construire les graphes que de l'onglet actif.
     // Les autres onglets sont hydrates a la demande (premier affichage via switchTab),
     // ce qui evite de recuperer toutes les voies des 9 onglets en une seule fois.
-    let firstTabId = null;
+    const createdTabIds = [];
     for (let tabIdx = 0; tabIdx < layout.tabs.length; tabIdx++) {
         const layoutTab = layout.tabs[tabIdx];
         const tabId = createTab(layoutTab.name, false); // ne pas activer: ni churn ni build
@@ -337,12 +356,13 @@ export async function applyLayout(layout) {
             tab._pendingLayout = layoutTab.plots || [];
             tab._hydrated = false;
         }
-        if (tabIdx === 0) firstTabId = tabId;
+        createdTabIds.push(tabId);
     }
 
-    // Activer le premier onglet declenche son hydratation (build + fetch) via switchTab.
-    if (firstTabId) {
-        switchTab(firstTabId);
+    // Activer l'onglet demande declenche son hydratation (build + fetch) via switchTab.
+    const activeTabId = createdTabIds[activeIndex] ?? createdTabIds[0];
+    if (activeTabId) {
+        switchTab(activeTabId);
     } else {
         renderTabs();
     }

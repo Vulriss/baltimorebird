@@ -31,7 +31,7 @@
 .signal-item.dragging { opacity: 0.4; }
 
 /* Selection multiple (clic, Ctrl, Shift): sapphire, le meme role "etat actif/
-   selectionne qui persiste" que .toolbar-btn.active et .run-chip.active -
+   selectionne qui persiste" que .toolbar-btn.active et .run-mode-btn.active -
    jamais le fond generique du survol, jamais la teinte teal du calcule ou la
    couleur (arbitraire) d'une trace active, pour rester lisible quel que soit
    l'etat combine sur la ligne. */

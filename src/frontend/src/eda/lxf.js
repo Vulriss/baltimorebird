@@ -42,11 +42,13 @@ function penStyleToDash(style) {
     return style === 'solid' ? '' : LXF_DASH;
 }
 
-// Ce que LXF ne sait pas representer: mutateur, trace, remplissage, motif de tirets exact.
+// Ce que LXF ne sait pas representer: mutateur, trace, remplissage, motif de tirets exact,
+// etat des zones booleennes etendues.
 function signalExtension(signal) {
     const style = signal.style || {};
     const ext = {};
     if (signal.transform) ext.transform = signal.transform;
+    if (typeof signal.extend_zones === 'boolean') ext.extend_zones = signal.extend_zones;
     if (style.path) ext.path = style.path;
     if (style.fill) ext.fill = style.fill;
     if (style.dash && style.dash !== LXF_DASH) ext.dash = style.dash;
@@ -156,6 +158,7 @@ function curveToSignal(curve) {
         },
     };
     if (ext.transform && typeof ext.transform === 'object') signal.transform = ext.transform;
+    if (typeof ext.extend_zones === 'boolean') signal.extend_zones = ext.extend_zones;
     return signal;
 }
 

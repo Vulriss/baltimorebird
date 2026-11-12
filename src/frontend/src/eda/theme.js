@@ -51,7 +51,10 @@ function setupNavThemeToggle() {
         }
         // Couleurs de palette d'acces rapide: meme case, version du nouveau theme. Tous les
         // onglets (pas seulement l'actif); les couleurs hors palette ne bougent pas.
-        const allPlots = new Set([...(S.tabs || []).flatMap(t => t.plots || []), ...(S.plots || [])]);
+        const allPlots = new Set([
+            ...(S.tabs || []).flatMap(t => [...(t.plots || []), ...(t.xyPlots || [])]),
+            ...(S.plots || []),
+        ]);
         allPlots.forEach(plot => {
             Object.keys(plot.signalStyles || {}).forEach(key => {
                 const style = plot.signalStyles[key];

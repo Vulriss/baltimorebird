@@ -102,6 +102,37 @@ def test_conversion(workdir: Path) -> None:
     print("test_conversion OK")
 
 
+def test_undecodable_frame_skipped(workdir: Path) -> None:
+    dbc = workdir / "matrix.dbc"
+    dbc.write_text(_DBC, encoding="utf-8")
+    blf = workdir / "inconsistent.blf"
+    writer = can.io.blf.BLFWriter(str(blf))
+    base = 1_700_000_000.0
+    for step in range(10):
+        writer.on_message_received(can.Message(
+            timestamp=base + step * 0.01, arbitration_id=0x200, channel=1,
+            data=bytes([0, 0x10, 0x27, 0, 0, 0, 0, 0]), is_extended_id=False))
+    # Sélecteur 7 absent de la base : cantools lève DecodeError sur cette seule trame.
+    writer.on_message_received(can.Message(
+        timestamp=base + 0.5, arbitration_id=0x200, channel=1,
+        data=bytes([7, 0, 0, 0, 0, 0, 0, 0]), is_extended_id=False))
+    writer.stop()
+    output = workdir / "inconsistent.mf4"
+
+    report = convert_blf_to_mf4(blf, dbc, output, cache_dir=workdir / "cache")
+
+    assert report.total_frames == 11, report.total_frames
+    assert report.decoded_frames == 10, report.decoded_frames
+    assert report.undecodable_frames == 1, report.undecodable_frames
+    assert report.undecodable_ids == {"0x200": 1}, report.undecodable_ids
+    mdf = MDF(str(output))
+    try:
+        assert mdf.get("VoltageA").timestamps.size == 10, mdf.get("VoltageA").timestamps.size
+    finally:
+        mdf.close()
+    print("test_undecodable_frame_skipped OK")
+
+
 def test_secured_sanitizer(workdir: Path) -> None:
     import cantools
     from lxml import etree
@@ -126,6 +157,7 @@ def main() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         workdir = Path(tmp)
         test_conversion(workdir)
+        test_undecodable_frame_skipped(workdir)
         test_secured_sanitizer(workdir)
     print("Tous les tests passent.")
 
