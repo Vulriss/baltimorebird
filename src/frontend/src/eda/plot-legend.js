@@ -524,6 +524,8 @@ export function updatePlotHeader(plot) {
             const dropZone = document.getElementById(`dropZone-${S.activeTabId}`);
             if (dropZone) dropZone.classList.add('active');
             e.dataTransfer.effectAllowed = 'move';
+            // Firefox exige une donnee pour amorcer le drag.
+            try { e.dataTransfer.setData('text/plain', String(sigIdx)); } catch (_) { /* ignore */ }
         });
         nameCell.addEventListener('dragend', () => {
             nameCell.classList.remove('dragging');

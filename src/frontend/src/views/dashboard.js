@@ -1591,6 +1591,8 @@ const DashboardEditor = (function() {
         dragState.blockType = blockType;
         e.target.closest('.palette-block').classList.add('dragging');
         e.dataTransfer.effectAllowed = 'copy';
+        // Firefox exige une donnee pour amorcer le drag.
+        e.dataTransfer.setData('text/plain', blockType);
     }
 
     function handleCanvasDragStart(e) {

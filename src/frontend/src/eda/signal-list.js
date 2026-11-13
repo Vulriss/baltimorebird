@@ -87,7 +87,18 @@ function updateSignalSelection(idx, e) {
         }
         selectionAnchor = idx;
     }
-    renderVirtualList(true);
+    syncSignalSelectionClasses();
+}
+
+// Appelee depuis le mousedown: un redessin complet detacherait l'item presse, et Firefox
+// n'amorce alors jamais le drag natif (il exige que la cible du mousedown reste dans le DOM).
+// La selection n'affecte que la classe `selected`, on la reporte donc sur les noeuds en place.
+function syncSignalSelectionClasses() {
+    const container = document.getElementById('signalList');
+    if (!container) return;
+    container.querySelectorAll('.signal-item').forEach(el => {
+        el.classList.toggle('selected', selectedSignals.has(parseInt(el.dataset.index)));
+    });
 }
 
 // Couleurs des signaux actuellement traces (pour l'etat actif dans la liste).
@@ -326,8 +337,7 @@ function setupSignalListEvents(container) {
             if (S.signalsInfo[i]?.loaded === false) ensureSignalPreloaded(i, true);
         });
 
-        // updateSignalSelection a redessine la liste: `item` designe un noeud detache
-        // depuis, la classe doit aller sur l'item courant, relu par son id.
+        // Relu par son id: un redessin (defilement, prechargement) a pu remplacer `item`.
         const draggedEl = document.getElementById(`signal-item-${idx}`);
         if (draggedEl) draggedEl.classList.add('dragging');
         const dropZone = document.getElementById(`dropZone-${S.activeTabId}`);
@@ -337,9 +347,15 @@ function setupSignalListEvents(container) {
     // Le drag natif demarre malgre tout sur mouvement (attribut draggable). S'il survient
     // dans la fenetre d'un double-clic, on l'annule pour que le dblclick s'ouvre.
     container.addEventListener('dragstart', e => {
-        if (suppressNextDrag && e.target.closest('.signal-item')) {
+        const item = e.target.closest('.signal-item');
+        if (suppressNextDrag && item) {
             e.preventDefault();
             suppressNextDrag = false;
+            return;
+        }
+        // Firefox exige une donnee pour amorcer le drag.
+        if (item) {
+            try { e.dataTransfer.setData('text/plain', item.dataset.index); } catch (_) { /* ignore */ }
         }
     });
 

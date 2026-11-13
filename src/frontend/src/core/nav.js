@@ -418,6 +418,8 @@ function setupConcatDragDrop() {
             draggedConcatIndex = parseInt(item.dataset.index);
             item.classList.add('dragging');
             e.dataTransfer.effectAllowed = 'move';
+            // Firefox exige une donnee pour amorcer le drag.
+            e.dataTransfer.setData('text/plain', item.dataset.index);
         });
 
         item.addEventListener('dragend', () => {
