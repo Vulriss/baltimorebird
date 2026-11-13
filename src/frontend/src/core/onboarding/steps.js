@@ -99,7 +99,7 @@ export const TOUR_STEPS = [
         title: 'Tracez vos signaux',
                 paragraphs: [
             'Glissez un signal vers la zone de droite pour l\'afficher dans le temps. Selectionnez-en plusieurs avec Ctrl ou Alt avant de les deposer.',
-            'La bande Nouveau graphique, en bas, cree un panneau supplementaire dans l\'onglet courant.',
+            'Une fois un graphique trace, la bande Nouveau graphique apparait en bas pendant le glisser : elle cree un panneau supplementaire dans l\'onglet courant.',
         ],
         targets: [
             {
@@ -109,8 +109,8 @@ export const TOUR_STEPS = [
                 radius: 10,
             },
             {
-                selectors: ['.tab-content.active .drop-zone', '.drop-zone'],
-                label: 'Nouveau graphique',
+                selectors: ['.tab-content.active .empty-plot', '.tab-content.active .plots-wrapper'],
+                label: 'Deposez ici',
                 padding: 6,
                 radius: 10,
             },

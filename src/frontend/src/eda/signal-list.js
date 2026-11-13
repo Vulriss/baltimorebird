@@ -336,12 +336,6 @@ function setupSignalListEvents(container) {
         [...group].reverse().forEach(i => {
             if (S.signalsInfo[i]?.loaded === false) ensureSignalPreloaded(i, true);
         });
-
-        // Relu par son id: un redessin (defilement, prechargement) a pu remplacer `item`.
-        const draggedEl = document.getElementById(`signal-item-${idx}`);
-        if (draggedEl) draggedEl.classList.add('dragging');
-        const dropZone = document.getElementById(`dropZone-${S.activeTabId}`);
-        if (dropZone) dropZone.classList.add('active');
     });
 
     // Le drag natif demarre malgre tout sur mouvement (attribut draggable). S'il survient
@@ -353,10 +347,14 @@ function setupSignalListEvents(container) {
             suppressNextDrag = false;
             return;
         }
+        if (!item) return;
         // Firefox exige une donnee pour amorcer le drag.
-        if (item) {
-            try { e.dataTransfer.setData('text/plain', item.dataset.index); } catch (_) { /* ignore */ }
-        }
+        try { e.dataTransfer.setData('text/plain', item.dataset.index); } catch (_) { /* ignore */ }
+        // Etat visuel pose ici et non au mousedown: un simple clic ne declenche pas de
+        // dragend, la zone de depot (et la rangee de boutons qu'elle revele) resterait allumee.
+        item.classList.add('dragging');
+        const dropZone = document.getElementById(`dropZone-${S.activeTabId}`);
+        if (dropZone) dropZone.classList.add('active');
     });
 
     // Clic simple (sans drag: le navigateur supprime le click apres un vrai drag) sur

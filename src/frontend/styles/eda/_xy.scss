@@ -13,10 +13,30 @@
 
 .tab-main > .plots-wrapper { min-width: 0; }
 
+/* Rangee "+ Nouveau graphique" / "+ Graphe X/Y": masquee au repos, revelee pendant le
+   glisser d'un signal (la zone de depot porte alors .active). En surimpression au bas de
+   l'onglet plutot que dans le flux: l'apparition en plein drag ne doit pas retailler les
+   graphes sous le pointeur. Sans aucun graphe, la zone .empty-plot suffit comme cible. */
+.tab-content { position: relative; }
+
 .tab-drop-row {
-    display: flex;
-    flex-shrink: 0;
+    display: none;
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 5;
     gap: 4px;
+    padding-top: 4px;
+    background: $ctp-base;
+
+    > .drop-zone { margin-top: 0; }
+}
+
+.tab-drop-row:has(> .drop-zone.active) { display: flex; }
+
+.tab-content:has(.plots-wrapper > .empty-plot):has(> .tab-main > .xy-dock[hidden]) .tab-drop-row {
+    display: none;
 }
 
 .tab-drop-row > .drop-zone:first-child { flex: 1; }
